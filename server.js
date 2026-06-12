@@ -10,19 +10,13 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Routes
+const authRoutes = require('./src/routes/auth');
+app.use('/api/auth', authRoutes);
+
 // Basic healthcheck route
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'HCL SaaS Backend is running' });
-});
-
-// Mock route for testing deployment
-app.get('/api/tenants', (req, res) => {
-  res.json({
-    data: [
-      { id: 1, name: 'Hospital Alpha' },
-      { id: 2, name: 'Clinic Beta' }
-    ]
-  });
 });
 
 app.listen(PORT, () => {
