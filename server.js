@@ -14,10 +14,12 @@ app.use(express.json());
 const authRoutes = require('./src/routes/auth');
 const taskRoutes = require('./src/routes/tasks');
 const uploadRoutes = require('./src/routes/upload');
+const tenantRoutes = require('./src/routes/tenants');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/tenants', tenantRoutes);
 
 // Basic healthcheck route
 app.get('/api/health', (req, res) => {
