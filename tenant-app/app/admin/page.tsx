@@ -7,10 +7,15 @@ import {
   AlertTriangle,
   QrCode,
   Users,
-  Plus
+  Plus,
+  Printer
 } from 'lucide-react';
 
 export default function AdminDashboard() {
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="min-h-screen bg-[#0b131e] text-slate-200 font-sans selection:bg-blue-500/30">
       
@@ -27,7 +32,14 @@ export default function AdminDashboard() {
         </div>
 
         <div className="flex items-center gap-4">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg font-medium transition-all">
+          <button 
+            onClick={handlePrint}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white rounded-lg font-medium transition-all print:hidden"
+          >
+            <Printer className="w-4 h-4 text-slate-300" />
+            Print Cards
+          </button>
+          <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-lg font-medium transition-all print:hidden">
             <QrCode className="w-4 h-4 text-blue-400" />
             Generate QR
           </button>
@@ -184,6 +196,59 @@ export default function AdminDashboard() {
         </div>
 
       </main>
+
+      {/* Hidden Print Layout (Task Cards) */}
+      <div className="hidden print:block p-8 bg-white text-black w-full min-h-screen absolute top-0 left-0 z-50">
+        <h2 className="text-2xl font-bold text-center mb-8 border-b pb-4">Maintenance Task Cards</h2>
+        
+        <div className="grid grid-cols-2 gap-8">
+          {/* Card 1 */}
+          <div className="border-2 border-slate-800 p-6 rounded-lg relative">
+            <div className="absolute top-4 right-4 border-2 border-slate-800 w-8 h-8 rounded-md flex items-center justify-center">
+              {/* Checkbox */}
+            </div>
+            <div className="text-xs uppercase font-bold text-slate-500 mb-1">Task ID: #1024</div>
+            <h3 className="text-xl font-bold mb-2">Broken AC in Room 302</h3>
+            <p className="text-sm mb-4">The air conditioner is leaking water and making a loud noise. Patients are complaining about the heat.</p>
+            <div className="flex gap-4 text-sm font-bold mb-6">
+              <span className="bg-slate-200 px-2 py-1 rounded">Urgent</span>
+              <span className="bg-slate-200 px-2 py-1 rounded">HVAC</span>
+            </div>
+            
+            <div className="border-t border-dashed border-slate-400 pt-4 mt-auto">
+              <div className="flex justify-between text-sm mb-2">
+                <span>Assigned to: _______________</span>
+                <span>Date: _______________</span>
+              </div>
+              <div className="text-sm">
+                Worker Signature: _______________
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2 */}
+          <div className="border-2 border-slate-800 p-6 rounded-lg relative">
+            <div className="absolute top-4 right-4 border-2 border-slate-800 w-8 h-8 rounded-md flex items-center justify-center"></div>
+            <div className="text-xs uppercase font-bold text-slate-500 mb-1">Task ID: #1025</div>
+            <h3 className="text-xl font-bold mb-2">Lightbulb replacement</h3>
+            <p className="text-sm mb-4">Hallway B light is flickering.</p>
+            <div className="flex gap-4 text-sm font-bold mb-6">
+              <span className="bg-slate-200 px-2 py-1 rounded">Normal</span>
+              <span className="bg-slate-200 px-2 py-1 rounded">Electrical</span>
+            </div>
+            
+            <div className="border-t border-dashed border-slate-400 pt-4 mt-auto">
+              <div className="flex justify-between text-sm mb-2">
+                <span>Assigned to: _______________</span>
+                <span>Date: _______________</span>
+              </div>
+              <div className="text-sm">
+                Worker Signature: _______________
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
