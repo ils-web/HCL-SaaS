@@ -1,0 +1,97 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Учреждения (Клиенты нашего SaaS)
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String   // Название больницы/клиники
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users      User[]
+  categories Category[]
+  tasks      Task[]
+}
+
+// Пользователи (Сотрудники, Админы)
+model User {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  
+  name      String
+  email     String?  // Может быть пустым для простых работников
+  phone     String?  // Для логина по номеру телефона
+  password  String   // Хэш пароля
+  
+  role      Role     @default(WORKER) // ADMIN, WORKER, SUPERADMIN
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasksAssigned Task[] @relation("WorkerTasks")
+  tasksReported Task[] @relation("ReporterTasks")
+}
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  WORKER
+}
+
+// Справочник систем и категорий для конкретного учреждения
+model Category {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  
+  name      String   // Название категории (например, "Электрика", "Сантехника")
+  
+  createdAt DateTime @default(now())
+  tasks     Task[]
+}
+
+// Заявки (Ликуим)
+model Task {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  
+  categoryId  String?
+  category    Category? @relation(fields: [categoryId], references: [id])
+  
+  reporterId  String?
+  reporter    User?     @relation("ReporterTasks", fields: [reporterId], references: [id])
+  
+  workerId    String?
+  worker      User?     @relation("WorkerTasks", fields: [workerId], references: [id])
+
+  department  String   // Отделение (מחלקה)
+  room        String   // Комната
+  defect      String   // Дефект
+  comment     String?  // Комментарий
+  
+  status      TaskStatus @default(NEW)
+  priority    Int        @default(2) // 1 - Срочно, 2 - Обычный
+  
+  photoUrl    String?  // Фото проблемы
+  afterPhotoUrl String? // Фото после ремонта
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum TaskStatus {
+  NEW          // חדש
+  IN_PROGRESS  // בטיפול
+  COMPLETED    // בוצע
+  CLOSED       // נסגר
+}
