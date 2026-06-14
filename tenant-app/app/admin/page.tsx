@@ -345,32 +345,36 @@ export default function AdminDashboard() {
       </main>
 
       {/* Hidden Print Layout (Task Cards) */}
-      <div className="hidden print:block print:bg-white print:text-black w-full" dir="rtl">
-        <div className="text-center font-bold text-lg mb-6 pt-4">
+      <div className="hidden print:block w-full" dir="rtl">
+        <div className="text-center font-bold text-lg mb-4 pt-2">
           <span>צוות: כללי | </span>
           <span>תאריך הדפסה: {new Date().toLocaleDateString('he-IL')}</span>
         </div>
         
-        {/* Exactly 4 cards per A4 page. A4 is ~297mm height. Cards are 130mm height + gap = perfectly fits 2 rows per page */}
-        <div className="grid grid-cols-2 gap-x-6 gap-y-6 max-w-[190mm] mx-auto">
+        {/* Exactly 4 cards per A4 page. A4 is 297mm height, 210mm width. */}
+        <div className="flex flex-wrap justify-between gap-y-[10mm] w-[190mm] mx-auto">
           {filteredTasks.filter(t => t.status !== 'DONE').slice(0, 4).map(task => (
-            <div key={task.id} className="break-inside-avoid border-2 border-black rounded-lg p-3 flex flex-col h-[130mm] bg-white relative">
+            <div key={task.id} className="w-[90mm] break-inside-avoid border-2 border-black rounded-lg p-2 flex flex-col h-[125mm] bg-white relative">
               
-              <div className="flex justify-between items-center border-b-2 border-black pb-2 mb-2">
-                <div className="border border-black px-3 py-0.5 font-bold text-sm">תוקן</div>
-                <div className="text-lg font-black">חדר: {task.room}</div>
+              <div className="flex justify-between items-center border-b-2 border-black pb-1 mb-2">
+                <div className="border border-black px-2 py-0.5 font-bold text-sm">תוקן</div>
+                <div className="text-base font-black">חדר: {task.room}</div>
               </div>
               
-              <div className="text-center font-bold text-base mb-2">
-                {task.system?.name || task.systemName}<br/>
+              <div className="text-center font-bold text-sm mb-2">
+                {task.system?.name || task.systemName || 'כללי'}<br/>
                 <span className="text-xs font-normal text-slate-700">{task.notes}</span>
               </div>
 
               <div className="flex-grow flex items-center justify-center bg-slate-50 border border-slate-300 mb-2 overflow-hidden rounded">
-                <img src={task.photoUrl || "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=400&q=80"} alt="Photo" className="object-cover h-full w-full grayscale" />
+                {task.photoUrl ? (
+                  <img src={task.photoUrl} alt="Photo" className="object-cover h-full w-full grayscale" />
+                ) : (
+                  <span className="text-slate-300 text-xs">אין תמונה</span>
+                )}
               </div>
               
-              <div className="mt-auto pt-2 flex justify-between items-end text-xs font-bold border-t-2 border-dashed border-black pt-3">
+              <div className="mt-auto pt-1 flex justify-between items-end text-[10px] font-bold border-t-2 border-dashed border-black pt-2">
                 <div>עובד: ____________</div>
                 <div>חתימה: ____________</div>
                 <div>תאריך: ____________</div>
@@ -380,13 +384,13 @@ export default function AdminDashboard() {
           ))}
           {/* Fill empty slots with dummy if less than 4, just to show layout */}
           {filteredTasks.filter(t => t.status !== 'DONE').length < 4 && Array.from({ length: 4 - filteredTasks.filter(t => t.status !== 'DONE').length }).map((_, i) => (
-            <div key={`empty-${i}`} className="break-inside-avoid border-2 border-black rounded-lg p-3 flex flex-col h-[130mm] bg-white opacity-30">
-              <div className="flex justify-between items-center border-b-2 border-black pb-2 mb-2">
-                <div className="border border-black px-3 py-0.5 font-bold text-sm">תוקן</div>
-                <div className="text-lg font-black">חדר: ____</div>
+            <div key={`empty-${i}`} className="w-[90mm] break-inside-avoid border-2 border-black rounded-lg p-2 flex flex-col h-[125mm] bg-white opacity-40">
+              <div className="flex justify-between items-center border-b-2 border-black pb-1 mb-2">
+                <div className="border border-black px-2 py-0.5 font-bold text-sm">תוקן</div>
+                <div className="text-base font-black">חדר: ____</div>
               </div>
               <div className="flex-grow flex items-center justify-center bg-slate-50 border border-slate-300 mb-2"></div>
-              <div className="mt-auto pt-2 flex justify-between items-end text-xs font-bold border-t-2 border-dashed border-black pt-3">
+              <div className="mt-auto pt-1 flex justify-between items-end text-[10px] font-bold border-t-2 border-dashed border-black pt-2">
                 <div>עובד: ____________</div>
                 <div>חתימה: ____________</div>
                 <div>תאריך: ____________</div>
