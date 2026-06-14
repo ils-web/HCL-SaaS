@@ -12,7 +12,7 @@ import {
   ArrowRight,
   ShieldCheck
 } from 'lucide-react';
-import { useStore } from '../../../store/store';
+import { useStore } from '../../store/store';
 
 export default function InspectorApp() {
   const { areas, systems, fetchDictionaries, createBulkTasks } = useStore();

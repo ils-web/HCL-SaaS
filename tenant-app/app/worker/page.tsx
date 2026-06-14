@@ -10,8 +10,8 @@ import {
   ArrowLeft
 } from 'lucide-react';
 
-import { useStore } from '../../../store/store';
-import { useEffect } from 'react';
+import { useStore } from '../../store/store';
+import { useEffect, useState } from 'react';
 
 export default function WorkerApp() {
   const [selectedTask, setSelectedTask] = useState<any>(null);

@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { useStore } from '../../../store/store';
+import { useStore } from '../../store/store';
 
 export default function AdminDashboard() {
   const [activeTeamFilter, setActiveTeamFilter] = useState('ALL');

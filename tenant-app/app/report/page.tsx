@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Camera, MapPin, AlertTriangle, CheckCircle2, Upload, Globe } from 'lucide-react';
-import { useStore } from '../../../store/store';
+import { useStore } from '../../store/store';
 
 const TRANSLATIONS = {
   en: {
