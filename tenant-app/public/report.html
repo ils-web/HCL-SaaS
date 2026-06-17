@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title data-i18n="pageTitle">דיווח על תקלה</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #4f46e5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        /* Microphone animation */
+        .recording { animation: pulse-red 1.5s infinite; color: #ef4444; }
+        @keyframes pulse-red { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body class="text-gray-800 p-4 md:p-8">
+
+    <div id="loader" class="fixed inset-0 bg-white/90 hidden z-50 flex flex-col items-center justify-center">
+        <div class="loader mb-4"></div>
+        <p class="font-bold text-indigo-600 text-lg" id="loaderText" data-i18n="sending">שולח...</p>
+    </div>
+
+    <div id="successScreen" class="fixed inset-0 bg-green-500 hidden z-50 flex flex-col items-center justify-center text-white p-6 text-center">
+        <i class="fas fa-check-circle text-7xl mb-6"></i>
+        <h2 class="text-3xl font-black mb-2" data-i18n="successTitle">הבקשה נשלחה בהצלחה!</h2>
+        <p class="text-lg font-medium opacity-90 mb-8" data-i18n="successDesc">הצוות יטפל בזה בהקדם.</p>
+        <button onclick="resetForm()" class="bg-white text-green-700 px-8 py-3 rounded-xl font-bold shadow hover:bg-gray-100 transition-colors" data-i18n="closeBtn">דיווח חדש (New Report)</button>
+    </div>
+
+    <div id="errorModal" class="fixed inset-0 bg-black/50 hidden z-50 flex flex-col items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 text-center max-w-sm w-full transform scale-95 transition-transform duration-300" id="errorModalBox">
+            <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h2 class="text-2xl font-black text-gray-800 mb-2" data-i18n="errorTitle">שגיאה!</h2>
+            <p class="text-gray-600 font-medium mb-6" data-i18n="errCustom">לא נוכל לטפל בפנייתך אם לא תמלא את שדות החובה!</p>
+            <button onclick="closeErrorModal()" class="w-full bg-red-500 text-white py-3 rounded-xl font-bold hover:bg-red-600 transition-colors" data-i18n="closeErrBtn">הבנתי</button>
+        </div>
+    </div>
+
+    <div class="max-w-md mx-auto bg-white rounded-3xl shadow-lg p-6 border border-gray-100 mt-4">
+        <div class="text-center mb-6 border-b pb-4 relative">
+            <div class="absolute top-0 right-0 ltr:left-0 ltr:right-auto">
+                <select id="langSelect" onchange="changeLanguage(this.value)" class="bg-gray-100 text-gray-600 text-xs font-bold py-1 px-2 rounded-lg outline-none cursor-pointer">
+                    <option value="he">עברית</option>
+                    <option value="ru">Русский</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+            <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-3xl mx-auto mb-3 mt-4">
+                <i class="fas fa-tools"></i>
+            </div>
+            <h1 class="text-2xl font-black text-gray-800" data-i18n="formTitle">דיווח על תקלה</h1>
+            <p class="text-indigo-600 font-bold mt-1" id="deptDisplay">מחלקה לא ידועה</p>
+        </div>
+
+        <div class="space-y-5">
+            <!-- Reporter Name -->
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1" data-i18n="nameLabel">שם המדווח <span class="text-red-500">*</span></label>
+                <input type="text" id="nameInput" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-colors" placeholder="ישראל ישראלי" data-i18n-ph="namePh">
+            </div>
+
+            <!-- Room -->
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1" data-i18n="roomLabel">חדר / מיקום <span class="text-red-500">*</span></label>
+                <input type="text" id="roomInput" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-colors" placeholder="101" data-i18n-ph="roomPh">
+            </div>
+
+            <!-- Category -->
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1" data-i18n="categoryLabel">סוג התקלה <span class="text-red-500">*</span></label>
+                <select id="categorySelect" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-colors">
+                    <option value="" disabled selected data-i18n="catSelect">בחר סוג תקלה...</option>
+                    <option value="חשמל" data-i18n="catElec">חשמל</option>
+                    <option value="מיזוג_אוויר" data-i18n="catAc">מיזוג אוויר</option>
+                    <option value="בינוי_ודלתות" data-i18n="catBuild">בינוי ודלתות</option>
+                    <option value="מיטות" data-i18n="catBeds">מיטות / ציוד רפואי</option>
+                    <option value="ניקיון" data-i18n="catClean">ניקיון</option>
+                    <option value="ליקויים" data-i18n="catOther">אחר</option>
+                </select>
+            </div>
+
+            <!-- Description & Voice -->
+            <div>
+                <div class="flex justify-between items-center mb-1">
+                    <label class="block text-sm font-bold text-gray-700" data-i18n="descLabel">תיאור התקלה <span class="text-red-500">*</span></label>
+                    <button id="micBtn" type="button" onclick="toggleDictation()" class="w-10 h-10 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center transition-colors shadow-sm" title="הכתבה קולית">
+                        <i class="fas fa-microphone text-lg"></i>
+                    </button>
+                </div>
+                <textarea id="descInput" rows="3" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-medium text-base focus:ring-2 focus:ring-indigo-500 outline-none transition-colors" placeholder="..." data-i18n-ph="descPh"></textarea>
+            </div>
+
+            <!-- Photo -->
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1" data-i18n="photoLabel">צילום (אופציונלי)</label>
+                <label class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                        <i id="photoIcon" class="fas fa-camera text-2xl text-gray-400 mb-2"></i>
+                        <p class="text-sm font-bold text-gray-500" id="photoText" data-i18n="photoAdd">הוסף תמונה</p>
+                    </div>
+                    <input id="photoInput" type="file" accept="image/*" capture="environment" class="hidden" onchange="handlePhoto(this)" />
+                </label>
+            </div>
+
+            <button onclick="submitReport()" class="w-full mt-4 bg-indigo-600 text-white py-4 rounded-xl font-black text-lg shadow-lg hover:bg-indigo-700 active:scale-95 transition-all" data-i18n="submitBtn">
+                שלח דיווח
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const _tId = new URLSearchParams(window.location.search).get('tenantId') || 'default';
+        const API_URL = `/api/${_tId}`;
+        
+        const dict = {
+            ru: { pageTitle: "Сообщить о проблеме", formTitle: "Отправка заявки", nameLabel: "Ваше имя ", namePh: "Иван Иванов", roomLabel: "Кабинет / Место ", roomPh: "Напр. 101", categoryLabel: "Категория ", catSelect: "Выберите категорию...", catElec: "Электрика", catAc: "Кондиционер", catBuild: "Двери / Стены", catBeds: "Кровати / Оборудование", catClean: "Уборка", catOther: "Другое", descLabel: "Описание проблемы ", descPh: "Опишите проблему голосом или текстом...", photoLabel: "Фото (необязательно)", photoAdd: "Добавить фото", submitBtn: "Отправить заявку", sending: "Отправка...", successTitle: "Заявка отправлена!", successDesc: "Техническая служба скоро займется этим.", closeBtn: "Новая заявка", errorTitle: "Внимание!", errCustom: "Мы не сможем обработать Вашу заявку, если Вы не заполните обязательные поля!", closeErrBtn: "Понятно", errNet: "Ошибка сети." },
+            en: { pageTitle: "Report Issue", formTitle: "Report an Issue", nameLabel: "Your Name ", namePh: "John Doe", roomLabel: "Room / Location ", roomPh: "e.g. 101", categoryLabel: "Category ", catSelect: "Select category...", catElec: "Electricity", catAc: "AC", catBuild: "Doors / Walls", catBeds: "Beds / Medical Eq", catClean: "Cleaning", catOther: "Other", descLabel: "Description ", descPh: "Describe the issue...", photoLabel: "Photo (optional)", photoAdd: "Add Photo", submitBtn: "Submit Report", sending: "Sending...", successTitle: "Report Submitted!", successDesc: "The team will handle it soon.", closeBtn: "New Report", errorTitle: "Attention!", errCustom: "We cannot process your request if you do not fill in the mandatory fields!", closeErrBtn: "Got it", errNet: "Network error." },
+            he: { pageTitle: "דיווח על תקלה", formTitle: "דיווח על תקלה", nameLabel: "שם המדווח ", namePh: "ישראל ישראלי", roomLabel: "חדר / מיקום ", roomPh: "לדוגמה 101", categoryLabel: "סוג התקלה ", catSelect: "בחר סוג תקלה...", catElec: "חשמל", catAc: "מיזוג אוויר", catBuild: "בינוי ודלתות", catBeds: "מיטות / ציוד רפואי", catClean: "ניקיון", catOther: "אחר", descLabel: "תיאור התקלה ", descPh: "תאר את התקלה...", photoLabel: "צילום (אופציונלי)", photoAdd: "הוסף תמונה", submitBtn: "שלח דיווח", sending: "שולח...", successTitle: "הדיווח נשלח!", successDesc: "הצוות יטפל בזה בהקדם.", closeBtn: "דיווח חדש", errorTitle: "שים לב!", errCustom: "לא נוכל לטפל בפנייתך אם לא תמלא את שדות החובה!", closeErrBtn: "הבנתי", errNet: "שגיאת רשת." }
+        };
+
+        let lang = 'he';
+        let isRtl = true;
+        let photoBase64 = "";
+        let department = "Unknown";
+        
+        let recognition = null;
+        let isDictating = false;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            // Get department from URL ?dept=Cardiology
+            const urlParams = new URLSearchParams(window.location.search);
+            department = urlParams.get('dept') || "כללי (General)";
+            document.getElementById('deptDisplay').innerText = department;
+
+            // Detect language (force Hebrew unless ru/en explicitly detected to avoid mistakes)
+            const browserLang = (navigator.language || navigator.userLanguage).toLowerCase();
+            if (browserLang.includes('ru')) { lang = 'ru'; isRtl = false; }
+            else if (browserLang.includes('en')) { lang = 'en'; isRtl = false; }
+            else { lang = 'he'; isRtl = true; } 
+            
+            document.getElementById('langSelect').value = lang;
+            applyLangSetup();
+            applyTranslations();
+            initSpeechRecognition();
+        });
+
+        function changeLanguage(newLang) {
+            lang = newLang;
+            isRtl = (lang === 'he');
+            applyLangSetup();
+            applyTranslations();
+        }
+
+        function applyLangSetup() {
+            document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+            document.documentElement.lang = lang;
+            // The mic button is now outside the textarea, no need for positioning classes
+        }
+
+        function resetForm() {
+            document.getElementById('roomInput').value = "";
+            document.getElementById('descInput').value = "";
+            photoBase64 = "";
+            document.getElementById('photoIcon').className = "fas fa-camera text-2xl text-gray-400 mb-2";
+            document.getElementById('photoText').innerText = dict[lang].photoAdd;
+            document.getElementById('successScreen').classList.add('hidden');
+            document.getElementById('categorySelect').value = "";
+            [document.getElementById('nameInput'), document.getElementById('roomInput'), document.getElementById('categorySelect'), document.getElementById('descInput')]
+                .forEach(el => el.classList.remove('border-red-500', 'ring-2', 'ring-red-200'));
+        }
+
+        function closeErrorModal() {
+            const box = document.getElementById('errorModalBox');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            setTimeout(() => document.getElementById('errorModal').classList.add('hidden'), 200);
+        }
+
+        function applyTranslations() {
+            const T = dict[lang];
+            document.querySelectorAll('[data-i18n]').forEach(el => el.innerText = T[el.dataset.i18n]);
+            document.querySelectorAll('[data-i18n-ph]').forEach(el => el.placeholder = T[el.getAttribute('data-i18n-ph')]);
+        }
+
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                
+                recognition.onstart = function() {
+                    isDictating = true;
+                    document.getElementById('micBtn').classList.add('recording');
+                };
+                
+                recognition.onresult = function(event) {
+                    const transcript = event.results[0][0].transcript;
+                    const input = document.getElementById('descInput');
+                    input.value = input.value ? input.value + ' ' + transcript : transcript;
+                };
+                
+                recognition.onerror = function(event) { console.error("Speech error", event); };
+                
+                recognition.onend = function() {
+                    isDictating = false;
+                    document.getElementById('micBtn').classList.remove('recording');
+                };
+            } else {
+                document.getElementById('micBtn').style.display = 'none'; // Not supported
+            }
+        }
+
+        function toggleDictation() {
+            if (!recognition) return;
+            if (isDictating) {
+                recognition.stop();
+            } else {
+                if(lang === 'ru') recognition.lang = 'ru-RU';
+                else if(lang === 'en') recognition.lang = 'en-US';
+                else recognition.lang = 'he-IL';
+                recognition.start();
+            }
+        }
+
+        async function handlePhoto(input) {
+            const file = input.files[0]; if(!file) return;
+            const icon = document.getElementById('photoIcon');
+            const text = document.getElementById('photoText');
+            
+            icon.className = "fas fa-spinner fa-spin text-indigo-500 text-2xl mb-2";
+            
+            photoBase64 = await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => { 
+                        const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); 
+                        const scale = Math.min(800 / img.width, 800 / img.height, 1); 
+                        canvas.width = img.width * scale; canvas.height = img.height * scale; 
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height); 
+                        resolve(canvas.toDataURL('image/jpeg', 0.6)); 
+                    };
+                    img.src = e.target.result;
+                }; reader.readAsDataURL(file);
+            });
+            
+            icon.className = "fas fa-check-circle text-green-500 text-2xl mb-2";
+            text.innerText = lang === 'he' ? "תמונה צורפה" : (lang === 'ru' ? "Фото загружено" : "Photo Added");
+        }
+
+        async function submitReport() {
+            const reporterNameEl = document.getElementById('nameInput');
+            const roomEl = document.getElementById('roomInput');
+            const categoryEl = document.getElementById('categorySelect');
+            const descEl = document.getElementById('descInput');
+
+            const reporterName = reporterNameEl.value.trim();
+            const room = roomEl.value.trim();
+            const category = categoryEl.value;
+            const desc = descEl.value.trim();
+            
+            let hasError = false;
+            [reporterNameEl, roomEl, categoryEl, descEl].forEach(el => el.classList.remove('border-red-500', 'ring-2', 'ring-red-200'));
+
+            if (!reporterName) { reporterNameEl.classList.add('border-red-500', 'ring-2', 'ring-red-200'); hasError = true; }
+            if (!room) { roomEl.classList.add('border-red-500', 'ring-2', 'ring-red-200'); hasError = true; }
+            if (!category) { categoryEl.classList.add('border-red-500', 'ring-2', 'ring-red-200'); hasError = true; }
+            if (!desc) { descEl.classList.add('border-red-500', 'ring-2', 'ring-red-200'); hasError = true; }
+
+            if (hasError) {
+                const modal = document.getElementById('errorModal');
+                const box = document.getElementById('errorModalBox');
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    box.classList.remove('scale-95');
+                    box.classList.add('scale-100');
+                }, 10);
+                return;
+            }
+
+            document.getElementById('loader').classList.remove('hidden');
+
+            const payload = {
+                action: "ADD_PERSONNEL_TASK",
+                reporterName: reporterName,
+                department: department,
+                room: room,
+                sheetName: category, // Using category as the team/sheet name in Admin
+                defect: "תקלה חדשה", // Default title
+                comment: desc,
+                photoBase64: photoBase64,
+                language: lang
+            };
+
+            try {
+                const res = await fetch(API_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify(payload) 
+                });
+                
+                document.getElementById('loader').classList.add('hidden');
+                document.getElementById('successScreen').classList.remove('hidden');
+                
+            } catch (e) {
+                document.getElementById('loader').classList.add('hidden');
+                alert(dict[lang].errNet);
+            }
+        }
+    </script>
+</body>
+</html>

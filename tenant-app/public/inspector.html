@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HCL Инспектор</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .loader-overlay { background: rgba(255,255,255,0.9); z-index: 100; }
+        .status-btn.selected { border-width: 3px; border-color: #1f2937; transform: scale(0.98); }
+        select optgroup { font-weight: bold; color: #4f46e5; background: #e0e7ff; }
+        select option { font-weight: normal; color: #111827; background: #fff; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #4f46e5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error-shake { animation: shake 0.4s; border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important; background-color: #fef2f2 !important; }
+        @keyframes shake { 0%, 100% {transform: translateX(0);} 25% {transform: translateX(-5px);} 75% {transform: translateX(5px);} }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div id="loader" class="fixed inset-0 flex flex-col items-center justify-center hidden loader-overlay">
+        <div class="loader"></div>
+        <p class="mt-4 text-gray-700 font-bold text-lg" id="loaderText" data-i18n="syncText">Синхронизация с базой...</p>
+    </div>
+
+    <!-- Стандартное окно Alert -->
+    <div id="customAlert" class="fixed inset-0 bg-gray-900 bg-opacity-60 hidden z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center">
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-exclamation-triangle text-red-500 text-3xl"></i>
+            </div>
+            <p id="customAlertText" class="text-gray-800 font-bold text-lg mb-6 leading-tight"></p>
+            <button onclick="closeAppAlert()" class="w-full bg-gray-900 text-white py-4 rounded-xl font-black text-lg active:scale-95" data-i18n="okBtn">ОК</button>
+        </div>
+    </div>
+
+    <!-- Стандартное окно Confirm -->
+    <div id="customConfirm" class="fixed inset-0 bg-gray-900 bg-opacity-60 hidden z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center">
+            <div class="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-question-circle text-indigo-600 text-3xl"></i>
+            </div>
+            <p id="customConfirmText" class="text-gray-800 font-bold text-lg mb-6 leading-tight"></p>
+            <div class="flex gap-3">
+                <button onclick="resolveConfirm(false)" class="flex-1 bg-gray-100 text-gray-700 py-4 rounded-xl font-bold text-lg active:scale-95" data-i18n="cancelBtn">Отмена</button>
+                <button onclick="resolveConfirm(true)" class="flex-1 bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg active:scale-95" data-i18n="yesBtn">Да</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Красивое окно подтверждения выхода из комнаты с НОВЫМ ТЕКСТОМ -->
+    <div id="exitRoomConfirmModal" class="fixed inset-0 bg-gray-900 bg-opacity-70 hidden flex items-center justify-center z-[250] p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white p-6 rounded-3xl shadow-2xl max-w-sm w-full text-center">
+            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-sign-out-alt text-blue-600 text-3xl"></i>
+            </div>
+            <h2 class="text-2xl font-black text-gray-800 mb-2" data-i18n="exitModalTitle">Завершить проверку помещения?</h2>
+            <p class="text-gray-500 mb-6 font-medium" data-i18n="exitModalDesc">Вы собираетесь закончить проверку этого помещения и перейти к другому. Вернуться и изменить данные будет нельзя. Продолжить?</p>
+            
+            <div class="flex gap-3">
+                <button onclick="closeExitModal()" class="flex-1 bg-gray-100 text-gray-700 py-4 rounded-xl font-bold text-lg active:scale-95" data-i18n="cancelBtn">
+                    Отмена
+                </button>
+                <button onclick="confirmAndExitRoom()" class="flex-1 bg-blue-600 text-white py-4 rounded-xl font-bold text-lg active:scale-95 shadow-md" data-i18n="exitModalConfirm">
+                    Да, выйти
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="setupPage" class="page active p-4 md:p-8 max-w-lg mx-auto mt-6">
+        <div class="bg-white p-8 rounded-3xl shadow-lg border border-gray-100">
+            <div class="text-center mb-8">
+                <i class="fas fa-hospital-user fa-4x text-indigo-500 mb-4"></i>
+                <h1 class="text-3xl font-black text-gray-800" data-i18n="title">Инспекция Систем</h1>
+                <p class="text-gray-500 font-medium mt-2" data-i18n="subtitle">Управление активами и ремонтом</p>
+            </div>
+            <div class="space-y-5">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1" data-i18n="inspectorLabel">ФИО проверяющего</label>
+                    <input type="text" id="inspectorName" class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-semibold text-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1" data-i18n="deptLabel">Отделение</label>
+                    <input type="text" id="department" class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-semibold text-lg">
+                </div>
+            </div>
+            <button onclick="startInspection()" class="w-full mt-8 bg-indigo-600 text-white py-4 px-4 rounded-xl shadow-md text-lg font-bold hover:bg-indigo-700 active:scale-95" data-i18n="startBtn">
+                Начать инспекцию
+            </button>
+        </div>
+    </div>
+
+    <div id="inspectionPage" class="page p-3 md:p-6 max-w-3xl mx-auto">
+        <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-200 mb-4 flex justify-between items-center">
+            <div>
+                <h2 class="text-xl font-black text-gray-800" data-i18n="roomCheckTitle">Проверка помещений</h2>
+                <p class="text-sm text-indigo-600 font-bold mt-1" id="headerInfo"></p>
+            </div>
+            <button onclick="confirmExit()" class="bg-red-50 text-red-600 p-3 rounded-xl hover:bg-red-100 active:scale-95">
+                <i class="fas fa-sign-out-alt fa-lg"></i>
+            </button>
+        </div>
+        
+        <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-200 mb-4">
+            <label class="block text-sm font-bold text-gray-700 mb-2" data-i18n="roomLabel">Номер или название помещения:</label>
+            <div class="flex gap-2">
+                <input type="text" id="roomName" class="flex-1 min-w-0 px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-bold text-lg" data-i18n-ph="roomPlaceholder" placeholder="Напр: 101">
+                <button onclick="openRoom()" class="shrink-0 px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-bold text-lg shadow-sm active:scale-95" data-i18n="okBtn">ОК</button>
+            </div>
+        </div>
+
+        <div id="activeRoomBlock" class="hidden">
+            <div class="bg-indigo-600 text-white p-4 rounded-2xl shadow-md mb-4 flex justify-between items-center">
+                <h3 class="text-xl font-black"><span data-i18n="roomPrefix">Помещение:</span> <span id="currentRoomDisplay" class="text-yellow-300"></span></h3>
+            </div>
+
+            <button id="allGoodBtn" onclick="showExitModal(true)" class="w-full bg-green-500 text-white py-4 px-4 rounded-2xl shadow-md font-black text-lg mb-6 active:scale-95 flex justify-center items-center gap-2">
+                <i class="fas fa-check-circle text-2xl"></i> <span data-i18n="allGoodBtn">В помещении всё исправно</span>
+            </button>
+            
+            <div id="issuesList" class="space-y-4 mb-4"></div>
+
+            <button onclick="addIssueRow()" class="w-full bg-white border-2 border-dashed border-indigo-400 text-indigo-600 py-4 px-4 rounded-2xl mb-6 hover:bg-indigo-50 font-bold text-lg flex justify-center items-center shadow-sm active:scale-95">
+                <i class="fas fa-plus-circle mx-2 text-xl"></i> <span data-i18n="addIssueBtn">Добавить неисправность</span>
+            </button>
+
+            <button id="saveRoomBtn" onclick="showExitModal(false)" class="hidden w-full bg-indigo-800 text-white py-4 px-6 rounded-2xl shadow-md hover:bg-indigo-900 font-black text-lg flex justify-center items-center gap-2 active:scale-95">
+                <i class="fas fa-save text-xl"></i> <span data-i18n="saveRoomBtn">Сохранить дефекты помещения</span>
+            </button>
+        </div>
+
+        <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-200 mt-8 mb-6">
+            <h4 class="text-xs font-black text-gray-400 uppercase mb-3"><i class="fas fa-history mx-1"></i> <span data-i18n="inspectedTitle">Уже проверено:</span></h4>
+            <div id="inspectedRoomsList" class="flex flex-wrap gap-2 text-sm font-bold">
+                <span class="text-gray-400" data-i18n="emptyList">(пока пусто)</span>
+            </div>
+            <div id="roomDetailsDisplay" class="hidden mt-4 bg-indigo-50 p-4 rounded-xl border border-indigo-100 shadow-inner"></div>
+        </div>
+
+        <button onclick="finishDepartment()" class="w-full bg-red-600 text-white py-5 px-6 rounded-3xl shadow-lg hover:bg-red-700 font-black text-lg flex justify-center items-center gap-2 active:scale-95" data-i18n="finishBtn">
+            <i class="fas fa-flag-checkered text-xl"></i> Завершить проверку
+        </button>
+    </div>
+
+    <template id="issueTemplate">
+        <div class="issue-row bg-white rounded-2xl border-l-4 border-indigo-500 shadow-md relative mb-4 transition-all overflow-hidden">
+            <div class="issue-header p-4 flex justify-between items-center cursor-pointer bg-indigo-50 hover:bg-indigo-100" onclick="toggleIssue(this, event)">
+                <div class="font-bold text-indigo-700 issue-title flex items-center">
+                    <i class="fas fa-edit mr-2 text-lg"></i> <span class="title-text" data-i18n="newIssueTitle">Редактирование...</span>
+                </div>
+                <button onclick="removeIssue(this, event)" class="text-red-500 w-8 h-8 rounded-full hover:bg-red-200 flex items-center justify-center bg-red-50"><i class="fas fa-trash-alt"></i></button>
+            </div>
+            <div class="issue-body p-5 border-t border-gray-100">
+                <label class="block text-xs font-black text-gray-400 uppercase mb-2" data-i18n="whatBroken">Что неисправно?</label>
+                <select class="system-select w-full p-4 mb-2 rounded-xl bg-gray-50 border border-gray-300 font-bold text-gray-900 text-lg focus:ring-2 focus:ring-indigo-500 outline-none" onchange="toggleCustomInput(this); updateIssueTitle(this); removeError(this)"></select>
+                <input type="text" class="custom-system-input hidden w-full p-4 mb-4 rounded-xl border border-gray-300 font-bold text-lg focus:ring-2 focus:ring-indigo-500 outline-none" data-i18n-ph="customPlaceholder" placeholder="Впишите название..." oninput="updateIssueTitle(this); removeError(this)">
+                
+                <label class="block text-xs font-black text-gray-400 uppercase mt-4 mb-2" data-i18n="ratingLabel">Действие:</label>
+                <div class="rating-block p-1 rounded-xl flex flex-col sm:flex-row gap-3 mb-4">
+                    <button data-v="2" class="status-btn flex-1 py-3 px-4 rounded-xl bg-orange-500 text-white font-bold text-lg shadow-sm flex items-center justify-center gap-2" onclick="setRating(this, 2); updateIssueTitle(this)">
+                        <i class="fas fa-tools"></i> <span data-i18n="btnRepair">Ремонт</span>
+                    </button>
+                    <button data-v="1" class="status-btn flex-1 py-3 px-4 rounded-xl bg-red-600 text-white font-bold text-lg shadow-sm flex items-center justify-center gap-2" onclick="setRating(this, 1); updateIssueTitle(this)">
+                        <i class="fas fa-sync-alt"></i> <span data-i18n="btnReplace">Замена</span>
+                    </button>
+                </div>
+                
+                <div class="flex gap-2 items-start mt-4">
+                    <textarea class="comment-text flex-1 p-4 text-base border border-gray-300 rounded-xl font-medium focus:ring-2 focus:ring-indigo-500 outline-none" rows="2" data-i18n-ph="commentPlaceholder" placeholder="Описание поломки..." oninput="removeError(this)"></textarea>
+                    <label class="p-4 bg-gray-50 border border-gray-300 rounded-xl cursor-pointer flex flex-col items-center justify-center w-20 hover:bg-gray-100 h-full min-h-[90px]" onclick="vibrate('light')">
+                        <i class="fas fa-camera text-gray-400 text-2xl mb-1"></i>
+                        <span class="text-[10px] text-gray-500 font-bold uppercase" data-i18n="photoLabel">Фото</span>
+                        <input type="file" accept="image/*" capture="environment" class="hidden photo-input" onchange="handlePhoto(this)">
+                    </label>
+                </div>
+                <div class="photo-indicator hidden text-sm text-green-600 font-bold mt-3 bg-green-50 p-2 rounded-lg text-center"><i class="fas fa-check-circle mx-1"></i><span data-i18n="photoAdded">Фото добавлено</span></div>
+                
+                <button onclick="attemptCollapse(this)" class="collapse-btn w-full mt-5 bg-gray-100 text-gray-700 py-4 rounded-xl font-black text-lg hover:bg-gray-200 flex items-center justify-center gap-2 active:scale-95">
+                    <i class="fas fa-check"></i> <span data-i18n="collapseBtn">Готово (Свернуть)</span>
+                </button>
+            </div>
+        </div>
+    </template>
+
+    <script>
+        const _tId = new URLSearchParams(window.location.search).get('tenantId') || 'default';
+        const API_URL = `/api/${_tId}`;
+        
+        // НОВЫЕ ПЕРЕВОДЫ ДОБАВЛЕНЫ СЮДА
+        const dict = {
+            ru: { syncText: "Синхронизация...", title: "Инспекция Систем", subtitle: "Управление активами и ремонтом", inspectorLabel: "ФИО инспектора", deptLabel: "Отделение (напр. А 1)", startBtn: "Начать проверку", roomCheckTitle: "Проверка помещений", roomLabel: "Номер или название помещения:", roomPlaceholder: "Напр: 101", okBtn: "ОК", cancelBtn: "Отмена", yesBtn: "Да", roomPrefix: "Помещение:", allGoodBtn: "В помещении всё исправно", addIssueBtn: "Добавить неисправность", saveRoomBtn: "Сохранить дефекты помещения", inspectedTitle: "Уже проверено:", emptyList: "(пока пусто)", finishBtn: "Завершить проверку отделения", whatBroken: "Что неисправно?", ratingLabel: "Действие:", btnRepair: "Ремонт", btnReplace: "Замена", selectDefault: "Выберите систему...", otherOption: "🔧 Другое (вписать вручную)...", customPlaceholder: "Впишите название...", commentPlaceholder: "Описание поломки (обязательно)...", photoLabel: "Фото", photoAdded: "Фотография добавлена", alertUnsavedRoom: "Внимание! Сначала сохраните текущее открытое помещение!", alertFillFields: "Заполните все обязательные поля (подсвечены красным)!", detailsTitle: "Детали помещения", newIssueTitle: "Новая неисправность...", collapseBtn: "Готово (Свернуть)", exitModalTitle: "Завершить проверку помещения?", exitModalDesc: "Вы собираетесь закончить проверку этого помещения и перейти к другому. Вернуться и изменить данные будет нельзя. Продолжить?", exitModalConfirm: "Да, выйти" },
+            he: { syncText: "מסנכרן...", title: "בדיקת מערכות", subtitle: "ניהול נכסים ותיקונים", inspectorLabel: "שם הבודק", deptLabel: "מחלקה (לדוגמה A 1)", startBtn: "התחל בדיקה", roomCheckTitle: "בדיקת חדרים", roomLabel: "מספר או שם חדר:", roomPlaceholder: "לדוגמה: 101", okBtn: "אישור", cancelBtn: "ביטול", yesBtn: "כן", roomPrefix: "חדר:", allGoodBtn: "הכל תקין בחדר זה", addIssueBtn: "הוסף תקלה", saveRoomBtn: "שמור תקלות חדר", inspectedTitle: "כבר נבדקו:", emptyList: "(ריק)", finishBtn: "סיים בדיקת מחלקה", whatBroken: "מה תקול?", ratingLabel: "פעולה:", btnRepair: "תיקון", btnReplace: "החלפה", selectDefault: "בחר מערכת...", otherOption: "🔧 אחר (הזן ידנית)...", customPlaceholder: "הזן שם...", commentPlaceholder: "תיאור התקלה (חובה)...", photoLabel: "תמונה", photoAdded: "תמונה צורפה", alertUnsavedRoom: "שים לב! אנא שמור קודם את החדר הפתוח הנוכחי!", alertFillFields: "נא למלא את כל שדות החובה (מודגשים באדום)!", detailsTitle: "פירוט חדר", newIssueTitle: "תקלה חדשה...", collapseBtn: "מוכן (מזער)", exitModalTitle: "לסיים בדיקת חדר?", exitModalDesc: "אתה עומד לסיים את הבדיקה של חדר זה ולעבור לאחר. לא תוכל לחזור ולערוך נתונים. להמשיך?", exitModalConfirm: "כן, לסיים" }
+        };
+
+        const isHebrew = (navigator.language || navigator.userLanguage).toLowerCase().startsWith('he');
+        const T = dict[isHebrew ? 'he' : 'ru'];
+        let state = { inspector: '', department: '', currentRoom: '', inspectedRooms: {}, categories: {}, isRunning: false };
+
+        function vibrate(type = 'light') { if (!navigator.vibrate) return; try { if (type === 'light') navigator.vibrate(30); else if (type === 'medium') navigator.vibrate(60); else if (type === 'error') navigator.vibrate([100, 50, 100]); } catch(e) {} }
+        function appAlert(message) { vibrate('error'); document.getElementById('customAlertText').innerText = message; document.getElementById('customAlert').classList.remove('hidden'); }
+        function closeAppAlert() { document.getElementById('customAlert').classList.add('hidden'); }
+
+        let confirmCallback = null;
+        function appConfirm(message) {
+            return new Promise((resolve) => { vibrate('medium'); document.getElementById('customConfirmText').innerText = message; document.getElementById('customConfirm').classList.remove('hidden'); confirmCallback = resolve; });
+        }
+        function resolveConfirm(result) { document.getElementById('customConfirm').classList.add('hidden'); if(confirmCallback) confirmCallback(result); }
+
+        window.addEventListener('beforeunload', e => { if (state.isRunning) { e.preventDefault(); e.returnValue = ''; } });
+
+        document.addEventListener("DOMContentLoaded", () => {
+            if (isHebrew) { document.documentElement.dir = 'rtl'; document.documentElement.lang = 'he'; document.getElementById('roomName').classList.replace('rounded-l-xl', 'rounded-r-xl'); document.getElementById('roomName').nextElementSibling.classList.replace('rounded-r-xl', 'rounded-l-xl'); }
+            applyTranslations(document); restoreSession(); 
+        });
+
+        function applyTranslations(container) {
+            container.querySelectorAll('[data-i18n]').forEach(el => el.innerHTML = T[el.dataset.i18n]);
+            container.querySelectorAll('[data-i18n-ph]').forEach(el => el.placeholder = T[el.getAttribute('data-i18n-ph')]);
+        }
+
+        setInterval(() => {
+            if(state.isRunning && state.currentRoom) {
+                document.querySelectorAll('.system-select, .custom-system-input').forEach(el => {
+                    if (el !== document.activeElement) el.setAttribute('value', el.value);
+                });
+                document.querySelectorAll('textarea.comment-text').forEach(el => {
+                    if (el !== document.activeElement) el.textContent = el.value;
+                });
+                document.querySelectorAll('select.system-select').forEach(el => {
+                    if (el !== document.activeElement) {
+                        Array.from(el.options).forEach(opt => { 
+                            if(opt.value === el.value) opt.setAttribute('selected', 'selected'); 
+                            else opt.removeAttribute('selected'); 
+                        });
+                    }
+                });
+                localStorage.setItem('hcl_draft_room', state.currentRoom);
+                localStorage.setItem('hcl_draft_html', document.getElementById('issuesList').innerHTML);
+            }
+        }, 2000);
+
+        function saveSession() { localStorage.setItem('hcl_state_v2', JSON.stringify(state)); }
+        
+        function restoreSession() { 
+            const saved = localStorage.getItem('hcl_state_v2'); 
+            if (saved) { 
+                state = JSON.parse(saved); 
+                if (state.isRunning) { 
+                    document.getElementById('headerInfo').innerText = `${state.inspector} | ${state.department}`; 
+                    updateInspectedUI(); navigate('inspectionPage'); 
+                    const draftRoom = localStorage.getItem('hcl_draft_room');
+                    if(draftRoom) {
+                        state.currentRoom = draftRoom; document.getElementById('roomName').value = draftRoom; document.getElementById('currentRoomDisplay').innerText = draftRoom;
+                        document.getElementById('activeRoomBlock').classList.remove('hidden'); document.getElementById('issuesList').innerHTML = localStorage.getItem('hcl_draft_html') || "";
+                        if(document.getElementById('issuesList').children.length > 0) { document.getElementById('allGoodBtn').classList.add('hidden'); document.getElementById('saveRoomBtn').classList.remove('hidden'); }
+                    }
+                } 
+            } 
+        }
+
+        function clearSession() { state.isRunning = false; localStorage.removeItem('hcl_state_v2'); localStorage.removeItem('hcl_draft_room'); localStorage.removeItem('hcl_draft_html'); location.reload(); }
+        async function confirmExit() { if(await appConfirm(isHebrew ? "לצאת מהבדיקה? הנתונים יאבדו." : "Выйти из инспекции? Данные удалятся.")) clearSession(); }
+
+        async function startInspection() {
+            const insp = document.getElementById('inspectorName').value.trim(); const dept = document.getElementById('department').value.trim();
+            if(!insp || !dept) return appAlert(isHebrew ? "מלא את כל השדות!" : "Заполните все поля!");
+            state.inspector = insp; state.department = dept; state.isRunning = true;
+            document.getElementById('loaderText').innerText = T.syncText; document.getElementById('loader').classList.remove('hidden');
+            try { const cached = localStorage.getItem('hcl_cats'); if (cached) state.categories = JSON.parse(cached); const res = await fetch(`${API_URL}?action=getSettings`); const data = await res.json(); if (data.categories && Object.keys(data.categories).length > 0) { state.categories = data.categories; localStorage.setItem('hcl_cats', JSON.stringify(state.categories)); } } catch(e) {}
+            if(Object.keys(state.categories).length === 0) { state.categories = isHebrew ? {"כללי": ["חלון", "דלת"]} : {"Общее": ["Окно", "Дверь"]}; }
+            saveSession(); document.getElementById('headerInfo').innerText = `${state.inspector} | ${state.department}`; navigate('inspectionPage'); document.getElementById('loader').classList.add('hidden'); vibrate('light');
+        }
+
+        function openRoom() {
+            if (!document.getElementById('activeRoomBlock').classList.contains('hidden')) return appAlert(T.alertUnsavedRoom);
+            const name = document.getElementById('roomName').value.trim(); if(!name) return;
+            state.currentRoom = name; document.getElementById('currentRoomDisplay').innerText = name; document.getElementById('issuesList').innerHTML = ''; 
+            document.getElementById('allGoodBtn').classList.remove('hidden'); document.getElementById('saveRoomBtn').classList.add('hidden'); document.getElementById('activeRoomBlock').classList.remove('hidden');
+        }
+
+        function removeError(el) { el.classList.remove('error-shake'); }
+        function updateIssueTitle(el) {
+            const row = el.closest('.issue-row'); let sys = row.querySelector('.system-select').value;
+            if (sys === 'OTHER') sys = row.querySelector('.custom-system-input').value.trim();
+            const rBlock = row.querySelector('.rating-block'); const rating = rBlock ? rBlock.dataset.val : null;
+            let titleTxt = sys || (isHebrew ? "תקלה חדשה..." : "Новая неисправность...");
+            if (rating == 1) titleTxt += isHebrew ? " (החלפה)" : " (Замена)";
+            if (rating == 2) titleTxt += isHebrew ? " (תיקון)" : " (Ремонт)";
+            row.querySelector('.title-text').innerText = titleTxt;
+        }
+
+        function attemptCollapse(btn) {
+            const row = btn.closest('.issue-row'); const sel = row.querySelector('.system-select'); const cInp = row.querySelector('.custom-system-input');
+            const ratingBlock = row.querySelector('.rating-block'); const comment = row.querySelector('.comment-text');
+            let isValid = true;
+            if (!sel.value) { sel.classList.add('error-shake'); isValid = false; }
+            else if (sel.value === 'OTHER' && !cInp.value.trim()) { cInp.classList.add('error-shake'); isValid = false; }
+            if (!ratingBlock.dataset.val) { ratingBlock.classList.add('error-shake'); isValid = false; }
+            if (!comment.value.trim()) { comment.classList.add('error-shake'); isValid = false; }
+
+            if (!isValid) { vibrate('error'); if(!row.dataset.warned) { appAlert(T.alertFillFields); row.dataset.warned = "true"; } return; }
+
+            row.querySelector('.issue-body').classList.add('hidden'); const header = row.querySelector('.issue-header');
+            header.classList.remove('bg-indigo-50', 'hover:bg-indigo-100'); header.classList.add('bg-green-50', 'hover:bg-green-100');
+            row.querySelector('.issue-title').classList.replace('text-indigo-700', 'text-green-700');
+            row.querySelector('.issue-title i').className = "fas fa-check-circle mr-2 text-lg text-green-500";
+        }
+
+        function toggleIssue(header, event) {
+            if (event.target.closest('button')) return;
+            const row = header.closest('.issue-row'); const body = row.querySelector('.issue-body');
+            if (body.classList.contains('hidden')) {
+                body.classList.remove('hidden'); header.classList.remove('bg-green-50', 'hover:bg-green-100'); header.classList.add('bg-indigo-50', 'hover:bg-indigo-100');
+                row.querySelector('.issue-title').classList.replace('text-green-700', 'text-indigo-700'); row.querySelector('.issue-title i').className = "fas fa-edit mr-2 text-lg text-indigo-500";
+            } else { attemptCollapse(header.nextElementSibling.querySelector('.collapse-btn')); }
+        }
+
+        function addIssueRow() {
+            document.getElementById('allGoodBtn').classList.add('hidden'); document.getElementById('saveRoomBtn').classList.remove('hidden');
+            document.querySelectorAll('.issue-body:not(.hidden)').forEach(body => { attemptCollapse(body.querySelector('.collapse-btn')); });
+            const temp = document.getElementById('issueTemplate').content.cloneNode(true); applyTranslations(temp);
+            const select = temp.querySelector('.system-select'); let opts = `<option value="" disabled selected>${T.selectDefault}</option>`;
+            for (const cat in state.categories) { opts += `<optgroup label="--- ${cat.toUpperCase()} ---">`; state.categories[cat].forEach(sys => opts += `<option value="${sys}">${sys}</option>`); opts += `</optgroup>`; }
+            opts += `<option value="OTHER">${T.otherOption}</option>`; select.innerHTML = opts; document.getElementById('issuesList').appendChild(temp);
+        }
+
+        async function removeIssue(btn, event) {
+            if(event) event.stopPropagation(); 
+            if(await appConfirm(isHebrew ? "למחוק תקלה זו?" : "Удалить эту неисправность?")) {
+                btn.closest('.issue-row').remove();
+                if (document.querySelectorAll('.issue-row').length === 0) { document.getElementById('allGoodBtn').classList.remove('hidden'); document.getElementById('saveRoomBtn').classList.add('hidden'); }
+            }
+        }
+
+        function toggleCustomInput(sel) { const inp = sel.parentElement.querySelector('.custom-system-input'); if (sel.value === 'OTHER') { inp.classList.remove('hidden'); inp.focus(); } else { inp.classList.add('hidden'); inp.value = ''; } }
+        function setRating(btn, val) { const parent = btn.parentElement; parent.classList.remove('error-shake'); parent.querySelectorAll('.status-btn').forEach(b => b.classList.remove('selected', 'ring-4', 'ring-gray-300')); btn.classList.add('selected', 'ring-4', 'ring-gray-300'); parent.dataset.val = val; }
+
+        async function handlePhoto(input) {
+            const file = input.files[0]; if(!file) return;
+            const icon = input.closest('label').querySelector('i'); icon.className = "fas fa-spinner fa-spin text-indigo-500 text-2xl mb-1";
+            const base64 = await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const scale = 800 / img.width; canvas.width = 800; canvas.height = img.height * scale; ctx.drawImage(img, 0, 0, canvas.width, canvas.height); resolve(canvas.toDataURL('image/jpeg', 0.6)); };
+                    img.src = e.target.result;
+                }; reader.readAsDataURL(file);
+            });
+            input.dataset.base64 = base64; icon.className = "fas fa-camera text-green-500 text-2xl mb-1";
+            input.closest('.issue-row').querySelector('.photo-indicator').classList.remove('hidden');
+        }
+
+        let pendingSaveIsAllGood = false;
+        function showExitModal(isAllGood) {
+            pendingSaveIsAllGood = isAllGood;
+            if (!isAllGood) {
+                let hasErrors = false;
+                document.querySelectorAll('.issue-body:not(.hidden)').forEach(body => { 
+                    attemptCollapse(body.querySelector('.collapse-btn'));
+                    if (!body.classList.contains('hidden')) hasErrors = true;
+                });
+                if (hasErrors) return;
+            }
+            vibrate('light');
+            document.getElementById('exitRoomConfirmModal').classList.remove('hidden');
+        }
+
+        function closeExitModal() {
+            document.getElementById('exitRoomConfirmModal').classList.add('hidden');
+        }
+
+        function confirmAndExitRoom() {
+            closeExitModal();
+            saveRoomData(pendingSaveIsAllGood);
+        }
+
+        async function saveRoomData(isAllGood) {
+            const sBtn = document.getElementById('saveRoomBtn'); const aBtn = document.getElementById('allGoodBtn');
+            if(sBtn){ sBtn.disabled = true; sBtn.style.opacity = "0.5"; }
+            if(aBtn){ aBtn.disabled = true; aBtn.style.opacity = "0.5"; }
+
+            const items = []; let historyLog = []; 
+            if (!isAllGood) {
+                const rows = document.querySelectorAll('.issue-row');
+                for(let row of rows) {
+                    let sys = row.querySelector('.system-select').value; if(sys === 'OTHER') sys = row.querySelector('.custom-system-input').value.trim();
+                    const rBlock = row.querySelector('.rating-block'); const rating = rBlock ? rBlock.dataset.val : null; const comment = row.querySelector('.comment-text').value.trim();
+                    if(!sys || !rating || !comment) { 
+                        row.querySelector('.issue-body').classList.remove('hidden'); attemptCollapse(row.querySelector('.collapse-btn')); 
+                        if(sBtn){ sBtn.disabled = false; sBtn.style.opacity = "1"; }
+                        if(aBtn){ aBtn.disabled = false; aBtn.style.opacity = "1"; }
+                        return; 
+                    }
+                    items.push({ name: sys, score: rating, comment: comment, photoBase64: row.querySelector('.photo-input').dataset.base64 || "" });
+                    historyLog.push(`• ${sys} (${rating == 1 ? "החלפה" : "תיקון"})`);
+                }
+            } else { historyLog.push("✅ הכל תקין"); }
+
+            document.getElementById('loaderText').innerText = T.syncText; document.getElementById('loader').classList.remove('hidden');
+            try {
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ inspector: state.inspector, department: state.department, room: state.currentRoom, items: items }) });
+                localStorage.removeItem('hcl_draft_room'); localStorage.removeItem('hcl_draft_html');
+                state.inspectedRooms[state.currentRoom] = historyLog; saveSession(); updateInspectedUI();
+                document.getElementById('activeRoomBlock').classList.add('hidden'); document.getElementById('roomName').value = '';
+                document.getElementById('roomDetailsDisplay').classList.add('hidden'); window.scrollTo(0, 0);
+            } catch(e) { appAlert("Сбой интернета. Проверьте сеть и нажмите 'Сохранить' еще раз."); } 
+            finally { 
+                document.getElementById('loader').classList.add('hidden'); 
+                if(sBtn){ sBtn.disabled = false; sBtn.style.opacity = "1"; }
+                if(aBtn){ aBtn.disabled = false; aBtn.style.opacity = "1"; }
+            }
+        }
+
+        function updateInspectedUI() {
+            const listDiv = document.getElementById('inspectedRoomsList'); const rooms = Object.keys(state.inspectedRooms);
+            if(rooms.length > 0) listDiv.innerHTML = '';
+            rooms.forEach(room => {
+                const badge = document.createElement('button'); badge.className = "room-badge bg-indigo-100 border border-indigo-200 text-indigo-800 px-4 py-2 rounded-xl shadow-sm hover:bg-indigo-200 active:scale-95 transition-transform";
+                badge.innerText = room; badge.onclick = (e) => { showRoomHistory(room, e.currentTarget); }; listDiv.appendChild(badge);
+            });
+        }
+
+        function showRoomHistory(roomName, badgeElement) {
+            const history = state.inspectedRooms[roomName]; const display = document.getElementById('roomDetailsDisplay');
+            document.querySelectorAll('.room-badge').forEach(b => b.classList.remove('ring-2', 'ring-indigo-600'));
+            if(badgeElement) badgeElement.classList.add('ring-2', 'ring-indigo-600');
+            let html = `<h5 class="font-black text-indigo-700 mb-2 border-b border-indigo-200 pb-2">${T.detailsTitle} ${roomName}:</h5><ul class="space-y-1">`;
+            history.forEach(item => { html += `<li class="text-sm font-bold text-gray-700">${item}</li>`; }); html += `</ul>`;
+            display.innerHTML = html; display.classList.remove('hidden');
+        }
+
+        async function finishDepartment() {
+            if (!document.getElementById('activeRoomBlock').classList.contains('hidden')) return appAlert(T.alertUnsavedRoom);
+            const roomKeys = Object.keys(state.inspectedRooms);
+            if(roomKeys.length === 0) return appAlert(isHebrew ? "לא נבדקו חדרים!" : "Вы не проверили ни одной комнаты!");
+            if(!(await appConfirm(isHebrew ? "לסיים ולשלוח דיווח לטלגרם?" : "Завершить и отправить отчет в Telegram?"))) return;
+            
+            let report = `🏥 *דוח מחלקה: ${state.department}*\n👤 בודק: ${state.inspector}\n\n`;
+            let defects = []; let okRooms = [];
+            for (const [room, issues] of Object.entries(state.inspectedRooms)) {
+                if (issues.length === 1 && issues[0].includes("תקין")) okRooms.push(room);
+                else defects.push(`*חדר ${room}:*\n${issues.join('\n')}`);
+            }
+            if (defects.length > 0) report += `⚠️ *תקלות שנמצאו:*\n${defects.join('\n\n')}\n\n`;
+            else report += `✅ *כל החדרים שנבדקו תקינים!*\n\n`;
+            report += `📊 *סטטיסטיקה:*\nסה"כ נבדקו: ${roomKeys.length} חדרים.`;
+            if (okRooms.length > 0) report += `\nללא הערות: ${okRooms.join(', ')}`;
+
+            document.getElementById('loaderText').innerText = isHebrew ? "שולח..." : "Отправка..."; document.getElementById('loader').classList.remove('hidden');
+            try {
+                await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "FINISH_DEPT", reportText: report }) });
+                await appAlert(isHebrew ? "✅ הדוח נשלח בהצלחה!" : "✅ Отчет отправлен успешно!"); clearSession(); 
+            } catch (e) { appAlert(isHebrew ? "שגיאת רשת. נסה שוב." : "Ошибка интернета. Попробуйте еще раз."); } finally { document.getElementById('loader').classList.add('hidden'); }
+        }
+
+        function navigate(id) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+    </script>
+</body>
+</html>

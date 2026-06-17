@@ -1,229 +1,189 @@
 'use client';
 
-import { useState } from 'react';
-import { Building2, Users, Activity, FileText, Settings, LogOut, ChevronRight, Bell, Plus, X } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { Building2, Plus, AlertCircle, CheckCircle, Ban, ExternalLink, Settings } from 'lucide-react';
 
-export default function Dashboard() {
+type Tenant = {
+  id: string;
+  name: string;
+  status: 'ACTIVE' | 'UNPAID' | 'BLOCKED';
+  createdAt: string;
+};
+
+export default function SuperAdminDashboard() {
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [newTenantName, setNewTenantName] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  useEffect(() => {
+    fetchTenants();
+  }, []);
+
+  const fetchTenants = async () => {
+    try {
+      const res = await fetch('/api/tenants');
+      const data = await res.json();
+      setTenants(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateTenant = async () => {
+    if (!newTenantName.trim()) return;
+    try {
+      const res = await fetch('/api/tenants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newTenantName, status: 'ACTIVE' })
+      });
+      if (res.ok) {
+        setNewTenantName('');
+        setIsModalOpen(false);
+        fetchTenants();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleUpdateStatus = async (id: string, newStatus: string) => {
+    try {
+      const res = await fetch('/api/tenants', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status: newStatus })
+      });
+      if (res.ok) {
+        fetchTenants();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch(status) {
+      case 'ACTIVE': return <span className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded-full font-bold text-sm"><CheckCircle className="w-4 h-4"/> פעיל</span>;
+      case 'UNPAID': return <span className="flex items-center gap-1 px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full font-bold text-sm"><AlertCircle className="w-4 h-4"/> ממתין לתשלום</span>;
+      case 'BLOCKED': return <span className="flex items-center gap-1 px-3 py-1 bg-red-100 text-red-700 rounded-full font-bold text-sm"><Ban className="w-4 h-4"/> חסום</span>;
+      default: return null;
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-slate-200 font-sans selection:bg-purple-500/30">
-      
-      {/* Sidebar */}
-      <aside className="fixed top-0 left-0 h-full w-64 bg-white/5 backdrop-blur-xl border-r border-white/10 shadow-xl p-6 flex flex-col z-20">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
-            <Building2 className="text-white w-5 h-5" />
-          </div>
-          <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
-            HCL SuperAdmin
-          </h1>
-        </div>
-
-        <nav className="flex-1 space-y-2">
-          <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/10 text-white font-medium border border-white/5 transition-all">
-            <Activity className="w-5 h-5 text-purple-400" />
-            <span>Dashboard</span>
-          </a>
-          <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-all">
-            <Building2 className="w-5 h-5" />
-            <span>Tenants (Clients)</span>
-          </a>
-          <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-all">
-            <Users className="w-5 h-5" />
-            <span>Global Users</span>
-          </a>
-          <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-all">
-            <FileText className="w-5 h-5" />
-            <span>Billing & Invoices</span>
-          </a>
-        </nav>
-
-        <div className="pt-6 border-t border-white/5 space-y-2">
-          <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-all">
-            <Settings className="w-5 h-5" />
-            <span>Settings</span>
-          </a>
-          <a href="#" className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 transition-all">
-            <LogOut className="w-5 h-5" />
-            <span>Logout</span>
-          </a>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="ml-64 p-8 lg:p-12 max-w-7xl">
-        
-        {/* Header */}
-        <header className="flex justify-between items-center mb-12">
+    <div className="min-h-screen bg-gray-50 text-gray-800 p-8" dir="rtl">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
           <div>
-            <h2 className="text-3xl font-bold text-white tracking-tight">Overview</h2>
-            <p className="text-slate-400 mt-1">Welcome back, Super Admin.</p>
+            <h1 className="text-4xl font-black text-gray-900 flex items-center gap-3">
+              <Settings className="w-10 h-10 text-indigo-600" />
+              Super Admin SaaS
+            </h1>
+            <p className="text-gray-500 font-medium mt-2">ניהול לקוחות, מוסדות ומנויים</p>
           </div>
-          <div className="flex items-center gap-4">
-            <button className="relative p-2 rounded-full hover:bg-white/5 transition-colors">
-              <Bell className="w-6 h-6 text-slate-400 hover:text-white" />
-              <span className="absolute top-1 right-2 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-[#0b0f19]"></span>
-            </button>
-            <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 border-2 border-slate-800 shadow-inner"></div>
-          </div>
-        </header>
-
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-xl rounded-3xl p-6 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-30 transition-opacity">
-              <Building2 className="w-16 h-16 text-purple-400" />
-            </div>
-            <p className="text-slate-400 font-medium mb-1">Active Tenants</p>
-            <h3 className="text-4xl font-bold text-white mb-4">24</h3>
-            <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
-              <span className="bg-emerald-400/10 px-2 py-0.5 rounded-md">+3 this month</span>
-            </div>
-          </div>
-
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-xl rounded-3xl p-6 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-30 transition-opacity">
-              <Activity className="w-16 h-16 text-blue-400" />
-            </div>
-            <p className="text-slate-400 font-medium mb-1">Total Tasks Processed</p>
-            <h3 className="text-4xl font-bold text-white mb-4">12,845</h3>
-            <div className="flex items-center gap-2 text-emerald-400 text-sm font-medium">
-              <span className="bg-emerald-400/10 px-2 py-0.5 rounded-md">+15% vs last week</span>
-            </div>
-          </div>
-
-          <div className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-xl rounded-3xl p-6 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-30 transition-opacity">
-              <FileText className="w-16 h-16 text-amber-400" />
-            </div>
-            <p className="text-slate-400 font-medium mb-1">Monthly MRR</p>
-            <h3 className="text-4xl font-bold text-white mb-4">$4,200</h3>
-            <div className="flex items-center gap-2 text-slate-400 text-sm font-medium">
-              <span>Next billing: Jun 1</span>
-            </div>
-          </div>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-500 transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            הוסף מוסד חדש
+          </button>
         </div>
 
-        {/* Recent Tenants */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 shadow-xl rounded-3xl p-8">
-          <div className="flex justify-between items-center mb-8">
-            <h3 className="text-xl font-bold text-white">Recent Clients</h3>
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg font-medium hover:shadow-lg hover:shadow-purple-500/20 transition-all">
-              <Plus className="w-4 h-4" />
-              Add Client
-            </button>
-          </div>
+        {isLoading ? (
+          <div className="text-center py-20 text-indigo-600 font-bold">טוען נתונים...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {tenants.map(tenant => (
+              <div key={tenant.id} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-xl font-black text-gray-800 flex items-center gap-2">
+                    <Building2 className="w-6 h-6 text-indigo-500" />
+                    {tenant.name}
+                  </h3>
+                  {getStatusBadge(tenant.status)}
+                </div>
+                
+                <div className="text-sm text-gray-500 font-medium mb-6">
+                  מזהה: <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded text-gray-600">{tenant.id}</span>
+                </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="text-slate-500 border-b border-white/5 text-sm uppercase tracking-wider">
-                  <th className="pb-4 font-medium">Company Name</th>
-                  <th className="pb-4 font-medium">Status</th>
-                  <th className="pb-4 font-medium">Users</th>
-                  <th className="pb-4 font-medium text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="text-sm">
-                {[
-                  { name: "Hospital Alpha", status: "Active", users: 142, color: "emerald" },
-                  { name: "Clinic Beta", status: "Onboarding", users: 12, color: "amber" },
-                  { name: "MedCenter Gamma", status: "Active", users: 89, color: "emerald" },
-                  { name: "Dental Delta", status: "Inactive", users: 0, color: "slate" },
-                ].map((tenant, i) => (
-                  <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition-colors group">
-                    <td className="py-4 font-medium text-white flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center border border-white/5">
-                        {tenant.name.charAt(0)}
-                      </div>
-                      {tenant.name}
-                    </td>
-                    <td className="py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium bg-${tenant.color}-500/10 text-${tenant.color}-400 border border-${tenant.color}-500/20`}>
-                        {tenant.status}
-                      </span>
-                    </td>
-                    <td className="py-4 text-slate-400">{tenant.users} accounts</td>
-                    <td className="py-4 text-right">
-                      <button className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 font-medium text-white transition-colors border border-white/5">
-                        Manage
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </main>
+                <div className="flex justify-between items-center border-t border-gray-100 pt-4">
+                  <div className="flex gap-2">
+                    <select 
+                      value={tenant.status}
+                      onChange={(e) => handleUpdateStatus(tenant.id, e.target.value)}
+                      className="bg-gray-50 border border-gray-200 text-gray-700 text-sm font-bold rounded-lg px-3 py-2 outline-none"
+                    >
+                      <option value="ACTIVE">פעיל (Active)</option>
+                      <option value="UNPAID">ללא תשלום (Unpaid)</option>
+                      <option value="BLOCKED">חסום (Blocked)</option>
+                    </select>
+                  </div>
 
-      {/* Add Client Modal */}
+                  <div className="flex gap-2">
+                     {/* Assume the tenant-app runs on port 3000 */}
+                    <a 
+                      href={`http://localhost:3000/admin.html?tenantId=${tenant.id}`}
+                      target="_blank"
+                      className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 p-2 rounded-lg transition-colors shadow-sm"
+                      title="כניסה למערכת של המוסד"
+                    >
+                      <ExternalLink className="w-5 h-5" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
+            
+            {tenants.length === 0 && (
+              <div className="col-span-full text-center py-20 bg-white rounded-3xl border border-dashed border-gray-300">
+                <Building2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-gray-500">אין מוסדות במערכת</h3>
+                <p className="text-gray-400 mt-2">לחץ על הוסף מוסד חדש כדי להתחיל</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#0b0f19] border border-white/10 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center p-6 border-b border-white/5">
-              <h3 className="text-xl font-bold text-white">Add New Client</h3>
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative">
+            <h2 className="text-2xl font-black text-gray-900 mb-6">הוספת מוסד חדש</h2>
+            
+            <div className="mb-6">
+              <label className="block text-sm font-bold text-gray-700 mb-2">שם המוסד (בית חולים, מרפאה)</label>
+              <input 
+                type="text" 
+                value={newTenantName}
+                onChange={(e) => setNewTenantName(e.target.value)}
+                placeholder="לדוגמה: בית חולים איכילוב"
+                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 font-bold focus:ring-2 focus:ring-indigo-500 outline-none"
+              />
+            </div>
+
+            <div className="flex gap-3">
               <button 
                 onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-white transition-colors">
-                <X className="w-5 h-5" />
+                className="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200"
+              >
+                ביטול
+              </button>
+              <button 
+                onClick={handleCreateTenant}
+                className="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-500 shadow-md"
+              >
+                הוסף מוסד
               </button>
             </div>
-            
-            <form className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Facility Name</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Hospital Alpha" 
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Admin Full Name</label>
-                <input 
-                  type="text" 
-                  placeholder="e.g. John Doe" 
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Admin Email</label>
-                <input 
-                  type="email" 
-                  placeholder="admin@hospital.com" 
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-1">Temporary Password</label>
-                <input 
-                  type="password" 
-                  placeholder="••••••••" 
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all"
-                />
-              </div>
-
-              <div className="pt-4">
-                <button 
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold py-3 rounded-xl hover:shadow-lg hover:shadow-purple-500/20 transition-all"
-                >
-                  Create Client Account
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
-
     </div>
   );
 }
