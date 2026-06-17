@@ -70,7 +70,8 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
 
     const tasks = tasksDb.map(t => ({
       id: t.id,
-      sheet: t.department?.name || 'כללי',
+      sheet: t.team?.name || 'כללי',
+      dept: t.department?.name || 'כללי',
       department: t.department?.name || 'כללי',
       room: t.room,
       system: t.system?.name || 'אחר',
@@ -80,11 +81,11 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
       comment: t.notes || '',
       photo: t.photoUrl || '',
       afterPhoto: t.afterPhotoUrl || '',
-      status: t.status === 'IN_PROGRESS' ? 'В работе' : 'Новая',
+      status: t.status === 'IN_PROGRESS' ? 'בעבודה' : 'פתוח',
       worker: t.worker?.name || '',
       team: t.team?.name || '',
       timestamp: t.createdAt.getTime(),
-      dateStr: t.createdAt.toLocaleString('ru-RU')
+      dateStr: t.createdAt.toLocaleString('en-GB')
     }));
 
     return NextResponse.json({ tasks });
@@ -259,11 +260,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     const tasks = body.tasks || [];
     for (const t of tasks) {
       const dbTask = await prisma.task.findFirst({
-        where: {
-          tenantId,
-          room: String(t.room),
-          status: 'IN_PROGRESS'
-        }
+        where: { tenantId, room: String(t.room), status: 'IN_PROGRESS' }
       });
       if (dbTask) {
         await prisma.task.update({
@@ -271,6 +268,61 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
           data: { status: 'NEW', workerId: null }
         });
       }
+    }
+    return NextResponse.json({ status: 'success' });
+  }
+
+  if (action === 'CLOSE_TASK') {
+    const { room } = body;
+    const dbTask = await prisma.task.findFirst({
+      where: { tenantId, room: String(room), status: { in: ['NEW', 'IN_PROGRESS', 'COMPLETED'] } }
+    });
+    if (dbTask) {
+      await prisma.task.update({
+        where: { id: dbTask.id },
+        data: { 
+          status: 'CLOSED',
+          photoUrl: null, // Clear photo to save database space!
+          afterPhotoUrl: null
+        }
+      });
+    }
+    return NextResponse.json({ status: 'success' });
+  }
+
+  if (action === 'MARK_PRINTED') {
+    const { tasks, worker } = body;
+    let workerId = null;
+    if (worker) {
+      const w = await prisma.user.findFirst({ where: { tenantId, name: worker, role: 'WORKER' } });
+      if (w) workerId = w.id;
+    }
+    for (const t of tasks || []) {
+      const dbTask = await prisma.task.findFirst({
+        where: { tenantId, room: String(t.room), status: 'NEW' }
+      });
+      if (dbTask) {
+        await prisma.task.update({
+          where: { id: dbTask.id },
+          data: { status: 'IN_PROGRESS', workerId }
+        });
+      }
+    }
+    return NextResponse.json({ status: 'success' });
+  }
+
+  if (action === 'MOVE_TASK') {
+    const { targetSheet, room } = body;
+    const dbTask = await prisma.task.findFirst({
+      where: { tenantId, room: String(room), status: { in: ['NEW', 'IN_PROGRESS'] } }
+    });
+    if (dbTask && targetSheet) {
+      let team = await prisma.team.findFirst({ where: { tenantId, name: targetSheet } });
+      if (!team) team = await prisma.team.create({ data: { tenantId, name: targetSheet } });
+      await prisma.task.update({
+        where: { id: dbTask.id },
+        data: { teamId: team.id }
+      });
     }
     return NextResponse.json({ status: 'success' });
   }
