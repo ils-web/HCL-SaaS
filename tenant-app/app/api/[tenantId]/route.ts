@@ -70,7 +70,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
 
     const tasks = tasksDb.map(t => ({
       id: t.id,
-      sheet: t.team?.name || 'כללי',
+      sheet: t.team?.name || 'ליקויים',
       dept: t.department?.name || 'כללי',
       department: t.department?.name || 'כללי',
       room: t.room,
@@ -131,6 +131,13 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         sys = await prisma.system.create({ data: { tenantId, areaId: area.id, name } });
       }
 
+      let teamId = sys.autoAssignTeamId;
+      if (!teamId) {
+        let defTeam = await prisma.team.findFirst({ where: { tenantId, name: 'ליקויים' } });
+        if (!defTeam) defTeam = await prisma.team.create({ data: { tenantId, name: 'ליקויים' } });
+        teamId = defTeam.id;
+      }
+
       await prisma.task.create({
         data: {
           tenantId,
@@ -141,7 +148,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
           status: 'NEW',
           notes: comment || '',
           photoUrl: photoBase64 || null,
-          teamId: sys.autoAssignTeamId || null
+          teamId: teamId
         }
       });
     }
