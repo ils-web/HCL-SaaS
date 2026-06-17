@@ -85,7 +85,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
       worker: t.worker?.name || '',
       team: t.team?.name || '',
       timestamp: t.createdAt.getTime(),
-      dateStr: t.createdAt.toLocaleString('en-GB')
+      dateStr: `${String(t.createdAt.getDate()).padStart(2, '0')}/${String(t.createdAt.getMonth() + 1).padStart(2, '0')}/${t.createdAt.getFullYear()} ${String(t.createdAt.getHours()).padStart(2, '0')}:${String(t.createdAt.getMinutes()).padStart(2, '0')}`,
     }));
 
     return NextResponse.json({ tasks });
