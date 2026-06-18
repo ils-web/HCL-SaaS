@@ -130,6 +130,8 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         teamId = defTeam.id;
       }
 
+      const finalPhotoUrl = await uploadToImgBB(photoBase64);
+
       await prisma.task.create({
         data: {
           tenantId,
@@ -140,7 +142,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
           actionType: score == 1 ? 'REPLACE' : 'REPAIR',
           status: 'NEW',
           notes: comment || '',
-          photoUrl: photoBase64 || null,
+          photoUrl: finalPhotoUrl,
           teamId: teamId
         }
       });
@@ -171,6 +173,8 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     // Find System globally to try matching it
     let sys = await prisma.system.findFirst({ where: { tenantId, name: defect || 'אחר' } });
 
+    const finalPhotoUrl = await uploadToImgBB(photoBase64);
+
     await prisma.task.create({
       data: {
         tenantId,
@@ -181,7 +185,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         actionType: 'REPAIR', // Default for personnel reports
         status: 'NEW',
         notes: (reporterName ? `От: ${reporterName}\n` : '') + (comment || ''),
-        photoUrl: photoBase64 || null,
+        photoUrl: finalPhotoUrl,
         teamId: teamId
       }
     });
