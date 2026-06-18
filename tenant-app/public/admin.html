@@ -51,11 +51,11 @@
         .print-cards-grid { display: flex; flex-wrap: wrap; justify-content: space-between; align-content: flex-start; flex-grow: 1; height: calc(100% - 50px); }
         .print-card { width: 49%; height: 48%; margin-bottom: 2%; border: 2px solid #000; border-radius: 10px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; page-break-inside: avoid; overflow: hidden; background: white; color: black; }
         .print-card-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ccc; padding-bottom: 4px; margin-bottom: 8px; color: black; }
-        .print-card-body { display: flex; flex-direction: column; gap: 6px; flex-grow: 1; align-items: stretch; overflow: hidden; }
-        .print-photo { width: 100%; height: 55%; max-height: 55%; object-fit: cover; object-position: center; border: 2px solid #cbd5e1; border-radius: 8px; }
-        .print-info { width: 100%; display: flex; flex-direction: column; color: black; overflow: hidden; flex-grow: 1; }
-        .defect-title { font-size: 16px; font-weight: 900; margin-bottom: 4px; line-height: 1.1; }
-        .defect-comment { font-size: 13px; color: #374151; line-height: 1.1; }
+        .print-card-body { display: flex; gap: 10px; flex-grow: 1; align-items: stretch; overflow: hidden; }
+        .print-photo { width: 55%; height: 100%; max-height: 100%; object-fit: cover; object-position: center; border: 2px solid #cbd5e1; border-radius: 8px; }
+        .print-info { width: 45%; display: flex; flex-direction: column; color: black; overflow: hidden; }
+        .defect-title { font-size: 18px; font-weight: 900; margin-bottom: 6px; line-height: 1.2; }
+        .defect-comment { font-size: 14px; color: #374151; line-height: 1.2; }
         .signature-box { border-top: 2px dashed #000; margin-top: 8px; padding-top: 6px; display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; color: black;}
         
         #managerTable { width: 100%; border-collapse: collapse; margin-top: 10mm; direction: rtl; display: none; }
@@ -1038,8 +1038,7 @@
             let dept = document.getElementById('qrCustomDept').value.trim();
             if(!dept) dept = document.getElementById('qrDeptSelect').value;
             
-            // Assume report.html is in the same directory
-            let baseUrl = window.location.href.split('index.html')[0];
+            let baseUrl = window.location.href.split('admin.html')[0].split('index.html')[0].split('?')[0];
             if (!baseUrl.endsWith('/')) baseUrl += '/';
             const finalUrl = baseUrl + "report.html?dept=" + encodeURIComponent(dept);
             
