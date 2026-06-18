@@ -864,8 +864,8 @@
 
             // Sort QR tasks to the top
             filtered.sort((a, b) => {
-                const aIsQr = (a.defect.includes("דיווח מצוות המחלקה") || a.defect.includes("תקלה חדשה") || a.inspector.includes("צוות")) ? 1 : 0;
-                const bIsQr = (b.defect.includes("דיווח מצוות המחלקה") || b.defect.includes("תקלה חדשה") || b.inspector.includes("צוות")) ? 1 : 0;
+                const aIsQr = (a.defect.includes("דיווח מצוות המחלקה") || a.defect.includes("תקלה חדשה") || (a.inspector && a.inspector.includes("צוות"))) ? 1 : 0;
+                const bIsQr = (b.defect.includes("דיווח מצוות המחלקה") || b.defect.includes("תקלה חדשה") || (b.inspector && b.inspector.includes("צוות"))) ? 1 : 0;
                 return bIsQr - aIsQr;
             });
 
@@ -887,7 +887,7 @@
                     else if(diffHours >= 24) ageClass = 'border-orange-400 bg-orange-50 ring-1 ring-orange-200';
                     else if(diffHours >= 12) ageClass = 'border-yellow-400 bg-yellow-50';
                 } const cleanSheetName = escapeStr(task.sheet).replace(/_/g, ' ');
-                const isQr = (task.defect.includes("דיווח מצוות המחלקה") || task.defect.includes("תקלה חדשה") || task.inspector.includes("צוות"));
+                const isQr = (task.defect.includes("דיווח מצוות המחלקה") || task.defect.includes("תקלה חדשה") || (task.inspector && task.inspector.includes("צוות")));
                 const realIdx = allTasks.indexOf(task);
 
                 

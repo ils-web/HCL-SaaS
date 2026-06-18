@@ -77,6 +77,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
       system: t.system?.name || t.customDefectName || 'אחר',
       defect: t.system?.name || t.customDefectName || 'אחר',
       action: t.actionType === 'REPAIR' ? 'Ремонт' : (t.actionType === 'REPLACE' ? 'Замена' : ''),
+      inspector: t.inspectorName || 'מנהל',
       notes: t.notes || '',
       comment: t.notes || '',
       photo: t.photoUrl || '',
