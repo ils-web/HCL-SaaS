@@ -115,23 +115,14 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       dept = await prisma.department.create({ data: { tenantId, name: department } });
     }
 
-    // Auto-create/find Area (Room)
-    let area = await prisma.area.findFirst({ where: { tenantId, name: String(room) } });
-    if (!area) {
-      area = await prisma.area.create({ data: { tenantId, name: String(room) } });
-    }
-
     // Create Tasks
     for (const item of items) {
       const { name, score, comment, photoBase64 } = item;
       
-      // Auto-create/find System (linked to Area)
-      let sys = await prisma.system.findFirst({ where: { tenantId, areaId: area.id, name } });
-      if (!sys) {
-        sys = await prisma.system.create({ data: { tenantId, areaId: area.id, name } });
-      }
+      // Find System across the whole tenant template (created by admin)
+      let sys = await prisma.system.findFirst({ where: { tenantId, name } });
 
-      let teamId = sys.autoAssignTeamId;
+      let teamId = sys?.autoAssignTeamId;
       if (!teamId) {
         let defTeam = await prisma.team.findFirst({ where: { tenantId, name: 'ליקויים' } });
         if (!defTeam) defTeam = await prisma.team.create({ data: { tenantId, name: 'ליקויים' } });
@@ -142,11 +133,11 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         data: {
           tenantId,
           departmentId: dept.id,
-          systemId: sys.id,
+          systemId: sys ? sys.id : null,
           room: String(room),
           actionType: score == 1 ? 'REPLACE' : 'REPAIR',
           status: 'NEW',
-          notes: comment || '',
+          notes: sys ? (comment || '') : ((name || 'אחר') + (comment ? '\n' + comment : '')),
           photoUrl: photoBase64 || null,
           teamId: teamId
         }
