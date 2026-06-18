@@ -74,8 +74,8 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
       dept: t.department?.name || 'כללי',
       department: t.department?.name || 'כללי',
       room: t.room,
-      system: t.system?.name || 'אחר',
-      defect: t.system?.name || 'אחר',
+      system: t.system?.name || t.customDefectName || 'אחר',
+      defect: t.system?.name || t.customDefectName || 'אחר',
       action: t.actionType === 'REPAIR' ? 'Ремонт' : (t.actionType === 'REPLACE' ? 'Замена' : ''),
       notes: t.notes || '',
       comment: t.notes || '',
@@ -134,10 +134,11 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
           tenantId,
           departmentId: dept.id,
           systemId: sys ? sys.id : null,
+          customDefectName: sys ? null : name,
           room: String(room),
           actionType: score == 1 ? 'REPLACE' : 'REPAIR',
           status: 'NEW',
-          notes: sys ? (comment || '') : ((name || 'אחר') + (comment ? '\n' + comment : '')),
+          notes: comment || '',
           photoUrl: photoBase64 || null,
           teamId: teamId
         }
@@ -156,12 +157,6 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       dept = await prisma.department.create({ data: { tenantId, name: department } });
     }
 
-    // Auto-create/find Area (Room)
-    let area = await prisma.area.findFirst({ where: { tenantId, name: String(room) } });
-    if (!area) {
-      area = await prisma.area.create({ data: { tenantId, name: String(room) } });
-    }
-
     // Team (category/sheetName)
     let teamId = null;
     if (sheetName) {
@@ -172,17 +167,15 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       teamId = team.id;
     }
 
-    // System
-    let sys = await prisma.system.findFirst({ where: { tenantId, areaId: area.id, name: defect || 'אחר' } });
-    if (!sys) {
-      sys = await prisma.system.create({ data: { tenantId, areaId: area.id, name: defect || 'אחר', autoAssignTeamId: teamId } });
-    }
+    // Find System globally to try matching it
+    let sys = await prisma.system.findFirst({ where: { tenantId, name: defect || 'אחר' } });
 
     await prisma.task.create({
       data: {
         tenantId,
         departmentId: dept.id,
-        systemId: sys.id,
+        systemId: sys ? sys.id : null,
+        customDefectName: sys ? null : (defect || 'אחר'),
         room: String(room),
         actionType: 'REPAIR', // Default for personnel reports
         status: 'NEW',
