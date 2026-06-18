@@ -116,36 +116,54 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       dept = await prisma.department.create({ data: { tenantId, name: department } });
     }
 
-    // Create Tasks
-    for (const item of items) {
-      const { name, score, comment, photoBase64 } = item;
-      
-      // Find System across the whole tenant template (created by admin)
-      let sys = await prisma.system.findFirst({ where: { tenantId, name } });
-
-      let teamId = sys?.autoAssignTeamId;
-      if (!teamId) {
-        let defTeam = await prisma.team.findFirst({ where: { tenantId, name: 'ליקויים' } });
-        if (!defTeam) defTeam = await prisma.team.create({ data: { tenantId, name: 'ליקויים' } });
-        teamId = defTeam.id;
-      }
-
-      const finalPhotoUrl = await uploadToImgBB(photoBase64);
-
+    if (items.length === 0) {
+      // Create a dummy task for "All Good" so the dot appears in the calendar
       await prisma.task.create({
         data: {
           tenantId,
           departmentId: dept.id,
-          systemId: sys ? sys.id : null,
-          customDefectName: sys ? null : name,
+          systemId: null,
+          customDefectName: 'הכל תקין (אין דיווחי תקלות)',
           room: String(room),
-          actionType: score == 1 ? 'REPLACE' : 'REPAIR',
-          status: 'NEW',
-          notes: comment || '',
-          photoUrl: finalPhotoUrl,
-          teamId: teamId
+          actionType: 'REPAIR',
+          status: 'NEW', // Keep it new so it shows up in Open Tasks
+          notes: '',
+          photoUrl: null,
+          teamId: null // No specific team
         }
       });
+    } else {
+      // Create Tasks
+      for (const item of items) {
+        const { name, score, comment, photoBase64 } = item;
+        
+        // Find System across the whole tenant template (created by admin)
+        let sys = await prisma.system.findFirst({ where: { tenantId, name } });
+
+        let teamId = sys?.autoAssignTeamId;
+        if (!teamId) {
+          let defTeam = await prisma.team.findFirst({ where: { tenantId, name: 'ליקויים' } });
+          if (!defTeam) defTeam = await prisma.team.create({ data: { tenantId, name: 'ליקויים' } });
+          teamId = defTeam.id;
+        }
+
+        const finalPhotoUrl = await uploadToImgBB(photoBase64);
+
+        await prisma.task.create({
+          data: {
+            tenantId,
+            departmentId: dept.id,
+            systemId: sys ? sys.id : null,
+            customDefectName: sys ? null : name,
+            room: String(room),
+            actionType: score == 1 ? 'REPLACE' : 'REPAIR',
+            status: 'NEW',
+            notes: comment || '',
+            photoUrl: finalPhotoUrl,
+            teamId: teamId
+          }
+        });
+      }
     }
 
     return NextResponse.json({ status: 'success' });
