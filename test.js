@@ -1,342 +1,4 @@
-<!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>HCL Admin - לוח בקרה</title>
-    
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#1f2937">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="admin-192.png">
 
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    
-    <style>
-        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; overflow-y: scroll; }
-        .tab-btn.active { border-bottom: 4px solid #4f46e5; color: #4f46e5; font-weight: bold; background-color: white;}
-        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #4f46e5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        .in-progress-stamp { border: 3px solid #f97316; color: #f97316; transform: rotate(-5deg); font-family: 'Impact', sans-serif; }
-
-        .flatpickr-day.has-tasks-dot::after {
-            content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
-            width: 5px; height: 5px; background-color: #4f46e5; border-radius: 50%;
-        }
-
-        /* Полное устранение флеша картинок на экране. Контейнер скрыт по умолчанию. */
-        #printTasksContainer { display: none; }
-
-                @media print {
-            @page { size: A4 portrait; margin: 0; } /* Zero margin to prevent scaling bugs */
-            body { background: white !important; margin: 0; padding: 0 !important; -webkit-print-color-adjust: exact; width: 210mm; }
-            #noPrintUI, #qrModal, #backToTopBtn { display: none !important; }
-            .print-page { page-break-after: always; padding: 10mm; width: 210mm; height: 296mm; border: none; }
-            #printTasksContainer { display: block !important; }
-        }
-
-        /* סגנונות כרטיסי הדפסה (מחוץ ל @media print, כדי שיוצגו ב-PDF גם ככה) */
-        .print-page { width: 100%; max-width: 210mm; height: 296mm; margin: 0 auto; padding: 10mm; box-sizing: border-box; display: flex; flex-direction: column; background: white; overflow: hidden; }
-        .print-page-header { font-size: 19px; font-weight: bold; text-align: center; border-bottom: 3px solid #000; padding-bottom: 5px; margin-bottom: 8px; height: 40px; display: flex; flex-direction: column; justify-content: center; color: black; }
-        .print-page-header-sub { font-size: 13px; font-weight: normal; color: #555; margin-top: 2px; }
-        .print-cards-grid { display: flex; flex-wrap: wrap; justify-content: space-between; align-content: flex-start; flex-grow: 1; height: calc(100% - 50px); }
-        .print-card { width: 49%; height: 48%; margin-bottom: 2%; border: 2px solid #000; border-radius: 10px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; page-break-inside: avoid; overflow: hidden; background: white; color: black; }
-        .print-card-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ccc; padding-bottom: 4px; margin-bottom: 8px; color: black; }
-        .print-card-body { display: flex; gap: 10px; flex-grow: 1; align-items: stretch; overflow: hidden; }
-        .print-photo { width: 55%; height: 100%; max-height: 100%; object-fit: cover; object-position: center; border: 2px solid #cbd5e1; border-radius: 8px; }
-        .print-info { width: 45%; display: flex; flex-direction: column; color: black; overflow: hidden; }
-        .defect-title { font-size: 18px; font-weight: 900; margin-bottom: 6px; line-height: 1.2; }
-        .defect-comment { font-size: 14px; color: #374151; line-height: 1.2; }
-        .signature-box { border-top: 2px dashed #000; margin-top: 8px; padding-top: 6px; display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; color: black;}
-        
-        #managerTable { width: 100%; border-collapse: collapse; margin-top: 10mm; direction: rtl; display: none; }
-        #managerTable.print-active { display: table; }
-        #managerTable th, #managerTable td { border: 1px solid #000; padding: 8px; text-align: right; font-size: 13px; color: #000; }
-        #managerTable th { background-color: #e5e7eb !important; font-weight: bold; }
-        #printTitleManager { font-size: 24px; font-weight: bold; text-align: center; text-decoration: underline; margin-bottom: 15px; color: #000; display: none; }
-        #printTitleManager.print-active { display: block; }
-    </style>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-</head>
-<body class="text-gray-800">
-
-    <div id="toastContainer" class="fixed bottom-5 left-5 z-[110] flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
-
-    <div id="customConfirmModal" class="fixed inset-0 bg-black/60 hidden z-[100] flex items-center justify-center p-4 transition-all duration-300 opacity-0">
-        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl transform scale-95 transition-all duration-300 text-center">
-            <div id="confirmIconContainer" class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
-                <i class="fas fa-question-circle"></i>
-            </div>
-            <h3 id="confirmTitle" class="text-xl font-black text-gray-800 mb-2"></h3>
-            <p id="confirmMessage" class="text-gray-500 font-medium mb-6 text-sm leading-relaxed"></p>
-            <div class="flex gap-3">
-                <button id="confirmCancelBtn" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-bold transition-colors">ביטול</button>
-                <button id="confirmSuccessBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold transition-colors shadow-md">אישור</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="loginScreen" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center">
-            <i class="fas fa-lock text-indigo-600 text-5xl mb-4"></i>
-            <h2 class="text-2xl font-black mb-6">כניסת מנהל</h2>
-            <input type="password" id="pinCode" placeholder="קוד גישה" class="w-full p-4 mb-4 bg-gray-50 border rounded-xl text-center text-2xl font-bold tracking-widest outline-none focus:ring-2 focus:ring-indigo-500">
-            <button onclick="checkPin()" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg">כניסה</button>
-            <p id="pinError" class="text-red-500 font-bold mt-2 hidden">קוד שגוי!</p>
-        </div>
-    </div>
-
-    <div id="loader" class="fixed inset-0 bg-white/90 hidden z-40 flex items-center justify-center">
-        <div class="flex flex-col items-center"><div class="loader mb-4"></div><p class="font-bold text-indigo-600" id="loaderText">מעדכן נתונים...</p></div>
-    </div>
-
-    <div id="workersModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col max-h-[80vh]">
-            <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 class="text-xl font-black text-gray-800"><i class="fas fa-users-cog text-indigo-600 ml-2"></i>ניהול רשימת עובדים</h3>
-                <button onclick="closeWorkersModal()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="flex gap-2 mb-4">
-                <input type="text" id="newWorkerName" placeholder="שם עובד חדש" class="flex-grow p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
-                <button onclick="addWorkerToList()" class="bg-indigo-600 text-white px-5 py-3 rounded-xl font-bold hover:bg-indigo-500"><i class="fas fa-plus"></i></button>
-            </div>
-            <div id="workersListZone" class="flex-grow overflow-y-auto space-y-2 mb-4 pr-1"></div>
-            <button onclick="saveWorkersToServer()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-500 shadow"><i class="fas fa-save ml-2"></i>שמור שינויים בטבלה</button>
-        </div>
-    </div>
-
-    <!-- Config Modal -->
-    <div id="configModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl flex flex-col max-h-[80vh]">
-            <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 class="text-xl font-black text-gray-800"><i class="fas fa-cogs text-indigo-600 ml-2"></i>ניהול מערכות נבדקות</h3>
-                <button onclick="closeConfigModal()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
-            </div>
-            
-            <div class="flex gap-4 mb-4 flex-col md:flex-row flex-grow min-h-0">
-                <div class="flex-1 border rounded-xl overflow-hidden flex flex-col w-full md:w-1/3">
-                    <div class="bg-gray-100 p-2 font-bold text-center border-b">אזורי בדיקה (כמו אמבטיה, חדר)</div>
-                    <div class="flex p-2 gap-2 border-b">
-                        <input type="text" id="newTeamName" placeholder="הוסף אזור..." class="flex-grow min-w-0 p-2 bg-gray-50 border rounded-lg font-bold outline-none text-sm">
-                        <button onclick="addTeamConfig()" class="shrink-0 bg-indigo-600 text-white px-3 py-1 rounded-lg"><i class="fas fa-plus"></i></button>
-                    </div>
-                    <div id="configTeamsList" class="flex-grow overflow-y-auto p-2 space-y-2 min-h-[150px]"></div>
-                </div>
-                
-                <div class="flex-2 border rounded-xl overflow-hidden flex flex-col w-full md:w-2/3">
-                    <div id="configSystemsHeader" class="bg-gray-100 p-2 font-bold text-center border-b">מערכות באזור</div>
-                    <div class="flex p-2 gap-2 border-b">
-                        <input type="text" id="newSystemName" placeholder="הוסף מערכת (כמו דוש, שקע)..." class="flex-grow min-w-0 p-2 bg-gray-50 border rounded-lg font-bold outline-none text-sm">
-                        <button onclick="addSystemConfig()" class="shrink-0 bg-indigo-600 text-white px-3 py-1 rounded-lg"><i class="fas fa-plus"></i></button>
-                    </div>
-                    <div id="configSystemsList" class="flex-grow overflow-y-auto p-2 space-y-2 min-h-[150px]"></div>
-                </div>
-            </div>
-            
-            <button onclick="saveConfigToServer()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-500 shadow"><i class="fas fa-save ml-2"></i>שמור הגדרות לשרת</button>
-        </div>
-    </div>
-
-    <!-- QR Config Modal -->
-    <div id="qrConfigModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col max-h-[80vh]">
-            <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 class="text-xl font-black text-gray-800"><i class="fas fa-qrcode text-indigo-600 ml-2"></i>הגדרות ניתוב QR</h3>
-                <button onclick="closeQrConfigModal()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="text-sm text-gray-500 mb-4 font-medium">
-                בחר לאיזה צוות לשייך כל קטגוריה מהדיווחים של העובדים (QR). אם לא תבחר, הדיווחים יגיעו ל"כללי".
-            </div>
-            <div class="overflow-y-auto flex-1 mb-4 pr-2 space-y-3" id="qrConfigList">
-                <!-- Javascript will inject here -->
-            </div>
-            <div class="mt-4 border-t pt-4">
-                <button onclick="saveQrConfig()" class="w-full bg-green-600 text-white font-black py-3 rounded-xl hover:bg-green-500 transition-colors shadow-lg"><i class="fas fa-save ml-2"></i>שמור הגדרות לשרת</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Teams Modal -->
-    <div id="teamsModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl flex flex-col max-h-[80vh]">
-            <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 class="text-xl font-black text-gray-800"><i class="fas fa-users-cog text-indigo-600 ml-2"></i>ניהול צוותים</h3>
-                <button onclick="closeTeamsModal()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="flex gap-2 mb-4">
-                <input type="text" id="newTeamInput" placeholder="שם צוות (כגון חשמל, בינוי)..." class="flex-grow p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500 text-sm">
-                <button onclick="addTeam()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold shadow hover:bg-indigo-500 transition-all"><i class="fas fa-plus"></i></button>
-            </div>
-            <div id="teamsListZone" class="flex-grow overflow-y-auto mb-4 min-h-[200px] border rounded-xl p-2 bg-gray-50"></div>
-            <button onclick="saveTeamsToServer()" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-500 shadow"><i class="fas fa-save ml-2"></i>שמור צוותים לשרת</button>
-        </div>
-    </div>
-
-    <button id="backToTopBtn" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="fixed bottom-6 right-6 bg-indigo-600 text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:bg-indigo-500 transition-all z-30 opacity-0 invisible">
-        <i class="fas fa-arrow-up text-lg"></i>
-    </button>
-
-    <!-- QR Modal -->
-    <div id="qrModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col">
-            <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 class="text-xl font-black text-gray-800"><i class="fas fa-qrcode text-blue-600 ml-2"></i>יצירת QR קוד</h3>
-                <button onclick="closeQrModal()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="space-y-4 mb-4">
-                <label class="block text-sm font-bold text-gray-700">בחר מחלקה ל-QR:</label>
-                <div class="flex gap-2">
-                    <select id="qrDeptSelect" class="flex-grow p-3 bg-gray-50 border rounded-xl font-bold outline-none"></select>
-                    <input type="text" id="qrCustomDept" placeholder="או הקלד ידנית" class="w-1/3 p-3 bg-gray-50 border rounded-xl font-bold outline-none text-sm">
-                </div>
-                <button onclick="generateQR()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-500 shadow"><i class="fas fa-cogs ml-2"></i>צור קוד</button>
-            </div>
-            <div id="qrcodeBox" class="flex justify-center p-4 bg-gray-50 rounded-xl border hidden flex-col items-center">
-                <div id="qrcodeElement" class="bg-white p-2 border shadow-sm mb-4"></div>
-                <button onclick="printQR()" class="bg-gray-800 text-white w-full py-3 rounded-xl font-bold shadow"><i class="fas fa-print ml-2"></i>הדפס QR לתלייה</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Inspector QR Modal -->
-    <div id="inspectorQrModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col text-center">
-            <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 class="text-xl font-black text-gray-800"><i class="fas fa-mobile-alt text-purple-600 ml-2"></i>אפליקציית מפקח</h3>
-                <button onclick="closeInspectorQrModal()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="mb-6">
-                <p class="text-gray-600 font-medium text-sm">סרוק קוד זה מהנייד כדי להתקין את האפליקציה.</p>
-                <p class="text-xs text-gray-400 mt-1">האפליקציה תוגדר אוטומטית למרפאה הנוכחית.</p>
-            </div>
-            <div class="flex justify-center flex-col items-center">
-                <div id="inspectorQrcodeElement" class="bg-white p-2 border shadow-sm mb-4 inline-block"></div>
-                <a href="/inspector.html?tenantId=default" id="inspectorDirectLink" target="_blank" class="text-purple-600 text-sm font-bold underline mb-4">פתח בדפדפן (למחשב)</a>
-            </div>
-        </div>
-    </div>
-
-    <div id="mainApp" class="hidden max-w-5xl mx-auto p-4 md:p-6 print:p-0 print:max-w-full">
-        <div id="noPrintUI">
-            
-            <div id="unprintedAlertBanner" class="hidden mb-6">
-                <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                    <button onclick="toggleBannerDetails()" class="w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 transition-colors border-b border-gray-200 outline-none">
-                        <div class="flex items-center gap-3 font-bold text-gray-800" id="bannerSummaryText"></div>
-                        <i id="bannerChevron" class="fas fa-chevron-down text-gray-500 transition-transform duration-300"></i>
-                    </button>
-                    <div id="bannerDetails" class="hidden p-4 bg-white text-sm">
-                        <div id="unprintedAlertText" class="w-full"></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mb-6">
-                <div class="flex flex-col lg:flex-row justify-between items-center gap-4 mb-6 border-b pb-4">
-                    <h1 class="text-3xl font-black text-gray-800">לוח בקרה <span class="text-indigo-600">HCL</span></h1>
-                    
-                    <div class="flex gap-2 flex-wrap justify-center items-center">
-                        <button onclick="toggleViewMode()" id="viewModeBtn" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl font-bold hover:bg-gray-200 shadow border border-gray-300"><i class="fas fa-list ml-2"></i>שינוי תצוגה</button>
-                        <input type="text" id="searchInput" oninput="handleSearch()" placeholder="חיפוש משימה..." class="px-4 py-2 rounded-xl border border-gray-300 shadow-sm outline-none w-full md:w-48 font-bold text-sm">
-                        <button onclick="openTeamsModal()" class="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl font-bold hover:bg-blue-100 shadow border border-blue-200"><i class="fas fa-users-cog ml-2"></i>ניהול צוותים</button>
-                        <button onclick="openQrConfigModal()" class="bg-purple-50 text-purple-700 px-4 py-2 rounded-xl font-bold hover:bg-purple-100 shadow border border-purple-200"><i class="fas fa-qrcode ml-2"></i>הגדרות QR</button>
-                        <button onclick="openConfigModal()" class="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl font-bold hover:bg-blue-100 shadow"><i class="fas fa-cogs ml-2"></i>ניהול מערכות נבדקות</button>
-                        <button onclick="openWorkersModal()" class="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl font-bold hover:bg-indigo-100 shadow"><i class="fas fa-users ml-2"></i>ניהול עובדים</button>
-                        <button onclick="toggleSelectAll()" id="selectAllBtn" class="bg-indigo-50 text-indigo-700 w-36 py-2 rounded-xl font-bold hover:bg-indigo-100 shadow flex items-center justify-center"><i class="fas fa-check-square ml-2"></i><span>בחר הכל</span></button>
-                        <button onclick="closeSelectedTasks()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-indigo-500 shadow"><i class="fas fa-check-double ml-2"></i>סגור נבחרים</button>
-                        <button onclick="revertSelectedTasks()" class="bg-orange-100 text-orange-700 px-4 py-2 rounded-xl font-bold hover:bg-orange-200 shadow border border-orange-300"><i class="fas fa-undo ml-2"></i>החזר לפתוח</button>
-                        
-                        <div class="flex gap-2 items-center bg-gray-50 p-1.5 rounded-xl border border-gray-200 shadow-sm flex-wrap justify-center">
-                            <select id="printWorker" class="bg-white text-orange-900 border border-gray-200 py-1.5 px-3 font-bold rounded-lg outline-none text-sm max-w-[140px]">
-                                <option value="">בחר עובד... (Без мастера)</option>
-                            </select>
-                            
-                            <select id="printLang" class="bg-white text-orange-900 border border-gray-200 py-1.5 px-3 font-bold rounded-lg outline-none text-sm">
-                                <option value="he">🇮🇱 עברית (HE)</option>
-                                <option value="ru">🇷🇺 Русский (RU)</option>
-                                <option value="ar">🇦🇪 العربية (AR)</option>
-                                <option value="en">🇬🇧 English (EN)</option>
-                            </select>
-                            
-                            <button onclick="processOutput('print')" class="bg-orange-600 text-white px-4 py-1.5 rounded-lg font-bold hover:bg-orange-500 transition-colors shadow-sm">
-                                <i class="fas fa-print ml-1"></i>הדפס
-                            </button>
-                            
-                            <button onclick="sendToWorkerApp()" class="bg-purple-600 text-white px-4 py-1.5 rounded-lg font-bold hover:bg-purple-500 transition-colors shadow-sm">
-                                <i class="fas fa-mobile-alt ml-1"></i>WorkerApp
-                            </button>
-                        </div>
-                        
-                        <button onclick="printManagerReport()" class="bg-green-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-green-500 shadow"><i class="fas fa-table ml-2"></i>דוח מנהל</button>
-                        <button onclick="openQrModal()" class="bg-blue-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-blue-500 shadow"><i class="fas fa-qrcode ml-2"></i>QR עובדים</button>
-                        <button onclick="openInspectorQrModal()" class="bg-purple-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-purple-500 shadow"><i class="fas fa-mobile-alt ml-2"></i>QR מפקח</button>
-                        <button onclick="loadTasks()" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl font-bold hover:bg-indigo-200"><i class="fas fa-sync-alt"></i></button>
-                    </div>
-                </div>
-
-                <div class="flex flex-col md:flex-row gap-4">
-                    <div class="flex-1">
-                        <label class="block text-sm font-bold text-gray-500 mb-1">מחלקה</label>
-                        <select id="filterDept" onchange="renderTasks()" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none">
-                            <option value="ALL">כל המחלקות</option>
-                        </select>
-                    </div>
-                    <div class="flex-1">
-                        <label class="block text-sm font-bold text-gray-500 mb-1">מתאריך</label>
-                        <input type="text" id="filterDate" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none" placeholder="בחר תאריך">
-                    </div>
-                    <div class="flex items-end">
-                        <button onclick="resetFilters()" class="px-6 py-3 bg-red-100 text-red-600 rounded-xl font-bold">נקה סינון</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="unassignedTasksAlert" class="hidden bg-orange-50 border-r-4 border-orange-500 p-4 rounded-xl shadow-sm mb-6 flex justify-between items-center border border-orange-200">
-                <div class="font-bold text-lg text-orange-800">
-                    <i class="fas fa-bell text-orange-500 ml-2 animate-bounce"></i>
-                    שים לב: יש <span id="unassignedCount" class="bg-orange-500 text-white px-2 py-0.5 rounded-full mx-1">0</span> משימות פתוחות הממתינות לשיבוץ או להדפסה!
-                </div>
-                <button onclick="showUnassignedTasks()" class="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-orange-600 shadow transition-colors">
-                    הצג משימות פתוחות
-                </button>
-            </div>
-
-            <div id="dynamicTabsContainer" class="flex bg-white rounded-2xl shadow-sm mb-6 overflow-x-auto overflow-y-hidden border border-gray-200">
-                <!-- Dynamic Tabs injected here -->
-            </div>
-
-            <div id="screenTasksContainer" class="space-y-4"></div>
-        </div>
-
-        <div id="printTitleManager"></div>
-        <table id="managerTable">
-            <thead>
-                <tr>
-                    <th>תאריך ושעה</th>
-                    <th>שם הבודק</th>
-                    <th>מחלקה</th>
-                    <th>חדר</th>
-                    <th>פריט נבדק</th>
-                    <th>הערות</th>
-                    <th>סטטוס</th>
-                    <th>עובד מבצע</th>
-                </tr>
-            </thead>
-            <tbody id="managerTableBody"></tbody>
-        </table>
-
-        <div id="printTasksContainer"></div>
-    </div>
-    <script>
         const _tId = new URLSearchParams(window.location.search).get('tenantId') || 'default';
         const API_URL = `/api/${_tId}`;
         let allTasks = [];
@@ -415,23 +77,7 @@
                 dateFormat: "Y-m-d",
                 allowInput: false,
                 disableMobile: true,
-                onChange: function(selectedDates, dateStr) {
-                    if (allTasks && allTasks.length > 0 && dateStr) {
-                        const parts = dateStr.split("-");
-                        if (parts.length === 3) {
-                            const dateMatch = `${parts[2]}/${parts[1]}/${parts[0]}`;
-                            const tasksOnDay = allTasks.filter(t => t.dateStr && t.dateStr.startsWith(dateMatch));
-                            if (tasksOnDay.length > 0) {
-                                const teamsOnDay = [...new Set(tasksOnDay.map(t => t.sheet))].filter(Boolean);
-                                if (teamsOnDay.length === 1 && teamsOnDay[0] !== currentTab) {
-                                    switchTab(teamsOnDay[0]);
-                                    return; // switchTab already calls renderTasks
-                                }
-                            }
-                        }
-                    }
-                    renderTasks(); 
-                },
+                onChange: function() { renderTasks(); },
                 onDayCreate: function(dObj, dStr, fp, dayElem) {
                     if (!allTasks || allTasks.length === 0) return;
                     const cellDate = dayElem.dateObj;
@@ -440,7 +86,6 @@
                     const hasTasksOnDay = allTasks.some(t => {
                         if (!t.dateStr || !t.dateStr.includes("/")) return false;
                         const p = t.dateStr.split(" ")[0].split("/");
-                        if (p.length < 3) return false;
                         const taskIso = `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
                         return taskIso === dateKey;
                     });
@@ -458,13 +103,12 @@
 
         async function loadSettings() {
             try {
-                const res = await fetch(`${API_URL}?action=getSettings&t=${Date.now()}`);
+                const res = await fetch(`${API_URL}?action=getSettings`);
                 const data = await res.json();
                 workersPool = data.workers || [];
                 categoriesConfig = data.categories || {};
-                teamsList = data.teams && data.teams.length > 0 ? data.teams : ["כללי"];
-                if(!teamsList.includes("כללי")) teamsList.push("כללי");
-                teamsList = [...new Set(teamsList)];
+                teamsList = data.teams || ["חשמל","מיזוג_אוויר","בינוי_ודלתות","מיטות","בטיחות","ניקיון","ליקויים"];
+                if(!teamsList.includes("ליקויים")) teamsList.push("ליקויים");
                 systemTeams = data.systemTeams || {};
                 updateWorkersSelectUI();
                 renderDynamicTabs();
@@ -490,97 +134,13 @@
             document.getElementById('configModal').classList.add('hidden');
         }
 
-        const QR_CATEGORIES = [
-            { id: 'חשמל', label: 'חשמל' },
-            { id: 'מיזוג_אוויר', label: 'מיזוג אוויר' },
-            { id: 'בינוי_ודלתות', label: 'בינוי ודלתות' },
-            { id: 'מיטות', label: 'מיטות / ריהוט' },
-            { id: 'ניקיון', label: 'ניקיון' }
-        ];
-        let qrMappings = [];
-
-        async function openQrConfigModal() {
-            document.getElementById('qrConfigModal').classList.remove('hidden');
-            try {
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'GET_QR_MAPPINGS' })
-                });
-                const data = await res.json();
-                qrMappings = data.mappings || [];
-                renderQrConfig();
-            } catch(e) {
-                console.error(e);
-            }
-        }
-
-        function closeQrConfigModal() {
-            document.getElementById('qrConfigModal').classList.add('hidden');
-        }
-
-        function renderQrConfig() {
-            const container = document.getElementById('qrConfigList');
-            container.innerHTML = '';
-            
-            QR_CATEGORIES.forEach(cat => {
-                const mapping = qrMappings.find(m => m.category === cat.id);
-                const selectedTeamName = mapping ? mapping.teamName : '';
-
-                let teamOptions = `<option value="">-- בחר צוות -- (ברירת מחדל: כללי)</option>`;
-                let currentLabel = "<span class='text-gray-400'>ברירת מחדל (כללי)</span>";
-                teamsList.forEach(t => {
-                    let label = t;
-                    let sel = (t === selectedTeamName) ? 'selected' : '';
-                    teamOptions += `<option value="${t}" ${sel}>${label}</option>`;
-                    if (sel) currentLabel = `<span class='text-purple-600 font-bold'>${label}</span>`;
-                });
-
-                container.innerHTML += `
-                    <div class="bg-gray-50 p-3 rounded-xl border flex flex-col mb-2">
-                        <div class="flex justify-between items-center mb-1">
-                            <label class="font-bold text-gray-700">${cat.label}</label>
-                            <span class="text-xs">${currentLabel}</span>
-                        </div>
-                        <select id="qr-map-${cat.id}" class="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                            ${teamOptions}
-                        </select>
-                    </div>
-                `;
-            });
-        }
-
-        async function saveQrConfig() {
-            const mappingsToSave = QR_CATEGORIES.map(cat => {
-                const teamName = document.getElementById(`qr-map-${cat.id}`).value;
-                return { category: cat.id, teamName: teamName || null };
-            });
-
-            try {
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'SAVE_QR_MAPPINGS', mappings: mappingsToSave })
-                });
-                if(res.ok) {
-                    showToast('הגדרות נשמרו בהצלחה', 'success');
-                    closeQrConfigModal();
-                } else {
-                    showToast('שגיאה בשמירה', 'error');
-                }
-            } catch(e) {
-                console.error(e);
-                showToast('שגיאה בשמירה', 'error');
-            }
-        }
-
         function renderConfigTeams() {
             const list = document.getElementById('configTeamsList');
             list.innerHTML = '';
             const cats = Object.keys(categoriesConfig);
             cats.forEach(team => {
                 const isSelected = activeConfigTeam === team;
-                const canDelete = team !== 'כללי' && team !== 'Общее';
+                const canDelete = team !== 'כללי' && team !== 'Общее' && team !== 'ליקויים';
                 list.innerHTML += `
                 <div class="flex justify-between items-center p-2 rounded-lg cursor-pointer border ${isSelected ? 'bg-indigo-100 border-indigo-300' : 'bg-white border-gray-200 hover:bg-gray-50'}" onclick="selectConfigTeam('${team}')">
                     <span class="font-bold text-gray-700">${team}</span>
@@ -604,12 +164,10 @@
             if (!activeConfigTeam || !categoriesConfig[activeConfigTeam]) return;
             categoriesConfig[activeConfigTeam].forEach((sys, idx) => {
                 let options = `<option value="">-- ללא צוות -- (שיוך אוטומטי)</option>`;
-                let currentLabel = "<span class='text-gray-400'>ללא צוות</span>";
                 teamsList.forEach(t => {
                    let sel = (systemTeams[sys] === t) ? "selected" : "";
-                   let label = t;
+                   let label = (t === "ליקויים" || t === "כללי") ? "כללי" : t;
                    options += `<option value="${t}" ${sel}>${label}</option>`;
-                   if (sel) currentLabel = `<span class='text-green-600 font-bold'>${label}</span>`;
                 });
                 
                 list.innerHTML += `
@@ -698,9 +256,9 @@
             const list = document.getElementById('teamsListZone');
             list.innerHTML = '';
             teamsList.forEach((t, idx) => {
-                const isGeneral = (t === 'כללי' || t === 'בינוי_ודלתות' || t === 'מיזוג_אוויר' || t === 'חשמל');
+                const isGeneral = (t === 'כללי' || t === 'ליקויים' || t === 'בינוי_ודלתות' || t === 'מיזוג_אוויר' || t === 'חשמל');
                 const canDelete = !isGeneral;
-                const label = t;
+                const label = (t === 'ליקויים' || t === 'כללי') ? 'כללי (ליקויים)' : t;
                 list.innerHTML += `
                 <div class="flex justify-between items-center bg-white p-3 rounded-xl border shadow-sm mb-2" data-id="${t}">
                     <div class="flex items-center gap-3">
@@ -761,7 +319,7 @@
                 const btn = document.createElement('button');
                 btn.id = 'tab-' + c;
                 btn.className = `tab-btn flex-1 min-w-[120px] py-4 px-4 font-bold text-gray-500 whitespace-nowrap`;
-                btn.innerText = c;
+                btn.innerText = (c === 'ליקויים' || c === 'כללי') ? 'כללי' : c;
                 btn.onclick = () => switchTab(c);
                 container.appendChild(btn);
             });
@@ -827,7 +385,7 @@
         async function loadTasks() {
             showLoader();
             try {
-                const res = await fetch(`${API_URL}?action=getOpenTasks&t=${Date.now()}`);
+                const res = await fetch(`${API_URL}?action=getOpenTasks`);
                 const data = await res.json(); allTasks = data.tasks || [];
                 if(fpInstance) fpInstance.redraw(); renderTasks();
             } catch(e) { console.error("Ошибка загрузки:", e); } hideLoader();
@@ -840,15 +398,7 @@
             if(targetTab) targetTab.classList.add('active', 'bg-white'); renderTasks(); 
         }
 
-        function resetFilters() { document.getElementById('filterDept').value="ALL"; document.getElementById('filterDate').value=""; if(fpInstance) fpInstance.clear(); renderTasks(); }
-
-        function showUnassignedTasks() {
-            resetFilters();
-            const firstUnassigned = allTasks.find(t => t.status !== "בעבודה");
-            if (firstUnassigned && firstUnassigned.sheet !== currentTab) {
-                switchTab(firstUnassigned.sheet);
-            }
-        }
+        function resetFilters() { document.getElementById('filterDept').value="ALL"; if(fpInstance) fpInstance.setDate(new Date()); renderTasks(); }
 
         function resetPrintStamp(realIdx) {
             const task = allTasks[realIdx];
@@ -946,17 +496,6 @@
             const screen = document.getElementById('screenTasksContainer'); const tbody = document.getElementById('managerTableBody');
             screen.innerHTML = ''; tbody.innerHTML = '';
             
-            const unassignedCount = allTasks.filter(t => t.status !== "בעבודה").length;
-            const alertBox = document.getElementById('unassignedTasksAlert');
-            if (alertBox) {
-                if (unassignedCount > 0) {
-                    document.getElementById('unassignedCount').innerText = unassignedCount;
-                    alertBox.classList.remove('hidden');
-                } else {
-                    alertBox.classList.add('hidden');
-                }
-            }
-
             const fDept = document.getElementById('filterDept').value; const fDate = document.getElementById('filterDate').value;
             let now = new Date();
 
@@ -1038,8 +577,8 @@
 
             // Sort QR tasks to the top
             filtered.sort((a, b) => {
-                const aIsQr = (a.defect.includes("דיווח מהמחלקה") || a.defect.includes("תקלה חדשה") || a.inspector.includes("צוות")) ? 1 : 0;
-                const bIsQr = (b.defect.includes("דיווח מהמחלקה") || b.defect.includes("תקלה חדשה") || b.inspector.includes("צוות")) ? 1 : 0;
+                const aIsQr = (a.defect.includes("דיווח מצוות המחלקה") || a.defect.includes("תקלה חדשה") || a.inspector.includes("צוות")) ? 1 : 0;
+                const bIsQr = (b.defect.includes("דיווח מצוות המחלקה") || b.defect.includes("תקלה חדשה") || b.inspector.includes("צוות")) ? 1 : 0;
                 return bIsQr - aIsQr;
             });
 
@@ -1061,15 +600,7 @@
                     else if(diffHours >= 24) ageClass = 'border-orange-400 bg-orange-50 ring-1 ring-orange-200';
                     else if(diffHours >= 12) ageClass = 'border-yellow-400 bg-yellow-50';
                 } const cleanSheetName = escapeStr(task.sheet).replace(/_/g, ' ');
-                const isQr = (task.defect.includes("דיווח מהמחלקה") || task.defect.includes("תקלה חדשה") || task.inspector.includes("צוות"));
-                let reporterName = '';
-                if (isQr) {
-                    if (task.inspector.startsWith("צוות: ")) {
-                        reporterName = task.inspector.replace("צוות: ", "");
-                    } else if (task.inspector.startsWith("צוות")) {
-                        reporterName = "דיווח עובד";
-                    }
-                }
+                const isQr = (task.defect.includes("דיווח מצוות המחלקה") || task.defect.includes("תקלה חדשה") || task.inspector.includes("צוות"));
                 const realIdx = allTasks.indexOf(task);
 
                 
@@ -1097,9 +628,9 @@
                     <img src="${img}" class="w-24 h-24 object-cover rounded-xl border" onerror="this.src='https://placehold.co/100x100?text=No+Photo'">
                     <div class="flex-grow pr-10 md:pr-0">
                         <div class="inline-block bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-black mb-2 border border-blue-200 shadow-sm">
-                            <i class="fas fa-users ml-1"></i> צוות משויך: ${cleanSheetName}
+                            <i class="fas fa-users ml-1"></i> צוות נוכחי: ${cleanSheetName}
                         </div>
-                        ${isQr ? `<div class="inline-block bg-pink-100 text-pink-700 px-3 py-1 rounded-lg text-xs font-black mb-2 border border-pink-200 shadow-sm mr-2"><i class="fas fa-qrcode ml-1"></i> QR${reporterName && reporterName !== 'לא ידוע' ? ` | ${reporterName}` : ''}</div>` : ''}
+                        ${isQr ? `<div class="inline-block bg-pink-100 text-pink-700 px-3 py-1 rounded-lg text-xs font-black mb-2 border border-pink-200 shadow-sm mr-2"><i class="fas fa-mobile-alt ml-1"></i> דיווח צוות / QR</div>` : ''}
                         <div class="flex items-center gap-3">
                             <h3 class="text-xl font-bold">${task.dept} | חדר: ${task.room} <span class="text-sm font-normal px-2 bg-gray-100 rounded">${actT}</span></h3>
                         </div>
@@ -1107,13 +638,6 @@
                         <p class="text-gray-500 text-sm">${task.comment || ""}</p>
                         <p class="text-xs text-gray-400 mt-1"><i class="fas fa-clock ml-1"></i>${task.dateStr} | ${task.inspector}</p>
                     </div>
-                      ${isPrinted ? `
-                      <div class="hidden md:flex flex-col justify-center border-r-2 border-orange-200 pr-5 w-40">
-                          <span class="text-xs text-gray-400">נמסר לטיפול:</span>
-                          <span class="font-bold text-gray-800">${task.printedWorker || 'לא צוין עובד'}</span>
-                          <span class="text-[11px] text-gray-500 mt-1"><i class="fas fa-print ml-1"></i><span dir="ltr">${task.printedTime || ''}</span></span>
-                      </div>
-                      ` : ''}
                     <div class="flex flex-row md:flex-col items-center justify-center gap-2 w-full md:w-48">
                         ${isPrinted ? `
                             <div class="flex flex-col items-center justify-center gap-1 bg-orange-100 border border-orange-300 rounded-xl px-2 py-1 text-xs text-orange-900 w-full text-center shadow-inner">
@@ -1146,7 +670,7 @@
             showCustomConfirm("סגירת משימה", "לסגור את המשימה הזו מהמערכת ומחיקת תמונה?", async () => {
                 const b = document.getElementById(`btn-${realIdx}`); b.innerHTML = "..."; b.disabled = true;
                 try {
-                    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "CLOSE_TASK", id: task.id, sheetName: task.sheet, date: task.dateStr, room: task.room, defect: task.defect, comment: task.comment || "" }) });
+                    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "CLOSE_TASK", sheetName: task.sheet, date: task.dateStr, room: task.room, defect: task.defect, comment: task.comment || "" }) });
                     const out = await res.json();
                     if(out.status === "success") {
                         document.getElementById(`task-card-${realIdx}`).style.opacity="0.3"; b.innerHTML = "סגור ✅";
@@ -1163,7 +687,7 @@
                 showLoader("סוגר משימות...");
                 const tasksToClose = []; checkboxes.forEach(cb => { const idx = parseInt(cb.dataset.index); if (allTasks[idx]) tasksToClose.push(allTasks[idx]); });
                 for(let task of tasksToClose) {
-                    try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "CLOSE_TASK", id: task.id, sheetName: task.sheet, date: task.dateStr, room: task.room, defect: task.defect, comment: task.comment || "" }) }); allTasks = allTasks.filter(t => t !== task); } catch(e) {}
+                    try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "CLOSE_TASK", sheetName: task.sheet, date: task.dateStr, room: task.room, defect: task.defect, comment: task.comment || "" }) }); allTasks = allTasks.filter(t => t !== task); } catch(e) {}
                 }
                 if(fpInstance) fpInstance.redraw(); hideLoader(); renderTasks(); showToast("המשימות נסגרו", "success");
             }, "fa-check-double");
@@ -1177,7 +701,7 @@
             checkboxes.forEach(cb => { 
                 const idx = parseInt(cb.dataset.index); 
                 if (allTasks[idx] && allTasks[idx].status === "בעבודה") {
-                    tasksToRevert.push({ id: allTasks[idx].id, sheet: allTasks[idx].sheet, room: allTasks[idx].room, defect: allTasks[idx].defect, comment: allTasks[idx].comment || "", date: allTasks[idx].dateStr }); 
+                    tasksToRevert.push({ sheet: allTasks[idx].sheet, room: allTasks[idx].room, defect: allTasks[idx].defect, comment: allTasks[idx].comment || "", date: allTasks[idx].dateStr }); 
                 }
             });
 
@@ -1299,18 +823,9 @@
             checkboxes.forEach(cb => {
                 const realIdx = parseInt(cb.dataset.index); const task = allTasks[realIdx];
                 if (task) {
-                    if (task.status !== "בעבודה" || chosenWorker) { tasksToUpdateOnServer.push({ id: task.id, sheet: task.sheet, room: task.room, defect: task.defect, comment: task.comment || "", date: task.dateStr }); }
+                    if (task.status !== "בעבודה" || chosenWorker) { tasksToUpdateOnServer.push({ sheet: task.sheet, room: task.room, defect: task.defect, comment: task.comment || "", date: task.dateStr }); }
                     const actT = task.actionType == 1 ? "החלפה" : "תיקון"; const img = fixImageUrl(task.photo); const dDate = task.dateStr.split(" ")[0];
-                    const isQr = (task.defect.includes("דיווח מהמחלקה") || task.defect.includes("תקלה חדשה") || task.inspector.includes("צוות"));
-                    let reporterName = '';
-                    if (isQr) {
-                        if (task.inspector.startsWith("צוות: ")) {
-                            reporterName = task.inspector.replace("צוות: ", "");
-                        } else if (task.inspector.startsWith("צוות")) {
-                            reporterName = "דיווח עובד";
-                        }
-                    }
-                    let printTask = {...task, actT, img, dDate, id: realIdx, isQr, reporterName};
+                    let printTask = {...task, actT, img, dDate, id: realIdx};
                     if (targetLang !== 'he') { translationPayload.push({ id: realIdx, defect: task.defect, comment: task.comment, actT: actT }); }
                     tasksToPrint.push(printTask);
                 }
@@ -1325,8 +840,7 @@
                     const transData = await res.json();
                     if (transData.status === "success" && transData.translations) {
                         transData.translations.forEach(transItem => { let matchTask = tasksToPrint.find(t => t.id === transItem.id); if (matchTask) { matchTask.defect = transItem.defect; matchTask.comment = transItem.comment; matchTask.actT = transItem.actT; } });
-                        printLabels = transData.translations[0].labels || printLabels; 
-                        textDirection = (targetLang === 'ru' || targetLang === 'en') ? "ltr" : "rtl"; 
+                        printLabels = transData.translations[0].labels; textDirection = (targetLang === 'ru') ? "ltr" : "rtl"; 
                     }
                 } catch (e) { console.error(e); } hideLoader();
             }
@@ -1342,11 +856,11 @@
                 let g = groups[key];
                 for(let i=0; i<g.length; i+=4) {
                     let chunk = g.slice(i, i+4);
-                    let page = `<div class="print-page"><div class="print-page-header"><div>צוות: ${currentTab.replace(/_/g, ' ')} | מחלקה: ${g[0].dept} | תאריך: ${g[0].dDate}</div><div class="print-page-header-sub">הופק בתאריך: ${printNowStr}</div></div><div class="print-cards-grid">`;
+                    let teamName = currentTab ? currentTab.replace(/_/g, ' ') : "כל המשימות";
+                    let page = `<div class="print-page"><div class="print-page-header"><div>צוות: ${teamName} | מחלקה: ${g[0].dept} | תאריך: ${g[0].dDate}</div><div class="print-page-header-sub">הופק בתאריך: ${printNowStr}</div></div><div class="print-cards-grid">`;
                     chunk.forEach(t => {
                         let nameVal = chosenWorker ? `<strong>${chosenWorker}</strong>` : "_________";
-                        let qrBadge = t.isQr ? `<span style="background:#fbcfe8;color:#be185d;padding:2px 8px;border-radius:6px;font-size:14px;margin-left:10px;display:inline-block;vertical-align:middle;">QR${t.reporterName && t.reporterName !== 'לא ידוע' ? ` | ${t.reporterName}` : ''}</span>` : '';
-                        page += `<div class="print-card" dir="${textDirection}"><div class="print-card-top"><span class="font-black text-xl">${printLabels.room} ${t.room}</span><div style="display:inline-block;vertical-align:middle;">${qrBadge}<span class="px-2 border rounded">${t.actT}</span></div></div><div class="print-card-body"><img src="${t.img}" class="print-photo" onerror="this.style.display='none'"><div class="print-info"><p class="defect-title">${t.defect}</p><p class="defect-comment">${t.comment || ""}</p></div></div><div class="signature-box" dir="${textDirection}"><span>${printLabels.name} ${nameVal}</span><span>${printLabels.date} _________</span><span>${printLabels.sign} _________</span></div></div>`;
+                        page += `<div class="print-card" dir="${textDirection}"><div class="print-card-top"><span class="font-black text-xl">${printLabels.room} ${t.room}</span><span class="px-2 border rounded">${t.actT}</span></div><div class="print-card-body"><img src="${t.img}" class="print-photo" onerror="this.style.display='none'"><div class="print-info"><p class="defect-title">${t.defect}</p><p class="defect-comment">${t.comment || ""}</p></div></div><div class="signature-box" dir="${textDirection}"><span>${printLabels.name} ${nameVal}</span><span>${printLabels.date} _________</span><span>${printLabels.sign} _________</span></div></div>`;
                     });
                     printContainer.innerHTML += page + `</div></div>`;
                 }
@@ -1378,8 +892,9 @@
                 const today = new Date();
                 const dateStrFile = ("0" + today.getDate()).slice(-2) + "-" + ("0" + (today.getMonth() + 1)).slice(-2) + "-" + today.getFullYear();
                 
+                let filenameTab = currentTab ? currentTab : 'All_Tasks';
                 const opt = {
-                  margin: 0, filename: `HCL_Tasks_${currentTab}_${dateStrFile}.pdf`, image: { type: 'jpeg', quality: 0.98 },
+                  margin: 0, filename: `HCL_Tasks_${filenameTab}_${dateStrFile}.pdf`, image: { type: 'jpeg', quality: 0.98 },
                   html2canvas: { scale: 2, useCORS: true, logging: false }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
                 
@@ -1438,6 +953,4 @@
             }
             showToast("המשימות נשלחו ל-" + chosenWorker + " באפליקציה WorkerApp", "success");
         }
-    </script>
-</body>
-</html>
+    

@@ -368,7 +368,7 @@ export default function AdminDashboard() {
 
               <div className="flex-grow flex items-center justify-center bg-slate-50 border border-slate-300 mb-2 overflow-hidden rounded">
                 {task.photoUrl ? (
-                  <img src={task.photoUrl} alt="Photo" className="object-cover h-full w-full grayscale" />
+                  <img src={task.photoUrl} alt="Photo" className="object-cover h-full w-full" />
                 ) : (
                   <span className="text-slate-300 text-xs">אין תמונה</span>
                 )}

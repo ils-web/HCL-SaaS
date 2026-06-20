@@ -29,6 +29,7 @@ model Tenant {
   areas       Area[]
   systems     System[]
   tasks       Task[]
+  qrMappings  QrMapping[]
 }
 
 enum Role {
@@ -70,6 +71,7 @@ model Team {
   users     User[]
   systems   System[] // Системы, которые автоматически назначаются этой команде
   tasks     Task[]   // Задачи, назначенные на эту команду
+  qrMappings QrMapping[]
 
   createdAt DateTime @default(now())
 }
@@ -151,8 +153,6 @@ model Task {
   systemId      String?  // פריט נבדק
   system        System?  @relation(fields: [systemId], references: [id])
   
-  customDefectName String? // Custom name for defect if systemId is null
-  
   actionType    ActionType? // ציון (1 - Замена, 2 - Ремонт)
   
   notes         String?  // הערות
@@ -170,4 +170,17 @@ model Task {
 
   createdAt     DateTime @default(now()) // תאריך ושעה
   updatedAt     DateTime @updatedAt
+}
+
+// Связь фиксированных категорий QR отчета с бригадами
+model QrMapping {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  category  String   // "חשמל", "מיזוג_אוויר", etc.
+  teamId    String?
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, category])
 }

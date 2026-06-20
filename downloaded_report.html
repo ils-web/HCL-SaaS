@@ -74,16 +74,15 @@
             <!-- Category -->
             <div>
                 <label class="block text-sm font-bold text-gray-700 mb-1" data-i18n="categoryLabel">סוג התקלה <span class="text-red-500">*</span></label>
-                <select id="categorySelect" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-colors" onchange="toggleOtherInput()">
+                <select id="categorySelect" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-colors">
                     <option value="" disabled selected data-i18n="catSelect">בחר סוג תקלה...</option>
                     <option value="חשמל" data-i18n="catElec">חשמל</option>
                     <option value="מיזוג_אוויר" data-i18n="catAc">מיזוג אוויר</option>
                     <option value="בינוי_ודלתות" data-i18n="catBuild">בינוי ודלתות</option>
-                    <option value="מיטות" data-i18n="catBeds">מיטות / ריהוט</option>
+                    <option value="מיטות" data-i18n="catBeds">מיטות / ציוד רפואי</option>
                     <option value="ניקיון" data-i18n="catClean">ניקיון</option>
-                    <option value="אחר" data-i18n="catOther">אחר</option>
+                    <option value="ליקויים" data-i18n="catOther">אחר</option>
                 </select>
-                <input type="text" id="otherCategoryInput" class="w-full p-4 mt-3 bg-gray-50 border border-gray-200 rounded-xl font-bold text-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-colors hidden" placeholder="הכנס סוג תקלה...">
             </div>
 
             <!-- Description & Voice -->
@@ -116,8 +115,7 @@
     </div>
 
     <script>
-        const _tId = new URLSearchParams(window.location.search).get('tenantId') || 'default';
-        const API_URL = `/api/${_tId}`;
+        const API_URL = "https://script.google.com/macros/s/AKfycbxMN6s8ektwhHxuE_8xDz1ZaeqYyXaLyniwi_xFpbzVEjFEo_AUd6PybJk6nGKxmy7E/exec";
         
         const dict = {
             ru: { pageTitle: "Сообщить о проблеме", formTitle: "Отправка заявки", nameLabel: "Ваше имя ", namePh: "Иван Иванов", roomLabel: "Кабинет / Место ", roomPh: "Напр. 101", categoryLabel: "Категория ", catSelect: "Выберите категорию...", catElec: "Электрика", catAc: "Кондиционер", catBuild: "Двери / Стены", catBeds: "Кровати / Оборудование", catClean: "Уборка", catOther: "Другое", descLabel: "Описание проблемы ", descPh: "Опишите проблему голосом или текстом...", photoLabel: "Фото (необязательно)", photoAdd: "Добавить фото", submitBtn: "Отправить заявку", sending: "Отправка...", successTitle: "Заявка отправлена!", successDesc: "Техническая служба скоро займется этим.", closeBtn: "Новая заявка", errorTitle: "Внимание!", errCustom: "Мы не сможем обработать Вашу заявку, если Вы не заполните обязательные поля!", closeErrBtn: "Понятно", errNet: "Ошибка сети." },
@@ -164,16 +162,6 @@
             // The mic button is now outside the textarea, no need for positioning classes
         }
 
-        function toggleOtherInput() {
-            const select = document.getElementById('categorySelect');
-            const otherInput = document.getElementById('otherCategoryInput');
-            if (select.value === 'אחר') {
-                otherInput.classList.remove('hidden');
-            } else {
-                otherInput.classList.add('hidden');
-            }
-        }
-
         function resetForm() {
             document.getElementById('roomInput').value = "";
             document.getElementById('descInput').value = "";
@@ -182,9 +170,7 @@
             document.getElementById('photoText').innerText = dict[lang].photoAdd;
             document.getElementById('successScreen').classList.add('hidden');
             document.getElementById('categorySelect').value = "";
-            document.getElementById('otherCategoryInput').value = "";
-            document.getElementById('otherCategoryInput').classList.add('hidden');
-            [document.getElementById('nameInput'), document.getElementById('roomInput'), document.getElementById('categorySelect'), document.getElementById('otherCategoryInput'), document.getElementById('descInput')]
+            [document.getElementById('nameInput'), document.getElementById('roomInput'), document.getElementById('categorySelect'), document.getElementById('descInput')]
                 .forEach(el => el.classList.remove('border-red-500', 'ring-2', 'ring-red-200'));
         }
 
@@ -226,7 +212,7 @@
                     document.getElementById('micBtn').classList.remove('recording');
                 };
             } else {
-                document.getElementById('micBtn').style.display = 'none';
+                document.getElementById('micBtn').style.display = 'none'; // Not supported
             }
         }
 
@@ -246,78 +232,45 @@
             const file = input.files[0]; if(!file) return;
             const icon = document.getElementById('photoIcon');
             const text = document.getElementById('photoText');
-            const isHebrew = (lang === 'he');
             
             icon.className = "fas fa-spinner fa-spin text-indigo-500 text-2xl mb-2";
             
-            try {
-                // Resize and get base64
-                const base64Data = await new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const img = new Image();
-                        img.onload = () => { 
-                            const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); 
-                            const scale = Math.min(800 / img.width, 800 / img.height, 1); 
-                            canvas.width = img.width * scale; canvas.height = img.height * scale; 
-                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height); 
-                            resolve(canvas.toDataURL('image/jpeg', 0.6)); 
-                        };
-                        img.onerror = reject;
-                        img.src = e.target.result;
+            photoBase64 = await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => { 
+                        const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); 
+                        const scale = Math.min(800 / img.width, 800 / img.height, 1); 
+                        canvas.width = img.width * scale; canvas.height = img.height * scale; 
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height); 
+                        resolve(canvas.toDataURL('image/jpeg', 0.6)); 
                     };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(file);
-                });
-
-                // Upload to ImgBB
-                const formData = new FormData();
-                formData.append('image', base64Data.split(',')[1]);
-                
-                const response = await fetch('https://api.imgbb.com/1/upload?key=a1e675bb6065e233261327255af41c48', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await response.json();
-                if (result.success) {
-                    photoBase64 = result.data.url;
-                    icon.className = "fas fa-check-circle text-green-500 text-2xl mb-2";
-                    text.innerText = lang === 'he' ? "תמונה צורפה" : (lang === 'ru' ? "Фото загружено" : "Photo Added");
-                } else {
-                    throw new Error("ImgBB upload failed");
-                }
-            } catch (err) {
-                console.error("Photo upload error:", err);
-                alert(isHebrew ? "שגיאה בהעלאת התמונה. נסה שוב." : "Ошибка загрузки фото. Попробуйте снова.");
-                icon.className = "fas fa-camera text-gray-400 text-2xl mb-2";
-                text.innerText = dict[lang].photoAdd;
-                photoBase64 = "";
-            }
+                    img.src = e.target.result;
+                }; reader.readAsDataURL(file);
+            });
+            
+            icon.className = "fas fa-check-circle text-green-500 text-2xl mb-2";
+            text.innerText = lang === 'he' ? "תמונה צורפה" : (lang === 'ru' ? "Фото загружено" : "Photo Added");
         }
 
         async function submitReport() {
             const reporterNameEl = document.getElementById('nameInput');
             const roomEl = document.getElementById('roomInput');
             const categoryEl = document.getElementById('categorySelect');
-            const otherCategoryEl = document.getElementById('otherCategoryInput');
             const descEl = document.getElementById('descInput');
 
             const reporterName = reporterNameEl.value.trim();
             const room = roomEl.value.trim();
-            let category = categoryEl.value;
-            if (category === 'אחר') {
-                category = otherCategoryEl.value.trim();
-            }
+            const category = categoryEl.value;
             const desc = descEl.value.trim();
             
             let hasError = false;
-            [reporterNameEl, roomEl, categoryEl, otherCategoryEl, descEl].forEach(el => el.classList.remove('border-red-500', 'ring-2', 'ring-red-200'));
+            [reporterNameEl, roomEl, categoryEl, descEl].forEach(el => el.classList.remove('border-red-500', 'ring-2', 'ring-red-200'));
 
             if (!reporterName) { reporterNameEl.classList.add('border-red-500', 'ring-2', 'ring-red-200'); hasError = true; }
             if (!room) { roomEl.classList.add('border-red-500', 'ring-2', 'ring-red-200'); hasError = true; }
-            if (!categoryEl.value) { categoryEl.classList.add('border-red-500', 'ring-2', 'ring-red-200'); hasError = true; }
-            if (categoryEl.value === 'אחר' && !category) { otherCategoryEl.classList.add('border-red-500', 'ring-2', 'ring-red-200'); hasError = true; }
+            if (!category) { categoryEl.classList.add('border-red-500', 'ring-2', 'ring-red-200'); hasError = true; }
             if (!desc) { descEl.classList.add('border-red-500', 'ring-2', 'ring-red-200'); hasError = true; }
 
             if (hasError) {
@@ -338,8 +291,8 @@
                 reporterName: reporterName,
                 department: department,
                 room: room,
-                sheetName: category,
-                defect: category,
+                sheetName: category, // Using category as the team/sheet name in Admin
+                defect: "תקלה חדשה", // Default title
                 comment: desc,
                 photoBase64: photoBase64,
                 language: lang
