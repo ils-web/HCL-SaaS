@@ -3,6 +3,39 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+async function uploadToImgBB(base64Str: string): Promise<string | null> {
+  if (!base64Str || base64Str.startsWith('http')) return base64Str || null;
+  try {
+    const b64Data = base64Str.includes(',') ? base64Str.split(',')[1] : base64Str;
+    const formData = new FormData();
+    formData.append('image', b64Data);
+    const res = await fetch('https://api.imgbb.com/1/upload?key=a1e675bb6065e233261327255af41c48', {
+      method: 'POST',
+      body: formData
+    });
+    const result = await res.json();
+    return result?.data?.url || null;
+  } catch (e) {
+    console.error('ImgBB upload error:', e);
+    return null;
+  }
+}
+
+async function sendTelegram(text: string) {
+  const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+  const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text, parse_mode: 'Markdown' })
+    });
+  } catch (e) {
+    console.error('Telegram error:', e);
+  }
+}
+
 export async function GET(request: Request, props: { params: Promise<{ tenantId: string }> }) {
   const params = await props.params;
   const { searchParams } = new URL(request.url);
@@ -170,26 +203,52 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
 
   if (action === 'ADD_PERSONNEL_TASK') {
-    const { reporterName, department, room, sheetName, defect, comment, photoBase64 } = body;
+    const { reporterName, department, room, sheetName, defect, comment, photoBase64, language } = body;
     
-    // Auto-create/find Department
-    let dept = await prisma.department.findFirst({ where: { tenantId, name: department } });
-    if (!dept) {
-      dept = await prisma.department.create({ data: { tenantId, name: department } });
-    }
-
-    // Team (category/sheetName)
-    let teamId = null;
-    if (sheetName) {
-      let team = await prisma.team.findFirst({ where: { tenantId, name: sheetName } });
-      if (!team) {
-        team = await prisma.team.create({ data: { tenantId, name: sheetName } });
+    let translatedComment = comment || '';
+    if (translatedComment) {
+      try {
+        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=he&dt=t&q=${encodeURIComponent(translatedComment)}`);
+        const data = await res.json();
+        translatedComment = data[0].map((item: any) => item[0]).join('');
+      } catch (e) {
+        console.error('Translation error:', e);
       }
-      teamId = team.id;
     }
 
-    // Find System globally to try matching it
-    let sys = await prisma.system.findFirst({ where: { tenantId, name: defect || 'אחר' } });
+    let dept = await prisma.department.findFirst({ where: { tenantId, name: "QR" } });
+    if (!dept) dept = await prisma.department.create({ data: { tenantId, name: "QR" } });
+    
+    const originalDept = department || "כללי";
+    const newRoomString = `${originalDept} / ${room || ""}`.replace(/ \/ $/, "");
+
+    // Look for a team directly using sheetName
+    let finalTeamId = null;
+    if (sheetName) {
+      const exactTeam = await prisma.team.findFirst({ where: { tenantId, name: sheetName } });
+      if (exactTeam) finalTeamId = exactTeam.id;
+    }
+
+    // Fallback: check if a team explicitly has this exact name
+    if (!finalTeamId && sheetName) {
+      const exactTeam = await prisma.team.findFirst({ where: { tenantId, name: sheetName } });
+      if (exactTeam) finalTeamId = exactTeam.id;
+    }
+
+    // Fallback: send to כללי
+    if (!finalTeamId) {
+      let genTeam = await prisma.team.findFirst({ where: { tenantId, name: 'כללי' } });
+      if (!genTeam) genTeam = await prisma.team.create({ data: { tenantId, name: 'כללי' } });
+      finalTeamId = genTeam.id;
+    }
+
+    let sysName = defect || sheetName || 'אחר';
+    let sys = await prisma.system.findFirst({ where: { tenantId, name: sysName } });
+    if (!sys) {
+      let area = await prisma.area.findFirst({ where: { tenantId, name: 'כללי' } });
+      if (!area) area = await prisma.area.create({ data: { tenantId, name: 'כללי' } });
+      sys = await prisma.system.create({ data: { tenantId, areaId: area.id, name: sysName } });
+    }
 
     const finalPhotoUrl = await uploadToImgBB(photoBase64);
 
@@ -197,16 +256,25 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       data: {
         tenantId,
         departmentId: dept.id,
-        systemId: sys ? sys.id : null,
-        customDefectName: sys ? null : (defect || 'אחר'),
-        room: String(room),
-        actionType: 'REPAIR', // Default for personnel reports
+        systemId: sys.id,
+        room: newRoomString,
+        actionType: 'REPAIR', 
         status: 'NEW',
-        notes: (reporterName ? `От: ${reporterName}\n` : '') + (comment || ''),
-        photoUrl: finalPhotoUrl,
-        teamId: teamId
+        notes: translatedComment,
+        photoUrl: finalPhotoUrl || null,
+        inspectorName: reporterName ? `צוות: ${reporterName}` : 'צוות: לא הוגדר שם',
+        teamId: finalTeamId
       }
     });
+
+    let message = "🚨 *דווח על תקלה חדשה מהשטח (QR)!*\n\n";
+    if (reporterName) message += `👤 *מדווח:* ${reporterName}\n`;
+    message += `🏢 *מחלקה:* ${department || "לא הוגדרה מחלקה"}\n`;
+    message += `🚪 *חדר/מיקום:* ${room || "-"}\n`;
+    message += `📋 *סיווג:* ${sheetName || "כללי"}\n`;
+    message += `💬 *הערות:* ${translatedComment || "-"}\n`;
+    if (finalPhotoUrl) message += `\n 📷 [תמונה מצורפת](<${finalPhotoUrl}>)`;
+    await sendTelegram(message);
 
     return NextResponse.json({ status: 'success' });
   }
@@ -326,15 +394,15 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
 
   if (action === 'MOVE_TASK') {
-    const { targetSheet, room } = body;
-    const dbTask = await prisma.task.findFirst({
-      where: { tenantId, room: String(room), status: { in: ['NEW', 'IN_PROGRESS'] } }
-    });
-    if (dbTask && targetSheet) {
-      let team = await prisma.team.findFirst({ where: { tenantId, name: targetSheet } });
-      if (!team) team = await prisma.team.create({ data: { tenantId, name: targetSheet } });
+    const { id, targetSheet, newTeam } = body;
+    const finalTarget = targetSheet || newTeam;
+    
+    if (id && finalTarget) {
+      let team = await prisma.team.findFirst({ where: { tenantId, name: finalTarget } });
+      if (!team) team = await prisma.team.create({ data: { tenantId, name: finalTarget } });
+      
       await prisma.task.update({
-        where: { id: dbTask.id },
+        where: { id },
         data: { teamId: team.id }
       });
     }
