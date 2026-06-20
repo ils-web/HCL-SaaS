@@ -42,7 +42,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
   const action = searchParams.get('action');
   const tenantId = params.tenantId;
 
-  if (tenantId === 'default' || !tenantId) {
+  if (!tenantId) {
     return NextResponse.json({ error: 'Tenant ID required' }, { status: 400 });
   }
 
