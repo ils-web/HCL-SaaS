@@ -1,0 +1,187 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TenantStatus {
+  ACTIVE
+  UNPAID
+  BLOCKED
+}
+
+// Учреждения (Теннанты)
+model Tenant {
+  id          String   @id @default(uuid())
+  name        String   
+  status      TenantStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  teams       Team[]
+  departments Department[]
+  areas       Area[]
+  systems     System[]
+  tasks       Task[]
+  qrMappings  QrMapping[]
+}
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  WORKER
+  INSPECTOR
+}
+
+// Пользователи (Админы, Инспекторы, Рабочие)
+model User {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  
+  name      String
+  email     String?  @unique
+  phone     String?  @unique
+  password  String?  // Может быть пустым, если вход по пин-коду
+  
+  role      Role     @default(WORKER)
+  teamId    String?
+  team      Team?    @relation(fields: [teamId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasksAssigned Task[] @relation("WorkerTasks")
+}
+
+// Команды / Категории (ניהול צוותים - Электрика, Сантехника и т.д.)
+model Team {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  
+  name      String   // Название команды (например, "חשמל", "מיזוג_אוויר")
+  
+  users     User[]
+  systems   System[] // Системы, которые автоматически назначаются этой команде
+  tasks     Task[]   // Задачи, назначенные на эту команду
+  qrMappings QrMapping[]
+
+  createdAt DateTime @default(now())
+}
+
+// Отделения (מחלקה - для QR кодов)
+model Department {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  
+  name      String   // Название (например "ג 3", "test")
+  
+  tasks     Task[]
+
+  createdAt DateTime @default(now())
+}
+
+// Зоны проверки (אזורי בדיקה - Ванная, Комната и т.д.)
+model Area {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  
+  name      String   // Название зоны (например, "אמבטיה")
+  
+  systems   System[]
+  tasks     Task[]
+
+  createdAt DateTime @default(now())
+}
+
+// Системы/Дефекты (מערכות נבדקות - Унитаз, Раковина)
+model System {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  
+  name      String   // Название системы (например, "כיור", "אסלה")
+  
+  areaId    String
+  area      Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  autoAssignTeamId String? // ID команды для автоматического назначения
+  autoAssignTeam   Team?   @relation(fields: [autoAssignTeamId], references: [id])
+
+  tasks     Task[]
+
+  createdAt DateTime @default(now())
+}
+
+enum TaskStatus {
+  NEW          // חדש - Новая
+  IN_PROGRESS  // בטיפול - В работе
+  COMPLETED    // בוצע - Завершена рабочим
+  CLOSED       // סגור - Закрыта инспектором/админом
+}
+
+enum ActionType {
+  REPAIR  // 2 - Ремонт (Оранжевый)
+  REPLACE // 1 - Замена (Красный)
+}
+
+// Заявки (Таблица из Google Sheets)
+model Task {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  
+  inspectorName String?  // שם הבודק
+  
+  departmentId  String?  // מחלקה
+  department    Department? @relation(fields: [departmentId], references: [id])
+  
+  room          String   // חדר
+  
+  areaId        String?  // Зона (для удобства фильтрации)
+  area          Area?    @relation(fields: [areaId], references: [id])
+  
+  systemId      String?  // פריט נבדק
+  system        System?  @relation(fields: [systemId], references: [id])
+  customDefectName String? // If no system is matched
+  
+  actionType    ActionType? // ציון (1 - Замена, 2 - Ремонт)
+  
+  notes         String?  // הערות
+  
+  photoUrl      String?  // תמונה (до)
+  afterPhotoUrl String?  // תמונה (после)
+  
+  status        TaskStatus @default(NEW) // סטוס
+  
+  teamId        String?  // Назначенная команда (берется из system.autoAssignTeamId при создании)
+  team          Team?    @relation(fields: [teamId], references: [id])
+  
+  workerId      String?  // Назначенный работник
+  worker        User?    @relation("WorkerTasks", fields: [workerId], references: [id])
+
+  createdAt     DateTime @default(now()) // תאריך ושעה
+  updatedAt     DateTime @updatedAt
+}
+
+// Связь фиксированных категорий QR отчета с бригадами
+model QrMapping {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  category  String   // "חשמל", "מיזוג_אוויר", etc.
+  teamId    String?
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, category])
+}
