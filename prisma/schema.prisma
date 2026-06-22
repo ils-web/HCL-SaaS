@@ -152,6 +152,7 @@ model Task {
   
   systemId      String?  // פריט נבדק
   system        System?  @relation(fields: [systemId], references: [id])
+  customDefectName String? // If no system is matched
   
   actionType    ActionType? // ציון (1 - Замена, 2 - Ремонт)
   
