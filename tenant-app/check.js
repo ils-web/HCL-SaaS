@@ -1,1 +1,0 @@
-const { PrismaClient } = require('@prisma/client'); const prisma = new PrismaClient(); async function main() { const systems = await prisma.system.findMany(); console.log('SYSTEMS:', systems.map(s=>s.name)); const teams = await prisma.team.findMany(); console.log('TEAMS:', teams.map(t=>t.name)); } main().catch(console.error).finally(()=>prisma.());
