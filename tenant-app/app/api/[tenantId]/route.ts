@@ -129,15 +129,16 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
 }
 
 export async function POST(request: Request, props: { params: Promise<{ tenantId: string }> }) {
-  const params = await props.params;
-  const tenantId = params.tenantId;
-  const body = await request.json();
-  const { action } = body;
+  try {
+    const params = await props.params;
+    const tenantId = params.tenantId;
+    const body = await request.json();
+    const { action } = body;
 
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-  if (!tenant || tenant.status !== 'ACTIVE') {
-    return NextResponse.json({ error: 'Invalid tenant' }, { status: 403 });
-  }
+    const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
+    if (!tenant || tenant.status !== 'ACTIVE') {
+      return NextResponse.json({ error: 'Invalid tenant' }, { status: 403 });
+    }
 
   // Handle Inspector Room Defects (has items array, might not have explicit action)
   if (body.items && Array.isArray(body.items)) {
@@ -410,4 +411,8 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+  } catch (error: any) {
+    console.error('Unhandled POST error:', error);
+    return NextResponse.json({ error: 'Internal Server Error', details: error?.message || String(error) }, { status: 500 });
+  }
 }

@@ -5,7 +5,7 @@ fetch('https://hcl-saa-s.vercel.app/api/c50b014c-376c-46ba-b811-0f3207365632', {
     inspector: 'Misha',
     department: 'TestDept',
     room: '124',
-    items: []
+    items: [{ name: 'Test', score: 2, comment: '', photoBase64: null }]
   })
 })
 .then(r => {
