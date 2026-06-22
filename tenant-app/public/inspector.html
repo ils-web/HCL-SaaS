@@ -436,6 +436,7 @@
             document.getElementById('loaderText').innerText = T.syncText; document.getElementById('loader').classList.remove('hidden');
             try {
                 const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ inspector: state.inspector, department: state.department, room: state.currentRoom, items: items }) });
+                if (!res.ok) throw new Error('Server returned ' + res.status);
                 localStorage.removeItem('hcl_draft_room'); localStorage.removeItem('hcl_draft_html');
                 state.inspectedRooms[state.currentRoom] = historyLog; saveSession(); updateInspectedUI();
                 document.getElementById('activeRoomBlock').classList.add('hidden'); document.getElementById('roomName').value = '';
