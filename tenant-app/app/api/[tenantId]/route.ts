@@ -131,7 +131,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
 
     const filters: any = {
       tenantId,
-      status: 'COMPLETED'
+      status: { in: ['COMPLETED', 'CLOSED'] }
     };
 
     if (startDate && endDate) {
@@ -415,14 +415,12 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       where: { tenantId, room: String(room), status: { in: ['NEW', 'IN_PROGRESS', 'COMPLETED'] } }
     });
     if (dbTask) {
-      await prisma.task.update({
-        where: { id: dbTask.id },
-        data: { 
-          status: 'CLOSED',
-          photoUrl: null, // Clear photo to save database space!
-          afterPhotoUrl: null
-        }
-      });
+        await prisma.task.update({
+          where: { id: dbTask.id },
+          data: { 
+            status: 'CLOSED'
+          }
+        });
     }
     return NextResponse.json({ status: 'success' });
   }
