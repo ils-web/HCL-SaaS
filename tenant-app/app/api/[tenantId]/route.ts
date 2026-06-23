@@ -9,7 +9,7 @@ async function uploadToImgBB(base64Str: string): Promise<string | null> {
     const b64Data = base64Str.includes(',') ? base64Str.split(',')[1] : base64Str;
     const formData = new FormData();
     formData.append('image', b64Data);
-    const res = await fetch('https://api.imgbb.com/1/upload?key=a1e675bb6065e233261327255af41c48', {
+    const res = await fetch('https://api.imgbb.com/1/upload?key=a1e675bb6065e233261327255af41c48&expiration=864000', {
       method: 'POST',
       body: formData
     });
@@ -116,6 +116,60 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
       photo: t.photoUrl || '',
       afterPhoto: t.afterPhotoUrl || '',
       status: t.status === 'IN_PROGRESS' ? 'בעבודה' : 'פתוח',
+      worker: t.worker?.name || '',
+      team: t.team?.name || '',
+      timestamp: t.createdAt.getTime(),
+      dateStr: `${String(t.createdAt.getDate()).padStart(2, '0')}/${String(t.createdAt.getMonth() + 1).padStart(2, '0')}/${t.createdAt.getFullYear()} ${String(t.createdAt.getHours()).padStart(2, '0')}:${String(t.createdAt.getMinutes()).padStart(2, '0')}`,
+    }));
+
+    return NextResponse.json({ tasks });
+  }
+
+  if (action === 'getReports') {
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+
+    const filters: any = {
+      tenantId,
+      status: 'COMPLETED'
+    };
+
+    if (startDate && endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      filters.createdAt = {
+        gte: start,
+        lte: end
+      };
+    }
+
+    const tasksDb = await prisma.task.findMany({
+      where: filters,
+      include: {
+        department: true,
+        system: true,
+        team: true,
+        worker: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const tasks = tasksDb.map(t => ({
+      id: t.id,
+      sheet: t.team?.name || 'ליקויים',
+      dept: t.department?.name || 'כללי',
+      department: t.department?.name || 'כללי',
+      room: t.room,
+      system: t.system?.name || t.customDefectName || 'אחר',
+      defect: t.system?.name || t.customDefectName || 'אחר',
+      action: t.actionType === 'REPAIR' ? 'Ремонт' : (t.actionType === 'REPLACE' ? 'Замена' : ''),
+      inspector: t.inspectorName || 'מנהל',
+      notes: t.notes || '',
+      comment: t.notes || '',
+      photo: t.photoUrl || '',
+      afterPhoto: t.afterPhotoUrl || '',
+      status: 'הושלם',
       worker: t.worker?.name || '',
       team: t.team?.name || '',
       timestamp: t.createdAt.getTime(),
