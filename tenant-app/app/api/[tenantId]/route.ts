@@ -458,6 +458,17 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     return NextResponse.json({ status: 'success' });
   }
 
+  if (action === 'UPDATE_TASK_DEFECT') {
+    const { id, defect } = body;
+    if (id && defect) {
+      await prisma.task.update({
+        where: { id },
+        data: { customDefectName: defect, systemId: null }
+      });
+    }
+    return NextResponse.json({ status: 'success' });
+  }
+
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error: any) {
     console.error('Unhandled POST error:', error);
