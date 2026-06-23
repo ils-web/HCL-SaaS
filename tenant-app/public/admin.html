@@ -919,6 +919,22 @@
             } catch(e) { console.error(e); } hideLoader();
         }
 
+        function updateTabIndicators() {
+            teamsList.forEach(c => {
+                const hasNewTasks = allTasks.some(t => t.sheet === c && t.status === 'ממתין');
+                const tabBtn = document.getElementById('tab-' + c);
+                if (tabBtn) {
+                    tabBtn.classList.add('relative');
+                    let dot = tabBtn.querySelector('.new-tasks-dot');
+                    if (hasNewTasks && !dot) {
+                        tabBtn.insertAdjacentHTML('beforeend', `<span class="new-tasks-dot absolute top-2 right-2 w-3 h-3 bg-orange-500 rounded-full animate-pulse border border-gray-300"></span>`);
+                    } else if (!hasNewTasks && dot) {
+                        dot.remove();
+                    }
+                }
+            });
+        }
+
         function checkPin() {
             if(document.getElementById('pinCode').value === "1234") { 
                 document.getElementById('loginScreen').classList.add('hidden');
@@ -946,7 +962,7 @@
             try {
                 const res = await fetch(`${API_URL}?action=getOpenTasks&t=${Date.now()}`);
                 const data = await res.json(); allTasks = data.tasks || [];
-                if(fpInstance) fpInstance.redraw(); renderTasks();
+                if(fpInstance) fpInstance.redraw(); renderTasks(); if(typeof updateTabIndicators === 'function') updateTabIndicators();
             } catch(e) { console.error("Ошибка загрузки:", e); } hideLoader();
         }
 

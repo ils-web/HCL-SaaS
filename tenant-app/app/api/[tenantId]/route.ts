@@ -277,25 +277,10 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     const originalDept = department || "כללי";
     const newRoomString = `${originalDept} / ${room || ""}`.replace(/ \/ $/, "");
 
-    // Look for a team directly using sheetName
     let finalTeamId = null;
-    if (sheetName) {
-      const exactTeam = await prisma.team.findFirst({ where: { tenantId, name: sheetName } });
-      if (exactTeam) finalTeamId = exactTeam.id;
-    }
-
-    // Fallback: check if a team explicitly has this exact name
-    if (!finalTeamId && sheetName) {
-      const exactTeam = await prisma.team.findFirst({ where: { tenantId, name: sheetName } });
-      if (exactTeam) finalTeamId = exactTeam.id;
-    }
-
-    // Fallback: send to כללי
-    if (!finalTeamId) {
-      let genTeam = await prisma.team.findFirst({ where: { tenantId, name: 'כללי' } });
-      if (!genTeam) genTeam = await prisma.team.create({ data: { tenantId, name: 'כללי' } });
-      finalTeamId = genTeam.id;
-    }
+    let qrTeam = await prisma.team.findFirst({ where: { tenantId, name: 'QR' } });
+    if (!qrTeam) qrTeam = await prisma.team.create({ data: { tenantId, name: 'QR' } });
+    finalTeamId = qrTeam.id;
 
     let sysName = defect || sheetName || 'אחר';
     let sys = await prisma.system.findFirst({ where: { tenantId, name: sysName } });
