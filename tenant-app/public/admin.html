@@ -935,9 +935,9 @@
             showCustomConfirm("העברת משימה", "לשים לב: להעביר משימה זו לצוות אחר?", async () => {
                 showLoader("מעביר...");
                 try {
-                    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "MOVE_TASK", sourceSheet: task.sheet, targetSheet: tgtSheet, room: task.room, defect: task.defect, comment: task.comment || "" }) });
+                    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "MOVE_TASK", id: task.id, targetSheet: tgtSheet, room: task.room, defect: task.defect, comment: task.comment || "" }) });
                     const out = await res.json();
-                    if(out.status === "success") { allTasks = allTasks.filter(t => t !== task); if(fpInstance) fpInstance.redraw(); renderTasks(); showToast("המשימה הועברה בהצלחה", "success"); }
+                    if(out.status === "success") { await loadTasks(); showToast("העברה בוצעה בהצלחה", "success"); }
                 } catch(e) { console.error(e); } hideLoader();
             }, "fa-exchange-alt");
         }
