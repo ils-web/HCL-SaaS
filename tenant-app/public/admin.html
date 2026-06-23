@@ -650,31 +650,28 @@
             document.getElementById('qrConfigModal').classList.add('hidden');
         }
 
-                `;
-            });
-        }
-
         async function saveQrConfig() {
-            const mappingsToSave = QR_CATEGORIES.map(cat => {
-                const teamName = document.getElementById(`qr-map-${cat.id}`).value;
-                return { category: cat.id, teamName: teamName || null };
-            });
+            const mode = document.getElementById('qrMode247').checked ? '24/7' : 'SCHEDULED';
+            const start = document.getElementById('qrStart').value;
+            const end = document.getElementById('qrEnd').value;
+            const newSettings = { mode, start, end };
 
             try {
                 const res = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'SAVE_QR_MAPPINGS', mappings: mappingsToSave })
+                    body: JSON.stringify({ action: 'SAVE_QR_SETTINGS', qrSettings: newSettings })
                 });
                 if(res.ok) {
-                    showToast('הגדרות נשמרו בהצלחה', 'success');
+                    showToast('הגדרות פעילות QR נשמרו בהצלחה', 'success');
+                    currentQrSettings = newSettings;
                     closeQrConfigModal();
                 } else {
-                    showToast('שגיאה בשמירה', 'error');
+                    showToast('שגיאה בשמירת הגדרות', 'error');
                 }
             } catch(e) {
                 console.error(e);
-                showToast('שגיאה בשמירה', 'error');
+                showToast('שגיאה בשמירת הגדרות', 'error');
             }
         }
 
