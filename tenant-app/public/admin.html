@@ -848,10 +848,7 @@
             }
         }
 
-        function removeTeam(idx) {
-            teamsList.splice(idx, 1);
-            renderTeamsListUI();
-        }
+        function removeTeamFromList(teamName) { teamsList = teamsList.filter(t => t !== teamName); renderTeamsListUI(); }
 
         async function saveTeamsToServer() {
             showLoader("שומר צוותים...");
@@ -921,7 +918,7 @@
 
         function updateTabIndicators() {
             teamsList.forEach(c => {
-                const hasNewTasks = allTasks.some(t => t.sheet === c && t.status === 'ממתין');
+                const hasNewTasks = allTasks.some(t => t.sheet === c && !t.worker);
                 const tabBtn = document.getElementById('tab-' + c);
                 if (tabBtn) {
                     tabBtn.classList.add('relative');
