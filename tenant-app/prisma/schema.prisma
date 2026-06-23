@@ -30,6 +30,7 @@ model Tenant {
   systems     System[]
   tasks       Task[]
   qrMappings  QrMapping[]
+  qrSettings  Json?    // Stores schedule mode, start, and end time
 }
 
 enum Role {

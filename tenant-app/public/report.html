@@ -42,7 +42,13 @@
         </div>
     </div>
 
-    <div class="max-w-md mx-auto bg-white rounded-3xl shadow-lg p-6 border border-gray-100 mt-4">
+      <div id="closedMessage" class="max-w-md mx-auto bg-white rounded-3xl shadow-lg p-8 border border-gray-100 mt-4 text-center hidden">
+          <i class="fas fa-door-closed text-5xl text-indigo-200 mb-4"></i>
+          <h2 class="text-2xl font-black text-gray-800 mb-2">מערכת הדיווחים סגורה כעת</h2>
+          <p class="text-gray-600 font-medium" id="closedHoursText"></p>
+      </div>
+
+      <div id="formContainer" class="max-w-md mx-auto bg-white rounded-3xl shadow-lg p-6 border border-gray-100 mt-4">
         <div class="text-center mb-6 border-b pb-4 relative">
             <div class="absolute top-0 right-0 ltr:left-0 ltr:right-auto">
                 <select id="langSelect" onchange="changeLanguage(this.value)" class="bg-gray-100 text-gray-600 text-xs font-bold py-1 px-2 rounded-lg outline-none cursor-pointer">
@@ -133,9 +139,43 @@
         let recognition = null;
         let isDictating = false;
 
-        document.addEventListener("DOMContentLoaded", () => {
-            // Get department from URL ?dept=Cardiology
-            const urlParams = new URLSearchParams(window.location.search);
+          document.addEventListener("DOMContentLoaded", async () => {
+              // Check QR settings first
+              try {
+                  const urlParamsLocal = new URLSearchParams(window.location.search);
+                  const tId = urlParamsLocal.get('tenantId') || 'default';
+                  const setRes = await fetch(`/api/${tId}?action=getSettings`);
+                  const setData = await setRes.json();
+                  if (setData.qrSettings) {
+                      const { mode, start, end } = setData.qrSettings;
+                      if (mode === 'SCHEDULED' && start && end) {
+                          const now = new Date();
+                          const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                          const [startH, startM] = start.split(':').map(Number);
+                          const [endH, endM] = end.split(':').map(Number);
+                          const startMinutes = startH * 60 + startM;
+                          const endMinutes = endH * 60 + endM;
+                          
+                          let isClosed = false;
+                          if (startMinutes <= endMinutes) {
+                              if (currentMinutes < startMinutes || currentMinutes > endMinutes) isClosed = true;
+                          } else {
+                              // Overnight shift
+                              if (currentMinutes < startMinutes && currentMinutes > endMinutes) isClosed = true;
+                          }
+                          
+                          if (isClosed) {
+                              document.getElementById('formContainer').classList.add('hidden');
+                              document.getElementById('closedMessage').classList.remove('hidden');
+                              document.getElementById('closedHoursText').innerText = `שעות פעילות: מ- ${start} עד- ${end}. תודה!`;
+                              return; // Stop execution
+                          }
+                      }
+                  }
+              } catch(e) { console.error('Failed to fetch settings', e); }
+
+              // Get department from URL ?dept=Cardiology
+              const urlParams = new URLSearchParams(window.location.search);
             department = urlParams.get('dept') || "כללי (General)";
             document.getElementById('deptDisplay').innerText = department;
 

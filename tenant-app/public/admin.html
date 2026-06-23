@@ -150,17 +150,40 @@
     <div id="qrConfigModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col max-h-[80vh]">
             <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 class="text-xl font-black text-gray-800"><i class="fas fa-qrcode text-indigo-600 ml-2"></i>הגדרות ניתוב QR</h3>
+                <h3 class="text-xl font-black text-gray-800"><i class="fas fa-qrcode text-indigo-600 ml-2"></i>הגדרות פעילות QR</h3>
                 <button onclick="closeQrConfigModal()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
             </div>
             <div class="text-sm text-gray-500 mb-4 font-medium">
-                בחר לאיזה צוות לשייך כל קטגוריה מהדיווחים של העובדים (QR). אם לא תבחר, הדיווחים יגיעו ל"כללי".
+                הגדר את שעות הפעילות בהן משתמשים יוכלו לשלוח דיווחי תקלות.
             </div>
-            <div class="overflow-y-auto flex-1 mb-4 pr-2 space-y-3" id="qrConfigList">
-                <!-- Javascript will inject here -->
+            
+            <div class="flex-1 mb-4 space-y-4">
+                <div class="flex items-center gap-2 border p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                    <input type="radio" id="qrMode247" name="qrMode" value="24/7" onchange="toggleQrScheduleUI()" class="w-5 h-5 text-indigo-600 cursor-pointer">
+                    <label for="qrMode247" class="font-bold text-gray-700 cursor-pointer flex-1">פתוח תמיד (24/7)</label>
+                </div>
+                
+                <div class="flex flex-col gap-2 border p-3 rounded-xl bg-gray-50">
+                    <div class="flex items-center gap-2 mb-2">
+                        <input type="radio" id="qrModeSchedule" name="qrMode" value="SCHEDULED" onchange="toggleQrScheduleUI()" class="w-5 h-5 text-indigo-600 cursor-pointer">
+                        <label for="qrModeSchedule" class="font-bold text-gray-700 cursor-pointer flex-1">לפי שעות פעילות</label>
+                    </div>
+                    
+                    <div id="qrScheduleControls" class="flex items-center gap-4 hidden pr-7">
+                        <div class="flex flex-col flex-1">
+                            <label class="text-xs font-bold text-gray-500 mb-1">שעת התחלה</label>
+                            <input type="time" id="qrStart" class="px-3 py-2 border rounded-lg outline-none w-full font-bold" dir="ltr">
+                        </div>
+                        <div class="flex flex-col flex-1">
+                            <label class="text-xs font-bold text-gray-500 mb-1">שעת סיום</label>
+                            <input type="time" id="qrEnd" class="px-3 py-2 border rounded-lg outline-none w-full font-bold" dir="ltr">
+                        </div>
+                    </div>
+                </div>
             </div>
+
             <div class="mt-4 border-t pt-4">
-                <button onclick="saveQrConfig()" class="w-full bg-green-600 text-white font-black py-3 rounded-xl hover:bg-green-500 transition-colors shadow-lg"><i class="fas fa-save ml-2"></i>שמור הגדרות לשרת</button>
+                <button onclick="saveQrConfig()" class="w-full bg-green-600 text-white font-black py-3 rounded-xl hover:bg-green-500 transition-colors shadow-lg"><i class="fas fa-save ml-2"></i>שמור הגדרות</button>
             </div>
         </div>
     </div>
@@ -401,6 +424,7 @@
         let searchQuery = "";
         let lastCheckedIndex = null;
         let fpInstance = null;
+        let currentQrSettings = { mode: '24/7', start: '08:00', end: '17:00' };
 
         function showToast(message, type = 'success') {
             const container = document.getElementById('toastContainer');
@@ -517,6 +541,7 @@
                 if(!teamsList.includes("כללי")) teamsList.push("כללי");
                 teamsList = [...new Set(teamsList)];
                 systemTeams = data.systemTeams || {};
+                if (data.qrSettings) currentQrSettings = data.qrSettings;
                 updateWorkersSelectUI();
                 renderDynamicTabs();
             } catch(e) { console.error("Ошибка загрузки настроек:", e); }
@@ -607,62 +632,24 @@
             location.reload(); 
         }
 
-        const QR_CATEGORIES = [
-            { id: 'חשמל', label: 'חשמל' },
-            { id: 'מיזוג_אוויר', label: 'מיזוג אוויר' },
-            { id: 'בינוי_ודלתות', label: 'בינוי ודלתות' },
-            { id: 'מיטות', label: 'מיטות / ריהוט' },
-            { id: 'ניקיון', label: 'ניקיון' }
-        ];
-        let qrMappings = [];
-
         async function openQrConfigModal() {
             document.getElementById('qrConfigModal').classList.remove('hidden');
-            try {
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'GET_QR_MAPPINGS' })
-                });
-                const data = await res.json();
-                qrMappings = data.mappings || [];
-                renderQrConfig();
-            } catch(e) {
-                console.error(e);
-            }
+            document.getElementById('qrMode247').checked = currentQrSettings.mode === '24/7';
+            document.getElementById('qrModeSchedule').checked = currentQrSettings.mode === 'SCHEDULED';
+            document.getElementById('qrStart').value = currentQrSettings.start || '08:00';
+            document.getElementById('qrEnd').value = currentQrSettings.end || '17:00';
+            toggleQrScheduleUI();
+        }
+
+        function toggleQrScheduleUI() {
+            const isScheduled = document.getElementById('qrModeSchedule').checked;
+            document.getElementById('qrScheduleControls').classList.toggle('hidden', !isScheduled);
         }
 
         function closeQrConfigModal() {
             document.getElementById('qrConfigModal').classList.add('hidden');
         }
 
-        function renderQrConfig() {
-            const container = document.getElementById('qrConfigList');
-            container.innerHTML = '';
-            
-            QR_CATEGORIES.forEach(cat => {
-                const mapping = qrMappings.find(m => m.category === cat.id);
-                const selectedTeamName = mapping ? mapping.teamName : '';
-
-                let teamOptions = `<option value="">-- בחר צוות -- (ברירת מחדל: כללי)</option>`;
-                let currentLabel = "<span class='text-gray-400'>ברירת מחדל (כללי)</span>";
-                teamsList.forEach(t => {
-                    let label = t;
-                    let sel = (t === selectedTeamName) ? 'selected' : '';
-                    teamOptions += `<option value="${t}" ${sel}>${label}</option>`;
-                    if (sel) currentLabel = `<span class='text-purple-600 font-bold'>${label}</span>`;
-                });
-
-                container.innerHTML += `
-                    <div class="bg-gray-50 p-3 rounded-xl border flex flex-col mb-2">
-                        <div class="flex justify-between items-center mb-1">
-                            <label class="font-bold text-gray-700">${cat.label}</label>
-                            <span class="text-xs">${currentLabel}</span>
-                        </div>
-                        <select id="qr-map-${cat.id}" class="px-3 py-2 border rounded-lg outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-                            ${teamOptions}
-                        </select>
-                    </div>
                 `;
             });
         }
@@ -958,7 +945,17 @@
             showLoader();
             try {
                 const res = await fetch(`${API_URL}?action=getOpenTasks&t=${Date.now()}`);
-                const data = await res.json(); allTasks = data.tasks || [];
+                                const data = await res.json(); allTasks = data.tasks || [];
+                let missingTeams = false;
+                allTasks.forEach(t => {
+                    if (t.sheet && !teamsList.includes(t.sheet)) {
+                        teamsList.push(t.sheet);
+                        missingTeams = true;
+                    }
+                });
+                if (missingTeams) {
+                    renderDynamicTabs();
+                }
                 if(fpInstance) fpInstance.redraw(); renderTasks(); if(typeof updateTabIndicators === 'function') updateTabIndicators();
             } catch(e) { console.error("Ошибка загрузки:", e); } hideLoader();
         }

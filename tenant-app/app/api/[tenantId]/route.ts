@@ -82,8 +82,10 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
         }
       }
     }
+  
+    const qrSettings = (tenant as any).qrSettings || { mode: '24/7', start: '08:00', end: '17:00' };
 
-    return NextResponse.json({ workers, categories, teams, systemTeams });
+    return NextResponse.json({ workers, categories, teams, systemTeams, qrSettings });
   }
 
   if (action === 'getOpenTasks') {
@@ -375,8 +377,17 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         }
       }
     }
-    return NextResponse.json({ status: 'success' });
-  }
+      return NextResponse.json({ status: 'success' });
+    }
+  
+    if (action === 'SAVE_QR_SETTINGS') {
+      const qrSettings = body.qrSettings || { mode: '24/7', start: '08:00', end: '17:00' };
+      await prisma.tenant.update({
+        where: { id: tenantId },
+        data: { qrSettings: qrSettings as any }
+      });
+      return NextResponse.json({ status: 'success' });
+    }
 
   if (action === 'UNMARK_PRINTED') {
     const tasks = body.tasks || [];
