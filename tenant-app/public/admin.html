@@ -1068,13 +1068,13 @@
 
         function editDefect(realIdx) {
             const task = allTasks[realIdx];
-            const newVal = prompt("ערוך את תיאור התקלה:", task.defect);
-            if(newVal !== null && newVal.trim() !== '' && newVal !== task.defect) {
+            const newVal = prompt("ערוך את תיאור התקלה (מה שכתב המפקח):", task.comment || "");
+            if(newVal !== null && newVal.trim() !== '' && newVal !== task.comment) {
                 showLoader("מעדכן תקלה...");
                 fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: "UPDATE_TASK_DEFECT", id: task.id, defect: newVal.trim() })
+                    body: JSON.stringify({ action: "UPDATE_TASK_COMMENT", id: task.id, comment: newVal.trim() })
                 }).then(res => res.json()).then(out => {
                     if(out.status === 'success') {
                         showToast("תקלה עודכנה בהצלחה", "success");
@@ -1246,7 +1246,7 @@
                     <div class="relative group/img z-10 w-24 h-24 shrink-0">
                         <img src="${img}" class="w-full h-full object-cover rounded-xl border" onerror="this.src='https://placehold.co/100x100?text=No+Photo'">
                         ${img && !img.includes('placehold') ? `<i class="fas fa-search-plus absolute -top-2 -right-2 bg-white rounded-full p-1 text-xs shadow border cursor-pointer text-gray-500 hover:text-indigo-600 transition-colors"></i>
-                        <div class="hidden group-hover/img:block absolute top-0 -right-2 translate-x-full z-50 p-2 bg-white rounded-2xl shadow-2xl border w-[400px] h-[400px] pointer-events-none origin-left">
+                        <div class="hidden group-hover/img:block absolute bottom-0 -right-2 translate-x-full z-50 p-2 bg-white rounded-2xl shadow-2xl border w-[400px] h-[400px] pointer-events-none origin-bottom-left">
                             <img src="${img}" class="w-full h-full object-contain rounded-xl" onerror="this.src='https://placehold.co/100x100?text=No+Photo'">
                         </div>` : ''}
                     </div>
@@ -1258,11 +1258,11 @@
                         <div class="flex items-center gap-3">
                             <h3 class="text-xl font-bold">${task.dept} | חדר: ${task.room} <span class="text-sm font-normal px-2 bg-gray-100 rounded">${actT}</span></h3>
                         </div>
+                        <p class="font-bold mt-1">${task.defect}</p>
                         <div class="flex items-center gap-2 mt-1">
-                            <p class="font-bold">${task.defect}</p>
-                            <button onclick="editDefect(${realIdx})" class="text-gray-400 hover:text-indigo-600 transition-colors" title="ערוך תקלה"><i class="fas fa-pencil-alt text-sm"></i></button>
+                            <p class="text-gray-500 text-sm">${task.comment || ""}</p>
+                            <button onclick="editDefect(${realIdx})" class="text-gray-400 hover:text-indigo-600 transition-colors" title="ערוך תיאור"><i class="fas fa-pencil-alt text-sm"></i></button>
                         </div>
-                        <p class="text-gray-500 text-sm">${task.comment || ""}</p>
                         <p class="text-xs text-gray-400 mt-1"><i class="fas fa-clock ml-1"></i>${task.dateStr} | ${task.inspector}</p>
                     </div>
                       ${isPrinted ? `

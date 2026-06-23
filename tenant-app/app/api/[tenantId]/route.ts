@@ -458,12 +458,12 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     return NextResponse.json({ status: 'success' });
   }
 
-  if (action === 'UPDATE_TASK_DEFECT') {
-    const { id, defect } = body;
-    if (id && defect) {
+  if (action === 'UPDATE_TASK_COMMENT') {
+    const { id, comment } = body;
+    if (id && comment !== undefined) {
       await prisma.task.update({
         where: { id },
-        data: { customDefectName: defect, systemId: null }
+        data: { notes: comment }
       });
     }
     return NextResponse.json({ status: 'success' });
