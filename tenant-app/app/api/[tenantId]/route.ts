@@ -132,8 +132,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
     const endDate = searchParams.get('endDate');
 
     const filters: any = {
-      tenantId,
-      status: { in: ['COMPLETED', 'CLOSED'] }
+      tenantId
     };
 
     if (startDate && endDate) {
@@ -157,26 +156,29 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
       orderBy: { createdAt: 'desc' }
     });
 
-    const tasks = tasksDb.map(t => ({
-      id: t.id,
-      sheet: t.team?.name || 'ליקויים',
-      dept: t.department?.name || 'כללי',
-      department: t.department?.name || 'כללי',
-      room: t.room,
-      system: t.system?.name || t.customDefectName || 'אחר',
-      defect: t.system?.name || t.customDefectName || 'אחר',
-      action: t.actionType === 'REPAIR' ? 'Ремонт' : (t.actionType === 'REPLACE' ? 'Замена' : ''),
-      inspector: t.inspectorName || 'מנהל',
-      notes: t.notes || '',
-      comment: t.notes || '',
-      photo: t.photoUrl || '',
-      afterPhoto: t.afterPhotoUrl || '',
-      status: 'הושלם',
-      worker: t.worker?.name || '',
-      team: t.team?.name || '',
-      timestamp: t.createdAt.getTime(),
-      dateStr: `${String(t.createdAt.getDate()).padStart(2, '0')}/${String(t.createdAt.getMonth() + 1).padStart(2, '0')}/${t.createdAt.getFullYear()} ${String(t.createdAt.getHours()).padStart(2, '0')}:${String(t.createdAt.getMinutes()).padStart(2, '0')}`,
-    }));
+    const tasks = tasksDb.map(t => {
+      const isQr = t.customDefectName?.includes('דיווח מהמחלקה') || t.customDefectName?.includes('תקלה חדשה') || t.inspectorName?.includes('צוות');
+      return {
+        id: t.id,
+        sheet: isQr ? 'QR' : (t.team?.name || 'ליקויים'),
+        dept: t.department?.name || 'כללי',
+        department: t.department?.name || 'כללי',
+        room: t.room,
+        system: t.system?.name || t.customDefectName || 'אחר',
+        defect: t.system?.name || t.customDefectName || 'אחר',
+        action: t.actionType === 'REPAIR' ? 'Ремонт' : (t.actionType === 'REPLACE' ? 'Замена' : ''),
+        inspector: t.inspectorName || 'מנהל',
+        notes: t.notes || '',
+        comment: t.notes || '',
+        photo: t.photoUrl || '',
+        afterPhoto: t.afterPhotoUrl || '',
+        status: t.status === 'NEW' ? 'פתוח' : (t.status === 'IN_PROGRESS' ? 'בעבודה' : 'הושלם'),
+        worker: t.worker?.name || '',
+        team: t.team?.name || '',
+        timestamp: t.createdAt.getTime(),
+        dateStr: `${String(t.createdAt.getDate()).padStart(2, '0')}/${String(t.createdAt.getMonth() + 1).padStart(2, '0')}/${t.createdAt.getFullYear()} ${String(t.createdAt.getHours()).padStart(2, '0')}:${String(t.createdAt.getMinutes()).padStart(2, '0')}`,
+      };
+    });
 
     return NextResponse.json({ tasks });
   }

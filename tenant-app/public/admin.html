@@ -263,12 +263,13 @@
                             <th class="p-3 border-b font-bold">חדר</th>
                             <th class="p-3 border-b font-bold">תקלה</th>
                             <th class="p-3 border-b font-bold">צוות</th>
+                            <th class="p-3 border-b font-bold">סטטוס</th>
                             <th class="p-3 border-b font-bold">עובד</th>
                             <th class="p-3 border-b font-bold text-center">תמונות</th>
                         </tr>
                     </thead>
                     <tbody id="reportsTableBody">
-                        <tr><td colspan="7" class="p-8 text-center text-gray-500 font-bold">בחר תאריכים והפק דוח</td></tr>
+                        <tr><td colspan="8" class="p-8 text-center text-gray-500 font-bold">בחר תאריכים והפק דוח</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -596,7 +597,7 @@
                 tbody.innerHTML = '';
                 document.getElementById('reportsCount').innerText = `סה"כ משימות: ${tasks.length}`;
                 if(tasks.length === 0) {
-                    tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-500 font-bold">לא נמצאו משימות בטווח זה</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-500 font-bold">לא נמצאו משימות בטווח זה</td></tr>`;
                 } else {
                     tasks.forEach(t => {
                         const tr = document.createElement('tr');
@@ -610,6 +611,7 @@
                             <td class="p-2 border-b font-bold">${t.room}</td>
                             <td class="p-2 border-b">${t.defect}</td>
                             <td class="p-2 border-b">${t.sheet}</td>
+                            <td class="p-2 border-b font-bold ${t.status === 'הושלם' ? 'text-emerald-600' : (t.status === 'בעבודה' ? 'text-amber-500' : 'text-rose-500')}">${t.status}</td>
                             <td class="p-2 border-b">${t.worker || '-'}</td>
                             <td class="p-2 border-b text-center">${photosHtml.join(' | ')}</td>
                         `;
