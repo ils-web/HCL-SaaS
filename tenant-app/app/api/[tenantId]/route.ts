@@ -103,9 +103,11 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
       orderBy: { createdAt: 'desc' }
     });
 
-    const tasks = tasksDb.map(t => ({
+    const tasks = tasksDb.map(t => {
+      const isQr = t.customDefectName?.includes('דיווח מהמחלקה') || t.customDefectName?.includes('תקלה חדשה') || t.inspectorName?.includes('צוות');
+      return {
       id: t.id,
-      sheet: t.team?.name || 'ליקויים',
+      sheet: isQr ? 'QR' : (t.team?.name || 'כללי'),
       dept: t.department?.name || 'כללי',
       department: t.department?.name || 'כללי',
       room: t.room,
@@ -122,7 +124,8 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
       team: t.team?.name || '',
       timestamp: t.createdAt.getTime(),
       dateStr: `${String(t.createdAt.getDate()).padStart(2, '0')}/${String(t.createdAt.getMonth() + 1).padStart(2, '0')}/${t.createdAt.getFullYear()} ${String(t.createdAt.getHours()).padStart(2, '0')}:${String(t.createdAt.getMinutes()).padStart(2, '0')}`,
-    }));
+    };
+    });
 
     return NextResponse.json({ tasks });
   }
@@ -160,7 +163,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
       const isQr = t.customDefectName?.includes('דיווח מהמחלקה') || t.customDefectName?.includes('תקלה חדשה') || t.inspectorName?.includes('צוות');
       return {
         id: t.id,
-        sheet: isQr ? 'QR' : (t.team?.name || 'ליקויים'),
+        sheet: isQr ? 'QR' : (t.team?.name || 'כללי'),
         dept: t.department?.name || 'כללי',
         department: t.department?.name || 'כללי',
         room: t.room,
@@ -330,16 +333,25 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
 
   if (action === 'SAVE_TEAMS') {
-    const teamsList: string[] = body.teams || [];
-    for (const tName of teamsList) {
-      await prisma.team.upsert({
-        where: { id: 'temp' },
-        create: { name: tName, tenantId },
-        update: {}
-      }).catch(async () => {
-        const ext = await prisma.team.findFirst({ where: { tenantId, name: tName }});
-        if(!ext) await prisma.team.create({ data: { tenantId, name: tName } });
-      });
+    const teams = body.teams || [];
+    
+    // Fetch all current teams
+    const currentTeams = await prisma.team.findMany({ where: { tenantId } });
+    
+    for (const ct of currentTeams) {
+      if (!teams.includes(ct.name) && ct.name !== 'QR') {
+        // Unlink tasks
+        await prisma.task.updateMany({ where: { teamId: ct.id }, data: { teamId: null } });
+        // Unlink systems
+        await prisma.system.updateMany({ where: { autoAssignTeamId: ct.id }, data: { autoAssignTeamId: null } });
+        // Delete team
+        await prisma.team.delete({ where: { id: ct.id } });
+      }
+    }
+
+    for (const tName of teams) {
+      const ext = await prisma.team.findFirst({ where: { tenantId, name: tName } });
+      if(!ext) await prisma.team.create({ data: { tenantId, name: tName } });
     }
     return NextResponse.json({ status: 'success' });
   }
@@ -356,16 +368,42 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   if (action === 'SAVE_CATEGORIES') {
     const categories: Record<string, string[]> = body.categories || {};
     const systemTeams: Record<string, string> = body.systemTeams || {};
+
+    // First, sync Areas (Categories) and Systems
+    const activeAreaNames = Object.keys(categories);
+    const currentAreas = await prisma.area.findMany({ where: { tenantId }, include: { systems: true } });
     
+    for (const ca of currentAreas) {
+      if (!activeAreaNames.includes(ca.name)) {
+        // Delete systems of this area first
+        for (const sys of ca.systems) {
+          await prisma.task.updateMany({ where: { systemId: sys.id }, data: { systemId: null } });
+          await prisma.system.delete({ where: { id: sys.id } });
+        }
+        await prisma.task.updateMany({ where: { areaId: ca.id }, data: { areaId: null } });
+        await prisma.area.delete({ where: { id: ca.id } });
+      } else {
+        // Area exists, check its systems
+        const activeSystemNames = categories[ca.name] || [];
+        for (const sys of ca.systems) {
+          if (!activeSystemNames.includes(sys.name)) {
+            await prisma.task.updateMany({ where: { systemId: sys.id }, data: { systemId: null } });
+            await prisma.system.delete({ where: { id: sys.id } });
+          }
+        }
+      }
+    }
+
+    // Now insert/update what's passed
     for (const [areaName, systems] of Object.entries(categories)) {
       let area = await prisma.area.findFirst({ where: { tenantId, name: areaName } });
       if (!area) {
         area = await prisma.area.create({ data: { tenantId, name: areaName } });
       }
-      
+
       for (const sysName of systems) {
         let sys = await prisma.system.findFirst({ where: { tenantId, areaId: area.id, name: sysName } });
-        
+
         let teamId = null;
         if (systemTeams[sysName]) {
           const team = await prisma.team.findFirst({ where: { tenantId, name: systemTeams[sysName] } });
@@ -379,8 +417,8 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         }
       }
     }
-      return NextResponse.json({ status: 'success' });
-    }
+    return NextResponse.json({ status: 'success' });
+  }
   
     if (action === 'SAVE_QR_SETTINGS') {
       const qrSettings = body.qrSettings || { mode: '24/7', start: '08:00', end: '17:00' };
