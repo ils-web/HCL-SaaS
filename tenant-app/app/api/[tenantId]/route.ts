@@ -358,6 +358,15 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
 
   if (action === 'SAVE_WORKERS') {
     const workersList: string[] = body.workers || [];
+    
+    const currentWorkers = await prisma.user.findMany({ where: { tenantId, role: 'WORKER' }});
+    for (const cw of currentWorkers) {
+      if (!workersList.includes(cw.name)) {
+        await prisma.task.updateMany({ where: { workerId: cw.id }, data: { workerId: null } });
+        await prisma.user.delete({ where: { id: cw.id } });
+      }
+    }
+
     for (const wName of workersList) {
       const ext = await prisma.user.findFirst({ where: { tenantId, name: wName, role: 'WORKER' }});
       if(!ext) await prisma.user.create({ data: { tenantId, name: wName, role: 'WORKER' } });

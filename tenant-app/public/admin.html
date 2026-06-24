@@ -962,7 +962,7 @@
         function switchTab(t) { 
             currentTab = t; 
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active', 'bg-white')); 
-            const targetTab = document.getElementById('tab-'+t) || document.getElementById('tab-ליקויים');
+            const targetTab = document.getElementById('tab-'+t) || document.getElementById('tab-כללי');
             if(targetTab) targetTab.classList.add('active', 'bg-white'); renderTasks(); 
         }
 
