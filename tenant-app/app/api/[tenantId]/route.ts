@@ -135,7 +135,8 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
     const endDate = searchParams.get('endDate');
 
     const filters: any = {
-      tenantId
+      tenantId,
+      status: 'COMPLETED'
     };
 
     if (startDate && endDate) {
