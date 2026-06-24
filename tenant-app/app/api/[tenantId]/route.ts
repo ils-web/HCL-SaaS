@@ -136,12 +136,19 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
 
     const filters: any = {
       tenantId,
-      status: 'COMPLETED'
+      status: { in: ['COMPLETED', 'CLOSED'] }
     };
 
     if (startDate && endDate) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
+      let start = new Date(startDate);
+      let end = new Date(endDate);
+      
+      if (start > end) {
+        const temp = start;
+        start = end;
+        end = temp;
+      }
+      
       end.setHours(23, 59, 59, 999);
       filters.createdAt = {
         gte: start,
