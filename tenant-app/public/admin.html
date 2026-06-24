@@ -906,7 +906,7 @@
 
         function updateTabIndicators() {
             teamsList.forEach(c => {
-                const hasNewTasks = allTasks.some(t => t.sheet === c && !t.worker);
+                const hasNewTasks = allTasks.some(t => t.sheet === c && t.status !== 'בעבודה');
                 const tabBtn = document.getElementById('tab-' + c);
                 if (tabBtn) {
                     tabBtn.classList.add('relative');
