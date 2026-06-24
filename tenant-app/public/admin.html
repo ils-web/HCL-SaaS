@@ -42,6 +42,10 @@
             #noPrintUI, #qrModal, #backToTopBtn { display: none !important; }
             .print-page { page-break-after: always; padding: 10mm; width: 210mm; height: 296mm; border: none; }
             #printTasksContainer { display: block !important; }
+            
+            /* Custom print styles for Reports Table */
+            body.printing-table > * { display: none !important; }
+            body.printing-table #reportPrintContainer { display: block !important; width: 100%; margin: 10mm; direction: rtl; }
         }
 
         /* סגנונות כרטיסי הדפסה (מחוץ ל @media print, כדי שיוצגו ב-PDF גם ככה) */
@@ -634,11 +638,22 @@
 
         function printReport() {
             const printContents = document.querySelector('#reportsModal .flex-grow').innerHTML;
-            const originalContents = document.body.innerHTML;
-            document.body.innerHTML = `<h2 class="text-2xl font-bold text-center mb-4" style="direction: rtl;">דוח משימות שהושלמו</h2><div style="direction: rtl;">${printContents}</div>`;
-            window.print();
-            document.body.innerHTML = originalContents;
-            location.reload(); 
+            let container = document.getElementById('reportPrintContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'reportPrintContainer';
+                container.style.direction = 'rtl';
+                document.body.appendChild(container);
+            }
+            container.innerHTML = `<h2 class="text-2xl font-bold text-center mb-4">דוח משימות שהושלמו</h2>${printContents}`;
+            
+            document.body.classList.add('printing-table');
+            
+            setTimeout(() => {
+                window.print();
+                document.body.classList.remove('printing-table');
+                container.innerHTML = '';
+            }, 300);
         }
 
         async function openQrConfigModal() {
