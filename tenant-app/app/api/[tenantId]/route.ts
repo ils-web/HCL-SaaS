@@ -237,8 +237,8 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
 
         let teamId = sys?.autoAssignTeamId;
         if (!teamId) {
-          let defTeam = await prisma.team.findFirst({ where: { tenantId, name: 'ליקויים' } });
-          if (!defTeam) defTeam = await prisma.team.create({ data: { tenantId, name: 'ליקויים' } });
+          let defTeam = await prisma.team.findFirst({ where: { tenantId, name: 'כללי' } });
+          if (!defTeam) defTeam = await prisma.team.create({ data: { tenantId, name: 'כללי' } });
           teamId = defTeam.id;
         }
 
@@ -292,8 +292,8 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     let sysName = defect || sheetName || 'אחר';
     let sys = await prisma.system.findFirst({ where: { tenantId, name: sysName } });
     if (!sys) {
-      let area = await prisma.area.findFirst({ where: { tenantId, name: 'כללי' } });
-      if (!area) area = await prisma.area.create({ data: { tenantId, name: 'כללי' } });
+      let area = await prisma.area.findFirst({ where: { tenantId, name: 'שונות' } });
+      if (!area) area = await prisma.area.create({ data: { tenantId, name: 'שונות' } });
       sys = await prisma.system.create({ data: { tenantId, areaId: area.id, name: sysName } });
     }
 
