@@ -584,11 +584,16 @@
         }
 
         async function generateReport() {
-            const start = document.getElementById('reportStartDate').value;
-            const end = document.getElementById('reportEndDate').value;
+            let start = document.getElementById('reportStartDate').value;
+            let end = document.getElementById('reportEndDate').value;
             if(!start || !end) {
                 showToast("יש לבחור תאריכים", "warning");
                 return;
+            }
+            if (new Date(start) > new Date(end)) {
+                const temp = start; start = end; end = temp;
+                document.getElementById('reportStartDate').value = start;
+                document.getElementById('reportEndDate').value = end;
             }
             showLoader("מפיק דוח...");
             try {
