@@ -359,6 +359,7 @@
                 </div>
 
                 <div class="flex flex-col md:flex-row gap-4">
+                    <div class="flex items-end"><button onclick="toggleSelectAll()" id="selectAllBtn" class="bg-indigo-50 text-indigo-700 h-[50px] px-4 rounded-xl font-bold hover:bg-indigo-100 shadow border border-indigo-200 flex items-center justify-center"><i class="fas fa-check-square ml-2"></i><span>בחר הכל</span></button></div>
                     <div class="flex-1">
                         <label class="block text-sm font-bold text-gray-500 mb-1">מחלקה</label>
                         <select id="filterDept" onchange="renderTasks()" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none">
@@ -370,7 +371,7 @@
                         <input type="text" id="filterDate" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none" placeholder="בחר תאריך">
                     </div>
                     <div class="flex items-end gap-2">
-                        <button onclick="toggleSelectAll()" id="selectAllBtn" class="bg-indigo-50 text-indigo-700 h-[50px] px-4 rounded-xl font-bold hover:bg-indigo-100 shadow border border-indigo-200 flex items-center justify-center"><i class="fas fa-check-square ml-2"></i><span>בחר הכל</span></button>
+
                         <button onclick="resetFilters()" class="px-6 h-[50px] bg-red-100 text-red-600 rounded-xl font-bold">נקה סינון</button>
                     </div>
                 </div>
@@ -1246,18 +1247,18 @@
                     <div class="absolute top-4 left-4 md:static md:flex md:items-center">
                         <input type="checkbox" checked class="task-checkbox w-7 h-7 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm" data-index="${realIdx}" onclick="handleCheckboxClick(event, ${realIdx})">
                     </div>
-                    <div class="relative group/img z-10 w-24 h-24 shrink-0">
+                    <div class="relative z-10 w-24 h-24 shrink-0">
                         <img src="${img}" class="w-full h-full object-cover rounded-xl border" onerror="this.src='https://placehold.co/100x100?text=No+Photo'">
-                        ${img && !img.includes('placehold') ? `<i class="fas fa-search-plus absolute -top-2 -right-2 bg-white rounded-full p-1 text-xs shadow border cursor-pointer text-gray-500 hover:text-indigo-600 transition-colors"></i>
-                        <div class="hidden group-hover/img:block absolute bottom-full -right-4 mb-2 z-[100] p-2 bg-white rounded-2xl shadow-2xl border w-[400px] h-[400px] pointer-events-none origin-bottom-right">
+                        ${img && !img.includes('placehold') ? `<div class="absolute -top-2 -right-2 group/img cursor-pointer"><i class="fas fa-search-plus relative z-20 bg-white rounded-full p-1 text-xs shadow border cursor-pointer text-gray-500 hover:text-indigo-600 transition-colors"></i>
+                        <div class="hidden group-hover/img:block absolute bottom-full -right-4 mb-2 z-[100] p-2 bg-white rounded-2xl shadow-2xl border w-[400px] h-[400px] origin-bottom-right">
                             <img src="${img}" class="w-full h-full object-contain rounded-xl" onerror="this.src='https://placehold.co/100x100?text=No+Photo'">
-                        </div>` : ''}
+                        </div></div>` : ''}
                     </div>
                     <div class="flex-grow pr-10 md:pr-0">
                         <div class="inline-block bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-black mb-2 border border-blue-200 shadow-sm">
                             <i class="fas fa-users ml-1"></i> צוות משויך: ${cleanSheetName}
                         </div>
-                        ${isQr ? `<div class="inline-block bg-pink-100 text-pink-700 px-3 py-1 rounded-lg text-xs font-black mb-2 border border-pink-200 shadow-sm mr-2"><i class="fas fa-qrcode ml-1"></i> QR${reporterName && reporterName !== 'לא ידוע' ? ` | ${reporterName}` : ''}</div>` : ''}
+                        ${isQr ? `<div class="inline-block bg-pink-100 text-pink-700 px-3 py-1 rounded-lg text-xs font-black mb-2 border border-pink-200 shadow-sm mr-2"><i class="fas fa-qrcode ml-1"></i> QR${reporterName && reporterName !== 'לא ידוע' ? ` | ${reporterName}` : ''}</div></div>` : ''}
                         <div class="flex items-center gap-3">
                             <h3 class="text-xl font-bold">${task.dept} | חדר: ${task.room} <span class="text-sm font-normal px-2 bg-gray-100 rounded">${actT}</span></h3>
                         </div>
