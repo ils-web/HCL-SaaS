@@ -983,7 +983,7 @@
             showCustomConfirm("ביטול סטטוס", "לבטל את סטטוס 'בעבודה' למשימה זו?", async () => {
                 showLoader("מעדכן סטטוס...");
                 try {
-                    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "UNMARK_PRINTED", tasks: [{ sheet: task.sheet, room: task.room, defect: task.defect, comment: task.comment || "", date: task.dateStr }] }) });
+                    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "UNMARK_PRINTED", tasks: [{ id: task.id, sheet: task.sheet, room: task.room, defect: task.defect, comment: task.comment || "", date: task.dateStr }] }) });
                     await loadTasks(); showToast("הסטטוס שונה ל'פתוח'", "success");
                 } catch(e) { console.error(e); hideLoader(); }
             }, "fa-undo");
