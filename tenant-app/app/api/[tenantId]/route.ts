@@ -442,7 +442,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     const tasks = body.tasks || [];
     for (const t of tasks) {
       const dbTask = await prisma.task.findFirst({
-        where: { tenantId, room: String(t.room), status: 'IN_PROGRESS' }
+        where: { tenantId, id: t.id }
       });
       if (dbTask) {
         await prisma.task.update({
@@ -479,7 +479,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     }
     for (const t of tasks || []) {
       const dbTask = await prisma.task.findFirst({
-        where: { tenantId, room: String(t.room), status: 'NEW' }
+        where: { tenantId, id: t.id }
       });
       if (dbTask) {
         await prisma.task.update({
