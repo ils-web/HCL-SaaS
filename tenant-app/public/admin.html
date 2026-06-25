@@ -329,17 +329,9 @@
                     <h1 class="text-3xl font-black text-gray-800">לוח בקרה <span class="text-indigo-600">HCL</span></h1>
                     
                     <div class="flex gap-2 flex-wrap justify-center items-center">
-                        <button onclick="toggleViewMode()" id="viewModeBtn" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl font-bold hover:bg-gray-200 shadow border border-gray-300"><i class="fas fa-list ml-2"></i>שינוי תצוגה</button>
                         <input type="text" id="searchInput" oninput="handleSearch()" placeholder="חיפוש משימה..." class="px-4 py-2 rounded-xl border border-gray-300 shadow-sm outline-none w-full md:w-48 font-bold text-sm">
                         <button onclick="openReportsModal()" class="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl font-bold hover:bg-indigo-100 shadow border border-indigo-200"><i class="fas fa-chart-bar ml-2"></i>דוחות</button>
-                        <button onclick="openTeamsModal()" class="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl font-bold hover:bg-blue-100 shadow border border-blue-200"><i class="fas fa-users-cog ml-2"></i>ניהול צוותים</button>
-                        <button onclick="openQrConfigModal()" class="bg-purple-50 text-purple-700 px-4 py-2 rounded-xl font-bold hover:bg-purple-100 shadow border border-purple-200"><i class="fas fa-qrcode ml-2"></i>הגדרות QR</button>
-                        <button onclick="openConfigModal()" class="bg-blue-50 text-blue-700 px-4 py-2 rounded-xl font-bold hover:bg-blue-100 shadow"><i class="fas fa-cogs ml-2"></i>ניהול מערכות נבדקות</button>
-                        <button onclick="openWorkersModal()" class="bg-indigo-50 text-indigo-700 px-4 py-2 rounded-xl font-bold hover:bg-indigo-100 shadow"><i class="fas fa-users ml-2"></i>ניהול עובדים</button>
-                        
-                        <button onclick="closeSelectedTasks()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-indigo-500 shadow"><i class="fas fa-check-double ml-2"></i>סגור נבחרים</button>
-                        <button onclick="revertSelectedTasks()" class="bg-orange-100 text-orange-700 px-4 py-2 rounded-xl font-bold hover:bg-orange-200 shadow border border-orange-300"><i class="fas fa-undo ml-2"></i>החזר לפתוח</button>
-                        
+                        <button onclick="openSettingsMainModal()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-xl font-bold hover:bg-gray-200 shadow border border-gray-300"><i class="fas fa-cog ml-2"></i>הגדרות</button>
                         <div class="flex gap-2 items-center bg-gray-50 p-1.5 rounded-xl border border-gray-200 shadow-sm flex-wrap justify-center">
                             <select id="printWorker" class="bg-white text-orange-900 border border-gray-200 py-1.5 px-3 font-bold rounded-lg outline-none text-sm max-w-[140px]">
                                 <option value="">בחר עובד... (Без мастера)</option>
@@ -364,12 +356,10 @@
                         <button onclick="printManagerReport()" class="bg-green-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-green-500 shadow"><i class="fas fa-table ml-2"></i>דוח מנהל</button>
                         <button onclick="openQrModal()" class="bg-blue-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-blue-500 shadow"><i class="fas fa-qrcode ml-2"></i>QR עובדים</button>
                         <button onclick="openInspectorQrModal()" class="bg-purple-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-purple-500 shadow"><i class="fas fa-mobile-alt ml-2"></i>QR מפקח</button>
-                        <button onclick="loadTasks()" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl font-bold hover:bg-indigo-200"><i class="fas fa-sync-alt"></i></button>
-                    </div>
+                        </div>
                 </div>
 
                 <div class="flex flex-col md:flex-row gap-4">
-                    <div class="flex items-end"><button onclick="toggleSelectAll()" id="selectAllBtn" class="bg-indigo-50 text-indigo-700 h-[50px] px-4 rounded-xl font-bold hover:bg-indigo-100 shadow border border-indigo-200 flex items-center justify-center"><i class="fas fa-check-square ml-2"></i><span>בחר הכל</span></button></div>
                     <div class="flex-1">
                         <label class="block text-sm font-bold text-gray-500 mb-1">מחלקה</label>
                         <select id="filterDept" onchange="renderTasks()" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none">
@@ -397,6 +387,16 @@
                 </button>
             </div>
 
+            
+            <div class="flex flex-wrap items-center gap-3 mb-4 bg-white p-3 rounded-2xl shadow-sm border border-gray-200">
+                <button onclick="toggleSelectAll()" id="selectAllBtn" class="bg-indigo-50 text-indigo-700 px-5 py-2 rounded-xl font-bold hover:bg-indigo-100 shadow-sm border border-indigo-200 flex items-center justify-center transition-colors"><i class="fas fa-check-square ml-2"></i><span>בחר הכל</span></button>
+                <button onclick="loadTasks()" class="bg-indigo-100 text-indigo-700 px-4 py-2 rounded-xl font-bold hover:bg-indigo-200 shadow-sm border border-indigo-200 transition-colors"><i class="fas fa-sync-alt"></i></button>
+                <div class="w-px h-8 bg-gray-200 mx-1 hidden sm:block"></div>
+                <button onclick="closeSelectedTasks()" class="bg-indigo-600 text-white px-5 py-2 rounded-xl font-bold hover:bg-indigo-500 shadow-sm transition-colors"><i class="fas fa-check-double ml-2"></i>סגור נבחרים</button>
+                <button onclick="revertSelectedTasks()" class="bg-orange-100 text-orange-700 px-5 py-2 rounded-xl font-bold hover:bg-orange-200 shadow-sm border border-orange-300 transition-colors"><i class="fas fa-undo ml-2"></i>החזר לפתוח</button>
+                <div class="flex-grow"></div>
+                <button onclick="toggleViewMode()" id="viewModeBtn" class="bg-gray-100 text-gray-700 px-5 py-2 rounded-xl font-bold hover:bg-gray-200 shadow-sm border border-gray-300 transition-colors"><i class="fas fa-list ml-2"></i>שינוי תצוגה</button>
+            </div>
             <div id="dynamicTabsContainer" class="flex bg-white rounded-2xl shadow-sm mb-6 overflow-x-auto overflow-y-hidden border border-gray-200">
                 <!-- Dynamic Tabs injected here -->
             </div>
@@ -596,6 +596,16 @@
 
         let reportsFpStart = null;
         let reportsFpEnd = null;
+
+        
+        function openSettingsMainModal() {
+            document.getElementById('settingsMainModal').classList.remove('hidden');
+            document.getElementById('settingsMainModal').classList.add('flex');
+        }
+        function closeSettingsMainModal() {
+            document.getElementById('settingsMainModal').classList.add('hidden');
+            document.getElementById('settingsMainModal').classList.remove('flex');
+        }
 
         function openReportsModal() {
             document.getElementById('reportsModal').classList.remove('hidden');
@@ -1491,7 +1501,36 @@ function processOutput(mode) {
                     <div class="qr-container">${imgHtml}</div>
                 </div>
                 <script>setTimeout(()=>window.print(), 800);</`+`script>
-                </body></html>
+                
+    <!-- Settings Main Modal -->
+    <div id="settingsMainModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50 transition-opacity" style="z-index: 100;">
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" dir="rtl">
+            <div class="bg-gray-800 p-5 flex justify-between items-center text-white">
+                <h2 class="text-2xl font-black"><i class="fas fa-cog ml-2"></i>הגדרות מערכת</h2>
+                <button onclick="closeSettingsMainModal()" class="text-gray-300 hover:text-white transition-colors"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <button onclick="closeSettingsMainModal(); openTeamsModal();" class="w-full flex items-center justify-between bg-blue-50 text-blue-800 p-4 rounded-xl font-bold hover:bg-blue-100 shadow-sm border border-blue-200 transition-colors text-lg">
+                    <span><i class="fas fa-users-cog ml-3 text-xl"></i>ניהול צוותים</span>
+                    <i class="fas fa-chevron-left text-blue-400"></i>
+                </button>
+                <button onclick="closeSettingsMainModal(); openWorkersModal();" class="w-full flex items-center justify-between bg-indigo-50 text-indigo-800 p-4 rounded-xl font-bold hover:bg-indigo-100 shadow-sm border border-indigo-200 transition-colors text-lg">
+                    <span><i class="fas fa-users ml-3 text-xl"></i>ניהול עובדים</span>
+                    <i class="fas fa-chevron-left text-indigo-400"></i>
+                </button>
+                <button onclick="closeSettingsMainModal(); openConfigModal();" class="w-full flex items-center justify-between bg-cyan-50 text-cyan-800 p-4 rounded-xl font-bold hover:bg-cyan-100 shadow-sm border border-cyan-200 transition-colors text-lg">
+                    <span><i class="fas fa-cogs ml-3 text-xl"></i>ניהול מערכות נבדקות</span>
+                    <i class="fas fa-chevron-left text-cyan-400"></i>
+                </button>
+                <button onclick="closeSettingsMainModal(); openQrConfigModal();" class="w-full flex items-center justify-between bg-purple-50 text-purple-800 p-4 rounded-xl font-bold hover:bg-purple-100 shadow-sm border border-purple-200 transition-colors text-lg">
+                    <span><i class="fas fa-qrcode ml-3 text-xl"></i>הגדרות QR</span>
+                    <i class="fas fa-chevron-left text-purple-400"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+</body></html>
             `);
         }
 
