@@ -638,7 +638,7 @@
                             <td class="p-2 border-b">${t.dept}</td>
                             <td class="p-2 border-b font-bold">${t.room}</td>
                             <td class="p-2 border-b">${t.defect}</td>
-                            <td class="p-2 border-b">${t.sheet}</td>
+                            <td class="p-2 border-b">${(t.inspector && t.inspector.startsWith("צוות: ")) ? t.inspector.replace("צוות: ", "") : (t.inspector && t.inspector.startsWith("צוות") ? "דיווח עובד" : (t.inspector || "-"))}</td>
                             <td class="p-2 border-b font-bold ${t.status === 'הושלם' ? 'text-emerald-600' : (t.status === 'בעבודה' ? 'text-amber-500' : 'text-rose-500')}">${t.status}</td>
                             <td class="p-2 border-b">${t.worker || '-'}</td>
                             <td class="p-2 border-b text-center">${photosHtml.join(' | ')}</td>
@@ -1394,10 +1394,10 @@
         function printManagerReport() { 
             const printTitle = document.getElementById('printTitleManager'); const printTable = document.getElementById('managerTable'); const selDate = document.getElementById('filterDate').value || 'כל התאריכים';
             printTitle.innerText = `דוח מנהל - ${currentTab} (${selDate})`; printTitle.classList.add('print-active'); printTable.classList.add('print-active');
-            printManagerReport(); 
+            setTimeout(() => { window.print(); printTitle.classList.remove('print-active'); printTable.classList.remove('print-active'); }, 300); 
         }
 
-        function processOutput(mode) {
+function processOutput(mode) {
             const checkboxes = document.querySelectorAll('.task-checkbox:checked:not(:disabled)');
             if(checkboxes.length === 0) { showToast("אנא בחר כרטיסיות!", "warning"); return; }
 
