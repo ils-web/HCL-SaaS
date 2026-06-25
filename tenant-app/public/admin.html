@@ -36,22 +36,24 @@
         /* Полное устранение флеша картинок на экране. Контейнер скрыт по умолчанию. */
         #printTasksContainer { display: none; }
 
-                @media print {
+        @media print {
             @page { size: A4 portrait; margin: 0; } /* Zero margin to prevent scaling bugs */
             body { background: white !important; margin: 0; padding: 0 !important; -webkit-print-color-adjust: exact; width: 210mm; }
             #noPrintUI, #qrModal, #backToTopBtn { display: none !important; }
-            .print-page { padding: 10mm; width: 210mm; height: 296mm; border: none; }
+            .print-page { padding: 10mm; width: 210mm; height: 290mm; border: none; page-break-after: always; box-sizing: border-box; }
             #printTasksContainer { display: block !important; }
             
             /* Custom print styles for Reports Table */
             body.printing-table > * { display: none !important; }
-            body.printing-table #reportPrintContainer { display: block !important; width: 100%; margin: 10mm; direction: rtl; }
-            #reportPrintContainer table { table-layout: fixed; width: 100%; word-wrap: break-word; }
-            #reportPrintContainer th, #reportPrintContainer td { font-size: 10px; padding: 4px; }
+            body.printing-table #reportPrintContainer { display: block !important; width: 100%; margin: 5mm; direction: rtl; }
+            #reportPrintContainer table { width: 100%; border-collapse: collapse; }
+            #reportPrintContainer th, #reportPrintContainer td { font-size: 10px; padding: 2px; border: 1px solid #ccc; text-align: center; }
+            #reportPrintContainer th { background-color: #f3f4f6 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            #reportPrintContainer img { max-height: 40px; }
         }
 
         /* סגנונות כרטיסי הדפסה (מחוץ ל @media print, כדי שיוצגו ב-PDF גם ככה) */
-        .print-page { width: 100%; max-width: 210mm; height: 296mm; margin: 0 auto; padding: 10mm; box-sizing: border-box; display: flex; flex-direction: column; background: white; overflow: hidden; }
+        .print-page { width: 100%; max-width: 210mm; height: 290mm; margin: 0 auto; padding: 10mm; box-sizing: border-box; display: flex; flex-direction: column; background: white; overflow: hidden; page-break-after: always; }
         .print-page-header { font-size: 19px; font-weight: bold; text-align: center; border-bottom: 3px solid #000; padding-bottom: 5px; margin-bottom: 8px; height: 40px; display: flex; flex-direction: column; justify-content: center; color: black; }
         .print-page-header-sub { font-size: 13px; font-weight: normal; color: #555; margin-top: 2px; }
         .print-cards-grid { display: flex; flex-wrap: wrap; justify-content: space-between; align-content: flex-start; flex-grow: 1; height: calc(100% - 50px); }

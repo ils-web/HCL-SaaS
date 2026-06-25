@@ -510,6 +510,53 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     return NextResponse.json({ status: 'success' });
   }
 
+  if (action === 'TRANSLATE_TASKS') {
+    const { targetLang, tasks } = body;
+    if (!targetLang || !tasks || !Array.isArray(tasks)) {
+      return NextResponse.json({ status: 'error', message: 'Invalid payload' }, { status: 400 });
+    }
+    
+    const translations = [];
+    for (const t of tasks) {
+      let trDefect = t.defect;
+      let trComment = t.comment;
+      
+      try {
+        if (trDefect) {
+            const r1 = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=he&tl=${targetLang}&dt=t&q=${encodeURIComponent(trDefect)}`);
+            const d1 = await r1.json();
+            trDefect = d1[0].map((item) => item[0]).join('');
+        }
+        if (trComment) {
+            const r2 = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=he&tl=${targetLang}&dt=t&q=${encodeURIComponent(trComment)}`);
+            const d2 = await r2.json();
+            trComment = d2[0].map((item) => item[0]).join('');
+        }
+      } catch(e) {
+        console.error('Translation error', e);
+      }
+      
+      translations.push({
+        id: t.id,
+        defect: trDefect,
+        comment: trComment,
+        actT: t.actT === 'החלפה' ? (targetLang==='ru'?'Замена':(targetLang==='ar'?'استبدال':'Replace')) : (targetLang==='ru'?'Ремонт':(targetLang==='ar'?'إصلاح':'Repair'))
+      });
+    }
+    
+    const labels = {
+        'ru': { room: 'Комната: ', name: 'Имя: ', date: 'Дата: ', sign: 'Подпись: ' },
+        'en': { room: 'Room: ', name: 'Name: ', date: 'Date: ', sign: 'Signature: ' },
+        'ar': { room: 'غرفة: ', name: 'الاسم: ', date: 'تاريخ: ', sign: 'توقيع: ' }
+    }[targetLang] || { room: 'חדר: ', name: 'שם: ', date: 'תאריך: ', sign: 'חתימה: ' };
+    
+    if (translations.length > 0) {
+        translations[0].labels = labels;
+    }
+    
+    return NextResponse.json({ status: 'success', translations });
+  }
+
   if (action === 'MOVE_TASK') {
     const { id, targetSheet, newTeam } = body;
     const finalTarget = targetSheet || newTeam;
