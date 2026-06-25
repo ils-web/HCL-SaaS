@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 
+export const dynamic = 'force-dynamic';
+
 const prisma = new PrismaClient();
 
 async function uploadToImgBB(base64Str: string): Promise<string | null> {
@@ -21,9 +23,9 @@ async function uploadToImgBB(base64Str: string): Promise<string | null> {
   }
 }
 
-async function sendTelegram(text: string) {
+async function sendTelegram(text: string, customChatId?: string | null) {
   const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-  const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+  const TELEGRAM_CHAT_ID = customChatId || process.env.TELEGRAM_CHAT_ID;
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
   try {
     await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
@@ -107,7 +109,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
       const isQr = t.customDefectName?.includes('דיווח מהמחלקה') || t.customDefectName?.includes('תקלה חדשה') || t.inspectorName?.includes('צוות');
       return {
       id: t.id,
-      sheet: isQr ? 'QR' : (t.team?.name || 'כללי'),
+      sheet: t.team?.name || (isQr ? 'QR' : 'כללי'),
       dept: t.department?.name || 'כללי',
       department: t.department?.name || 'כללי',
       room: t.room,
@@ -171,7 +173,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
       const isQr = t.customDefectName?.includes('דיווח מהמחלקה') || t.customDefectName?.includes('תקלה חדשה') || t.inspectorName?.includes('צוות');
       return {
         id: t.id,
-        sheet: isQr ? 'QR' : (t.team?.name || 'כללי'),
+        sheet: t.team?.name || (isQr ? 'QR' : 'כללי'),
         dept: t.department?.name || 'כללי',
         department: t.department?.name || 'כללי',
         room: t.room,
@@ -329,7 +331,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     message += `📋 *סיווג:* ${sheetName || "כללי"}\n`;
     message += `💬 *הערות:* ${translatedComment || "-"}\n`;
     if (finalPhotoUrl) message += `\n 📷 [תמונה מצורפת](<${finalPhotoUrl}>)`;
-    await sendTelegram(message);
+    await sendTelegram(message, tenant.telegramChatId);
 
     return NextResponse.json({ status: 'success' });
   }
@@ -445,6 +447,15 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       });
       return NextResponse.json({ status: 'success' });
     }
+
+  if (action === 'SAVE_TELEGRAM_ID') {
+    const { telegramChatId } = body;
+    await prisma.tenant.update({
+      where: { id: tenantId },
+      data: { telegramChatId: telegramChatId || null }
+    });
+    return NextResponse.json({ status: 'success' });
+  }
 
   if (action === 'UNMARK_PRINTED') {
     const tasks = body.tasks || [];
