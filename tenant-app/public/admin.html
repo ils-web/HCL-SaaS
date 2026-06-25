@@ -581,16 +581,18 @@
             workersPool.forEach(w => { sel.innerHTML += `<option value="${w}">${w}</option>`; });
         }
 
-        function openWorkersModal() { document.getElementById('workersModal').classList.remove('hidden'); renderWorkersListUI(); }
-        function closeWorkersModal() { document.getElementById('workersModal').classList.add('hidden'); }
+        function openWorkersModal() { document.body.style.overflow = 'hidden'; document.getElementById('workersModal').classList.remove('hidden'); renderWorkersListUI(); }
+        function closeWorkersModal() { document.getElementById('workersModal').classList.add('hidden'); document.body.style.overflow = ''; openSettingsMainModal(); }
 
         // Config Modal Logic
-        function openConfigModal() {
+        function openConfigModal() { document.body.style.overflow = 'hidden';
             document.getElementById('configModal').classList.remove('hidden');
             renderConfigTeams();
         }
 
         function closeConfigModal() {
+            document.body.style.overflow = '';
+            openSettingsMainModal();
             document.getElementById('configModal').classList.add('hidden');
         }
 
@@ -598,23 +600,23 @@
         let reportsFpEnd = null;
 
         
-        function openSettingsMainModal() {
+        function openSettingsMainModal() { document.body.style.overflow = 'hidden';
             document.getElementById('settingsMainModal').classList.remove('hidden');
             document.getElementById('settingsMainModal').classList.add('flex');
         }
-        function closeSettingsMainModal() {
+        function closeSettingsMainModal() { document.body.style.overflow = '';
             document.getElementById('settingsMainModal').classList.add('hidden');
             document.getElementById('settingsMainModal').classList.remove('flex');
         }
 
-        function openReportsModal() {
+        function openReportsModal() { document.body.style.overflow = 'hidden';
             document.getElementById('reportsModal').classList.remove('hidden');
             if (!reportsFpStart) {
                 reportsFpStart = flatpickr("#reportStartDate", { dateFormat: "Y-m-d", disableMobile: true });
                 reportsFpEnd = flatpickr("#reportEndDate", { dateFormat: "Y-m-d", disableMobile: true });
             }
         }
-        function closeReportsModal() {
+        function closeReportsModal() { document.body.style.overflow = '';
             document.getElementById('reportsModal').classList.add('hidden');
         }
 
@@ -687,7 +689,7 @@
             }, 300);
         }
 
-        async function openQrConfigModal() {
+        async function openQrConfigModal() { document.body.style.overflow = 'hidden';
             document.getElementById('qrConfigModal').classList.remove('hidden');
             document.getElementById('qrMode247').checked = currentQrSettings.mode === '24/7';
             document.getElementById('qrModeSchedule').checked = currentQrSettings.mode === 'SCHEDULED';
@@ -702,6 +704,8 @@
         }
 
         function closeQrConfigModal() {
+            document.body.style.overflow = '';
+            openSettingsMainModal();
             document.getElementById('qrConfigModal').classList.add('hidden');
         }
 
@@ -841,12 +845,14 @@
         }
 
         // Teams UI Logic
-        function openTeamsModal() {
+        function openTeamsModal() { document.body.style.overflow = 'hidden';
             document.getElementById('teamsModal').classList.remove('hidden');
             renderTeamsListUI();
         }
 
         function closeTeamsModal() {
+            document.body.style.overflow = '';
+            openSettingsMainModal();
             document.getElementById('teamsModal').classList.add('hidden');
         }
 
@@ -1424,7 +1430,7 @@ function processOutput(mode) {
         }
 
         // QR Code functions
-        function openQrModal() {
+        function openQrModal() { document.body.style.overflow = 'hidden';
             document.getElementById('qrModal').classList.remove('hidden');
             const sel = document.getElementById('qrDeptSelect');
             sel.innerHTML = '<option value="כללי (General)">כללי (General)</option>';
@@ -1433,7 +1439,7 @@ function processOutput(mode) {
             document.getElementById('qrcodeBox').classList.add('hidden');
         }
         
-        function closeQrModal() { document.getElementById('qrModal').classList.add('hidden'); }
+        function closeQrModal() { document.body.style.overflow = ''; document.getElementById('qrModal').classList.add('hidden'); }
 
         function openInspectorQrModal() {
             document.getElementById('inspectorQrModal').classList.remove('hidden');
