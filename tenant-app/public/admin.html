@@ -1502,34 +1502,6 @@ function processOutput(mode) {
                 </div>
                 <script>setTimeout(()=>window.print(), 800);</`+`script>
                 
-    <!-- Settings Main Modal -->
-    <div id="settingsMainModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50 transition-opacity" style="z-index: 100;">
-        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" dir="rtl">
-            <div class="bg-gray-800 p-5 flex justify-between items-center text-white">
-                <h2 class="text-2xl font-black"><i class="fas fa-cog ml-2"></i>הגדרות מערכת</h2>
-                <button onclick="closeSettingsMainModal()" class="text-gray-300 hover:text-white transition-colors"><i class="fas fa-times text-xl"></i></button>
-            </div>
-            <div class="p-6 overflow-y-auto space-y-4">
-                <button onclick="closeSettingsMainModal(); openTeamsModal();" class="w-full flex items-center justify-between bg-blue-50 text-blue-800 p-4 rounded-xl font-bold hover:bg-blue-100 shadow-sm border border-blue-200 transition-colors text-lg">
-                    <span><i class="fas fa-users-cog ml-3 text-xl"></i>ניהול צוותים</span>
-                    <i class="fas fa-chevron-left text-blue-400"></i>
-                </button>
-                <button onclick="closeSettingsMainModal(); openWorkersModal();" class="w-full flex items-center justify-between bg-indigo-50 text-indigo-800 p-4 rounded-xl font-bold hover:bg-indigo-100 shadow-sm border border-indigo-200 transition-colors text-lg">
-                    <span><i class="fas fa-users ml-3 text-xl"></i>ניהול עובדים</span>
-                    <i class="fas fa-chevron-left text-indigo-400"></i>
-                </button>
-                <button onclick="closeSettingsMainModal(); openConfigModal();" class="w-full flex items-center justify-between bg-cyan-50 text-cyan-800 p-4 rounded-xl font-bold hover:bg-cyan-100 shadow-sm border border-cyan-200 transition-colors text-lg">
-                    <span><i class="fas fa-cogs ml-3 text-xl"></i>ניהול מערכות נבדקות</span>
-                    <i class="fas fa-chevron-left text-cyan-400"></i>
-                </button>
-                <button onclick="closeSettingsMainModal(); openQrConfigModal();" class="w-full flex items-center justify-between bg-purple-50 text-purple-800 p-4 rounded-xl font-bold hover:bg-purple-100 shadow-sm border border-purple-200 transition-colors text-lg">
-                    <span><i class="fas fa-qrcode ml-3 text-xl"></i>הגדרות QR</span>
-                    <i class="fas fa-chevron-left text-purple-400"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-
 </body></html>
             `);
         }
@@ -1687,5 +1659,33 @@ function processOutput(mode) {
             });
         }
     </script>
+    <!-- Settings Main Modal -->
+    <div id="settingsMainModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50 transition-opacity" style="z-index: 100;">
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" dir="rtl">
+            <div class="bg-gray-800 p-5 flex justify-between items-center text-white">
+                <h2 class="text-2xl font-black"><i class="fas fa-cog ml-2"></i>הגדרות מערכת</h2>
+                <button onclick="closeSettingsMainModal()" class="text-gray-300 hover:text-white transition-colors"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="p-6 overflow-y-auto space-y-4">
+                <button onclick="closeSettingsMainModal(); openTeamsModal();" class="w-full flex items-center justify-between bg-blue-50 text-blue-800 p-4 rounded-xl font-bold hover:bg-blue-100 shadow-sm border border-blue-200 transition-colors text-lg">
+                    <span><i class="fas fa-users-cog ml-3 text-xl"></i>ניהול צוותים</span>
+                    <i class="fas fa-chevron-left text-blue-400"></i>
+                </button>
+                <button onclick="closeSettingsMainModal(); openWorkersModal();" class="w-full flex items-center justify-between bg-indigo-50 text-indigo-800 p-4 rounded-xl font-bold hover:bg-indigo-100 shadow-sm border border-indigo-200 transition-colors text-lg">
+                    <span><i class="fas fa-users ml-3 text-xl"></i>ניהול עובדים</span>
+                    <i class="fas fa-chevron-left text-indigo-400"></i>
+                </button>
+                <button onclick="closeSettingsMainModal(); openConfigModal();" class="w-full flex items-center justify-between bg-cyan-50 text-cyan-800 p-4 rounded-xl font-bold hover:bg-cyan-100 shadow-sm border border-cyan-200 transition-colors text-lg">
+                    <span><i class="fas fa-cogs ml-3 text-xl"></i>ניהול מערכות נבדקות</span>
+                    <i class="fas fa-chevron-left text-cyan-400"></i>
+                </button>
+                <button onclick="closeSettingsMainModal(); openQrConfigModal();" class="w-full flex items-center justify-between bg-purple-50 text-purple-800 p-4 rounded-xl font-bold hover:bg-purple-100 shadow-sm border border-purple-200 transition-colors text-lg">
+                    <span><i class="fas fa-qrcode ml-3 text-xl"></i>הגדרות QR</span>
+                    <i class="fas fa-chevron-left text-purple-400"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
