@@ -40,7 +40,8 @@
             @page { size: A4 portrait; margin: 0; } /* Zero margin to prevent scaling bugs */
             body { background: white !important; margin: 0; padding: 0 !important; -webkit-print-color-adjust: exact; width: 210mm; }
             #noPrintUI, #qrModal, #backToTopBtn { display: none !important; }
-            .print-page { padding: 10mm; width: 210mm; height: 290mm; border: none; page-break-after: always; box-sizing: border-box; }
+            .print-page { padding: 10mm; width: 210mm; height: 275mm; border: none; page-break-after: always; box-sizing: border-box; }
+            .print-page:last-child { page-break-after: auto; }
             #printTasksContainer { display: block !important; }
             
             /* Custom print styles for Reports Table */
@@ -53,7 +54,8 @@
         }
 
         /* סגנונות כרטיסי הדפסה (מחוץ ל @media print, כדי שיוצגו ב-PDF גם ככה) */
-        .print-page { width: 100%; max-width: 210mm; height: 290mm; margin: 0 auto; padding: 10mm; box-sizing: border-box; display: flex; flex-direction: column; background: white; overflow: hidden; page-break-after: always; }
+        .print-page { width: 100%; max-width: 210mm; height: 275mm; margin: 0 auto; padding: 10mm; box-sizing: border-box; display: flex; flex-direction: column; background: white; overflow: hidden; page-break-after: always; }
+        .print-page:last-child { page-break-after: auto; }
         .print-page-header { font-size: 19px; font-weight: bold; text-align: center; border-bottom: 3px solid #000; padding-bottom: 5px; margin-bottom: 8px; height: 40px; display: flex; flex-direction: column; justify-content: center; color: black; }
         .print-page-header-sub { font-size: 13px; font-weight: normal; color: #555; margin-top: 2px; }
         .print-cards-grid { display: flex; flex-wrap: wrap; justify-content: space-between; align-content: flex-start; flex-grow: 1; height: calc(100% - 50px); }
