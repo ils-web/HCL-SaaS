@@ -40,12 +40,14 @@
             @page { size: A4 portrait; margin: 0; } /* Zero margin to prevent scaling bugs */
             body { background: white !important; margin: 0; padding: 0 !important; -webkit-print-color-adjust: exact; width: 210mm; }
             #noPrintUI, #qrModal, #backToTopBtn { display: none !important; }
-            .print-page { page-break-after: always; padding: 10mm; width: 210mm; height: 296mm; border: none; }
+            .print-page { padding: 10mm; width: 210mm; height: 296mm; border: none; }
             #printTasksContainer { display: block !important; }
             
             /* Custom print styles for Reports Table */
             body.printing-table > * { display: none !important; }
             body.printing-table #reportPrintContainer { display: block !important; width: 100%; margin: 10mm; direction: rtl; }
+            #reportPrintContainer table { table-layout: fixed; width: 100%; word-wrap: break-word; }
+            #reportPrintContainer th, #reportPrintContainer td { font-size: 10px; padding: 4px; }
         }
 
         /* סגנונות כרטיסי הדפסה (מחוץ ל @media print, כדי שיוצגו ב-PDF גם ככה) */
@@ -266,7 +268,7 @@
                             <th class="p-3 border-b font-bold">מחלקה</th>
                             <th class="p-3 border-b font-bold">חדר</th>
                             <th class="p-3 border-b font-bold">תקלה</th>
-                            <th class="p-3 border-b font-bold">צוות</th>
+                            <th class="p-3 border-b font-bold">בודק</th>
                             <th class="p-3 border-b font-bold">סטטוס</th>
                             <th class="p-3 border-b font-bold">עובד</th>
                             <th class="p-3 border-b font-bold text-center">תמונות</th>
@@ -420,6 +422,21 @@
     <script>
         const _tId = new URLSearchParams(window.location.search).get('tenantId') || 'default';
         const API_URL = `/api/${_tId}`;
+                const TRANSLATION_MAP = {
+            'he': { 'מחלקה': 'מחלקה', 'תאריך': 'תאריך', 'תקלה': 'תקלה', 'חדר': 'חדר', 'כללי': 'כללי' },
+            'ru': { 'מחלקה': 'Отделение', 'תאריך': 'Дата', 'תקלה': 'Дефект', 'חדר': 'Комната', 'כללי': 'Общее' },
+            'en': { 'מחלקה': 'Department', 'תאריך': 'Date', 'תקלה': 'Defect', 'חדר': 'Room', 'כללי': 'General' },
+            'ar': { 'מחלקה': 'قسم', 'תאריך': 'تاريخ', 'תקלה': 'عطل', 'חדר': 'غرفة', 'כללי': 'عام' }
+        };
+        function translateHtmlStr(text) {
+            const targetLang = document.getElementById('printLang') ? document.getElementById('printLang').value : 'he';
+            if (targetLang === 'he' || !TRANSLATION_MAP[targetLang]) return text;
+            let out = text;
+            for (let k in TRANSLATION_MAP[targetLang]) {
+                out = out.replace(new RegExp(k, 'g'), TRANSLATION_MAP[targetLang][k]);
+            }
+            return out;
+        }
         let allTasks = [];
         let workersPool = []; 
         let categoriesConfig = {};
@@ -1377,7 +1394,7 @@
         function printManagerReport() { 
             const printTitle = document.getElementById('printTitleManager'); const printTable = document.getElementById('managerTable'); const selDate = document.getElementById('filterDate').value || 'כל התאריכים';
             printTitle.innerText = `דוח מנהל - ${currentTab} (${selDate})`; printTitle.classList.add('print-active'); printTable.classList.add('print-active');
-            setTimeout(() => { window.print(); printTitle.classList.remove('print-active'); printTable.classList.remove('print-active'); }, 300); 
+            printManagerReport(); 
         }
 
         function processOutput(mode) {
@@ -1524,11 +1541,11 @@
                 let g = groups[key];
                 for(let i=0; i<g.length; i+=4) {
                     let chunk = g.slice(i, i+4);
-                    let page = `<div class="print-page"><div class="print-page-header"><div>צוות: ${currentTab.replace(/_/g, ' ')} | מחלקה: ${g[0].dept} | תאריך: ${g[0].dDate}</div><div class="print-page-header-sub">הופק בתאריך: ${printNowStr}</div></div><div class="print-cards-grid">`;
+                    let page = `<div class="print-page"><div class="print-page-header"><div>צוות: ${currentTab.replace(/_/g, ' ')} | ${translateHtmlStr('מחלקה')}: ${translateHtmlStr(g[0].dept)} | ${translateHtmlStr('תאריך')}: ${g[0].dDate}</div><div class="print-page-header-sub">הופק ב${translateHtmlStr('תאריך')}: ${printNowStr}</div></div><div class="print-cards-grid">`;
                     chunk.forEach(t => {
                         let nameVal = chosenWorker ? `<strong>${chosenWorker}</strong>` : "_________";
                         let qrBadge = t.isQr ? `<span style="background:#fbcfe8;color:#be185d;padding:2px 8px;border-radius:6px;font-size:14px;margin-left:10px;display:inline-block;vertical-align:middle;">QR${t.reporterName && t.reporterName !== 'לא ידוע' ? ` | ${t.reporterName}` : ''}</span>` : '';
-                        page += `<div class="print-card" dir="${textDirection}"><div class="print-card-top"><span class="font-black text-xl">${printLabels.room} ${t.room}</span><div style="display:inline-block;vertical-align:middle;">${qrBadge}<span class="px-2 border rounded">${t.actT}</span></div></div><div class="print-card-body"><img src="${t.img}" class="print-photo" onerror="this.style.display='none'"><div class="print-info"><p class="defect-title">${t.defect}</p><p class="defect-comment">${t.comment || ""}</p></div></div><div class="signature-box" dir="${textDirection}"><span>${printLabels.name} ${nameVal}</span><span>${printLabels.date} _________</span><span>${printLabels.sign} _________</span></div></div>`;
+                        page += `<div class="print-card" dir="${textDirection}"><div class="print-card-top"><span class="font-black text-xl">${printLabels.room} ${translateHtmlStr(t.room)}</span><div style="display:inline-block;vertical-align:middle;">${qrBadge}<span class="px-2 border rounded">${t.actT}</span></div></div><div class="print-card-body"><img src="${t.img}" class="print-photo" onerror="this.style.display='none'"><div class="print-info"><p class="defect-title">${translateHtmlStr(t.defect)}</p><p class="defect-comment">${translateHtmlStr(t.comment || "")}</p></div></div><div class="signature-box" dir="${textDirection}"><span>${printLabels.name} ${nameVal}</span><span>${printLabels.date} _________</span><span>${printLabels.sign} _________</span></div></div>`;
                     });
                     printContainer.innerHTML += page + `</div></div>`;
                 }
