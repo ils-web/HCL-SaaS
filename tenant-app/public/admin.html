@@ -1434,7 +1434,9 @@
             filtered.forEach((task) => {
 
                 const actT = task.actionType == 1 ? "החלפה" : "תיקון"; const img = fixImageUrl(task.photo);
+                const afterImg = task.afterPhoto ? fixImageUrl(task.afterPhoto) : '';
                 const isPrinted = (task.status === "בעבודה");
+                const isCompleted = (task.status === "הושלם");
                 const p = task.dateStr.split(" ")[0].split("/");
                 const tm = task.dateStr.split(" ")[1] ? task.dateStr.split(" ")[1].split(":") : ["00","00"];
                 const taskDate = new Date(p[2], p[1]-1, p[0], tm[0], tm[1]);
@@ -1459,23 +1461,23 @@
 
                 
                 if (viewMode === 'table') {
-                    tableHTML += `<tr id="task-card-${realIdx}" class="hover:bg-gray-50 transition-colors ${isPrinted ? 'bg-orange-50/30' : (ageClass ? ageClass.split(' ')[1] : '')}">
+                    tableHTML += `<tr id="task-card-${realIdx}" class="hover:bg-gray-50 transition-colors ${isCompleted ? 'bg-green-50/50' : (isPrinted ? 'bg-orange-50/30' : (ageClass ? ageClass.split(' ')[1] : ''))}">
                         <td class="p-3"><input type="checkbox" checked class="task-checkbox w-5 h-5 rounded border-gray-300 text-indigo-600 cursor-pointer" data-index="${realIdx}" onclick="handleCheckboxClick(event, ${realIdx})"></td>
                         <td class="p-3 text-xs text-gray-500 whitespace-nowrap">${task.dateStr}</td>
                         <td class="p-3 font-bold">${task.dept}</td>
                         <td class="p-3 font-bold text-indigo-700">${task.room}</td>
                         <td class="p-3 font-bold">${task.defect} ${isQr ? '<span class="text-pink-600 ml-1" title="QR"><i class="fas fa-qrcode"></i></span>' : ''}</td>
                         <td class="p-3 text-gray-500 max-w-[200px] truncate" title="${task.comment || ''}">${task.comment || ''}</td>
-                        <td class="p-3">${isPrinted ? `<span class="text-orange-700 font-bold text-xs bg-orange-100 px-2 py-1 rounded"><i class="fas fa-hammer"></i></span>` : `<span class="text-green-700 font-bold text-xs bg-green-100 px-2 py-1 rounded">פתוח</span>`}</td>
+                        <td class="p-3">${isCompleted ? `<span class="text-green-700 font-bold text-xs bg-green-200 px-2 py-1 rounded"><i class="fas fa-check-double"></i> ממתין לאישור</span>` : (isPrinted ? `<span class="text-orange-700 font-bold text-xs bg-orange-100 px-2 py-1 rounded"><i class="fas fa-hammer"></i></span>` : `<span class="text-green-700 font-bold text-xs bg-green-100 px-2 py-1 rounded">פתוח</span>`)}</td>
                         <td class="p-3 font-bold text-xs text-orange-900">${task.worker || ''}</td>
                         <td class="p-3 text-center">
-                            <button id="btn-${realIdx}" onclick="closeSingleTask(${realIdx})" class="bg-green-50 text-green-600 border border-green-500 px-3 py-1 rounded-lg font-bold text-xs hover:bg-green-100"><i class="fas fa-check"></i></button>
+                            <button id="btn-${realIdx}" onclick="closeSingleTask(${realIdx})" class="bg-green-50 text-green-600 border border-green-500 px-3 py-1 rounded-lg font-bold text-xs hover:bg-green-100"><i class="fas fa-check"></i> אישור</button>
                         </td>
                     </tr>`;
                 } else {
                     screen.innerHTML += `
 
-                <div class="bg-white p-5 rounded-2xl shadow-sm border flex flex-col md:flex-row gap-5 mb-4 relative ${isPrinted ? 'border-orange-300 bg-orange-50/50' : (isQr ? 'border-pink-400 bg-pink-50 ring-2 ring-pink-200' : ageClass)}" id="task-card-${realIdx}">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border flex flex-col md:flex-row gap-5 mb-4 relative ${isCompleted ? 'border-green-400 bg-green-50 ring-2 ring-green-200' : (isPrinted ? 'border-orange-300 bg-orange-50/50' : (isQr ? 'border-pink-400 bg-pink-50 ring-2 ring-pink-200' : ageClass))}" id="task-card-${realIdx}">
                     <div class="absolute top-4 left-4 md:static md:flex md:items-center">
                         <input type="checkbox" checked class="task-checkbox w-7 h-7 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm" data-index="${realIdx}" onclick="handleCheckboxClick(event, ${realIdx})">
                     </div>
@@ -1485,6 +1487,15 @@
                         <div class="hidden group-hover/img:block absolute bottom-full -right-4 mb-2 z-[100] p-2 bg-white rounded-2xl shadow-2xl border w-[400px] h-[400px] origin-bottom-right">
                             <img src="${img}" class="w-full h-full object-contain rounded-xl" onerror="this.src='https://placehold.co/100x100?text=No+Photo'">
                         </div></div>` : ''}
+                        
+                        ${isCompleted && afterImg ? `
+                        <div class="absolute -bottom-2 -left-2 w-12 h-12 rounded-lg border-2 border-green-500 shadow-md group/afterimg cursor-pointer bg-white">
+                            <img src="${afterImg}" class="w-full h-full object-cover rounded-md" alt="After Photo">
+                            <i class="fas fa-search-plus absolute -top-1 -right-1 z-20 bg-green-500 text-white rounded-full p-0.5 text-[8px] shadow"></i>
+                            <div class="hidden group-hover/afterimg:block absolute bottom-full left-0 mb-2 z-[100] p-2 bg-white rounded-2xl shadow-2xl border w-[300px] h-[300px] origin-bottom-left">
+                                <img src="${afterImg}" class="w-full h-full object-contain rounded-xl">
+                            </div>
+                        </div>` : ''}
                     </div>
                     <div class="flex-grow pr-10 md:pr-0">
                         <div class="inline-block bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-black mb-2 border border-blue-200 shadow-sm">
@@ -1508,6 +1519,12 @@
                           <span class="text-[11px] text-gray-500 mt-1"><i class="fas fa-print ml-1"></i><span dir="ltr">${task.printedTime || ''}</span></span>
                       </div>
                       ` : ''}
+                      ${isCompleted ? `
+                      <div class="hidden md:flex flex-col justify-center border-r-2 border-green-300 bg-green-100 p-2 rounded-xl pr-5 w-40 shadow-sm">
+                          <span class="text-xs text-green-700 font-bold"><i class="fas fa-check-double ml-1"></i>בוצע ע"י העובד:</span>
+                          <span class="font-black text-green-900">${task.worker || 'לא צוין עובד'}</span>
+                      </div>
+                      ` : ''}
                     <div class="flex flex-row md:flex-col items-center justify-center gap-2 w-full md:w-48">
                         ${isPrinted ? `
                             <div class="flex flex-col items-center justify-center gap-1 bg-orange-100 border border-orange-300 rounded-xl px-2 py-1 text-xs text-orange-900 w-full text-center shadow-inner">
@@ -1516,11 +1533,21 @@
                                 <button onclick="resetPrintStamp(${realIdx})" class="text-orange-600 font-bold hover:text-red-600 underline mt-1"><i class="fas fa-undo"></i> החזר לפתוח</button>
                             </div>
                         ` : ''}
-                        <select onchange="moveTask(${realIdx}, this.value)" class="bg-gray-50 border border-gray-300 text-gray-700 py-2 px-3 rounded-xl font-bold text-sm outline-none cursor-pointer w-full">
+                        ${isCompleted ? `
+                            <div class="flex flex-col items-center justify-center gap-1 bg-green-500 text-white border border-green-600 rounded-xl px-2 py-2 text-sm w-full text-center shadow-md animate-pulse">
+                                <span class="font-black"><i class="fas fa-exclamation-circle ml-1"></i>ממתין לאישורך</span>
+                            </div>
+                        ` : ''}
+                        <button onclick="closeSingleTask(${realIdx})" class="w-full bg-indigo-600 text-white font-bold py-2 rounded-xl text-sm shadow hover:bg-indigo-700 transition-colors">
+                            <i class="fas fa-check ml-1"></i> סגור משימה
+                        </button>
+                        ${(!isPrinted && !isCompleted) ? `
+                        <select onchange="moveTask(${realIdx}, this.value)" class="bg-gray-50 border border-gray-300 text-gray-700 py-2 px-3 rounded-xl font-bold text-sm outline-none cursor-pointer w-full mt-1">
                             <option value="" disabled selected>העבר צוות...</option>
                             ${teamsList.filter(t => t !== task.sheet).map(t => `<option value="${t}">${t}</option>`).join('')}
                         </select>
                         <button id="btn-${realIdx}" onclick="closeSingleTask(${realIdx})" class="bg-green-50 text-green-600 border-2 border-green-500 px-6 py-2 rounded-xl font-bold w-full">בוצע</button>
+                        ` : ''}
                     </div>
                 </div>`;
                 }

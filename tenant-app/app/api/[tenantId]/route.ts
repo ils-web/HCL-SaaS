@@ -95,7 +95,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
     const tasksDb = await prisma.task.findMany({
       where: { 
         tenantId,
-        status: { in: ['NEW', 'IN_PROGRESS'] }
+        status: { in: ['NEW', 'IN_PROGRESS', 'COMPLETED'] }
       },
       include: {
         department: true,
