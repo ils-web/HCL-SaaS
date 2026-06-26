@@ -196,6 +196,50 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
     return NextResponse.json({ tasks });
   }
 
+  if (action === 'getMonthlyStats') {
+    const start = new Date();
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(start.getTime());
+    end.setMonth(end.getMonth() + 1);
+    end.setDate(0);
+    end.setHours(23, 59, 59, 999);
+
+    const tasksDb = await prisma.task.findMany({
+      where: {
+        tenantId,
+        status: { in: ['COMPLETED', 'CLOSED'] },
+        createdAt: { gte: start, lte: end },
+        OR: [
+          { customDefectName: null },
+          { customDefectName: { not: 'הכל תקין (אין דיווחי תקלות)' } }
+        ]
+      },
+      include: {
+        team: true,
+        worker: true
+      }
+    });
+
+    const teamsMap: Record<string, number> = {};
+    const workersMap: Record<string, number> = {};
+
+    tasksDb.forEach(t => {
+      if (t.team?.name) {
+        teamsMap[t.team.name] = (teamsMap[t.team.name] || 0) + 1;
+      }
+      if (t.worker?.name) {
+        workersMap[t.worker.name] = (workersMap[t.worker.name] || 0) + 1;
+      }
+    });
+
+    const teamsStats = Object.entries(teamsMap).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+    const workersStats = Object.entries(workersMap).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+
+    return NextResponse.json({ teamsStats, workersStats });
+  }
+
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 }
 
@@ -231,7 +275,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
           customDefectName: 'הכל תקין (אין דיווחי תקלות)',
           room: String(room),
           actionType: 'REPAIR',
-          status: 'NEW', // Keep it new so it shows up in Open Tasks
+          status: 'COMPLETED', // Closed automatically so it doesn't appear in Open Tasks
           notes: '',
           photoUrl: null,
           teamId: null // No specific team
