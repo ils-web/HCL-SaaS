@@ -1720,20 +1720,28 @@ function processOutput(mode) {
 
         
         
-        let bannerConfig = JSON.parse(localStorage.getItem('hcl_banners_config')) || { left: 'workers', right: 'teams' };
+        let bannerConfig = { left: 'workers', right: 'teams' };
+        try {
+            const stored = localStorage.getItem('hcl_banners_config');
+            if (stored) {
+                bannerConfig = JSON.parse(stored) || bannerConfig;
+            }
+        } catch (e) {
+            console.error('Failed to parse banner config', e);
+        }
 
         function openBannersSettingsModal() {
-            document.getElementById('rightBannerSelect').value = bannerConfig.right;
-            document.getElementById('leftBannerSelect').value = bannerConfig.left;
+            document.getElementById('rightBannerSelect').value = bannerConfig.right || 'none';
+            document.getElementById('leftBannerSelect').value = bannerConfig.left || 'none';
             document.getElementById('bannersSettingsModal').classList.remove('hidden');
             document.getElementById('bannersSettingsModal').classList.add('flex');
-            lockScroll();
+            document.body.style.overflow = 'hidden';
         }
 
         function closeBannersSettingsModal() {
             document.getElementById('bannersSettingsModal').classList.add('hidden');
             document.getElementById('bannersSettingsModal').classList.remove('flex');
-            unlockScroll();
+            document.body.style.overflow = '';
             openSettingsMainModal();
         }
 
