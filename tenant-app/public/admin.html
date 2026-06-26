@@ -1872,7 +1872,7 @@ function processOutput(mode) {
                 const out = await res.json();
                 if(out.status === "success") {
                     showToast("המשימות נשלחו ל-WorkerApp בהצלחה!", "success");
-                    setTimeout(renderTasks, 400); // refresh list
+                    setTimeout(loadTasks, 400); // refresh list from server
                 } else {
                     showToast("שגיאה בשליחה: " + (out.error || "Unknown"), "error");
                 }
