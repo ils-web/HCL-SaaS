@@ -1137,8 +1137,22 @@
         }
 
         function updateTabIndicators() {
+            const fDept = document.getElementById('filterDept').value;
+            const fDate = document.getElementById('filterDate').value;
+            
             teamsList.forEach(c => {
-                const hasNewTasks = allTasks.some(t => t.sheet === c && t.status !== 'בעבודה');
+                const hasNewTasks = allTasks.some(t => {
+                    if (t.sheet !== c || t.status === 'בעבודה') return false;
+                    if (fDept !== "ALL" && t.dept !== fDept) return false;
+                    if (fDate) {
+                        if (!t.dateStr || !t.dateStr.includes("/")) return false;
+                        const p = t.dateStr.split(" ")[0].split("/");
+                        if (p.length < 3) return false;
+                        const taskIso = `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+                        if (taskIso !== fDate) return false;
+                    }
+                    return true;
+                });
                 const tabBtn = document.getElementById('tab-' + c);
                 if (tabBtn) {
                     tabBtn.classList.add('relative');
