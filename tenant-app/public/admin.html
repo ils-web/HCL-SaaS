@@ -1532,40 +1532,6 @@ function processOutput(mode) {
                 <script>setTimeout(()=>window.print(), 800);</`+`script>
                 
 
-    <!-- Banners Settings Modal -->
-    <div id="bannersSettingsModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50 transition-opacity" style="z-index: 100;">
-        <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" dir="rtl">
-            <div class="bg-amber-500 p-5 flex justify-between items-center text-white">
-                <h2 class="text-xl font-black"><i class="fas fa-columns ml-2"></i>הגדרות באנרים</h2>
-                <button onclick="closeBannersSettingsModal()" class="text-amber-100 hover:text-white transition-colors"><i class="fas fa-times text-xl"></i></button>
-            </div>
-            <div class="p-6 space-y-4">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">באנר ימני</label>
-                    <select id="rightBannerSelect" class="w-full border-gray-300 rounded-xl shadow-sm px-4 py-2 focus:ring-amber-500 focus:border-amber-500 font-medium">
-                        <option value="none">❌ מוסתר</option>
-                        <option value="teams">🛠️ סטטיסטיקת צוותים</option>
-                        <option value="workers">👥 סטטיסטיקת עובדים</option>
-                        <option value="weather">🌤️ מזג אוויר</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">באנר שמאלי</label>
-                    <select id="leftBannerSelect" class="w-full border-gray-300 rounded-xl shadow-sm px-4 py-2 focus:ring-amber-500 focus:border-amber-500 font-medium">
-                        <option value="none">❌ מוסתר</option>
-                        <option value="teams">🛠️ סטטיסטיקת צוותים</option>
-                        <option value="workers">👥 סטטיסטיקת עובדים</option>
-                        <option value="weather">🌤️ מזג אוויר</option>
-                    </select>
-                </div>
-                <button onclick="saveBannerConfig()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl shadow-md transition-colors mt-4">
-                    שמור הגדרות
-                </button>
-
-
-            </div>
-        </div>
-    </div>
 
 </body></html>
             `);
@@ -1968,5 +1934,39 @@ function processOutput(mode) {
         </div>
     </div>
 
+    <!-- Banners Settings Modal -->
+    <div id="bannersSettingsModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden items-center justify-center z-50 transition-opacity" style="z-index: 100;">
+        <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]" dir="rtl">
+            <div class="bg-amber-500 p-5 flex justify-between items-center text-white">
+                <h2 class="text-xl font-black"><i class="fas fa-columns ml-2"></i>הגדרות באנרים</h2>
+                <button onclick="closeBannersSettingsModal()" class="text-amber-100 hover:text-white transition-colors"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">באנר ימני</label>
+                    <select id="rightBannerSelect" class="w-full border-gray-300 rounded-xl shadow-sm px-4 py-2 focus:ring-amber-500 focus:border-amber-500 font-medium">
+                        <option value="none">❌ מוסתר</option>
+                        <option value="teams">🛠️ סטטיסטיקת צוותים</option>
+                        <option value="workers">👥 סטטיסטיקת עובדים</option>
+                        <option value="weather">🌤️ מזג אוויר</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">באנר שמאלי</label>
+                    <select id="leftBannerSelect" class="w-full border-gray-300 rounded-xl shadow-sm px-4 py-2 focus:ring-amber-500 focus:border-amber-500 font-medium">
+                        <option value="none">❌ מוסתר</option>
+                        <option value="teams">🛠️ סטטיסטיקת צוותים</option>
+                        <option value="workers">👥 סטטיסטיקת עובדים</option>
+                        <option value="weather">🌤️ מזג אוויר</option>
+                    </select>
+                </div>
+                <button onclick="saveBannerConfig()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl shadow-md transition-colors mt-4">
+                    שמור הגדרות
+                </button>
+
+
+            </div>
+        </div>
+    </div>
 </body>
 </html>
