@@ -122,7 +122,8 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
       comment: t.notes || '',
       photo: t.photoUrl || '',
       afterPhoto: t.afterPhotoUrl || '',
-      status: t.status === 'IN_PROGRESS' ? 'בעבודה' : 'פתוח',
+      isSentToApp: t.isSentToApp || false,
+      status: t.status === 'COMPLETED' ? 'הושלם' : (t.status === 'IN_PROGRESS' ? 'בעבודה' : 'פתוח'),
       worker: t.worker?.name || '',
       team: t.team?.name || '',
       timestamp: t.createdAt.getTime(),
@@ -668,6 +669,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     const whereClause: any = {
       tenantId,
       status: { in: ['NEW', 'IN_PROGRESS'] },
+      isSentToApp: true,
       OR: [
         { workerId: worker.id }
       ]
@@ -706,6 +708,17 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     }));
 
     return NextResponse.json({ status: 'success', tasks, worker: { id: worker.id, name: worker.name, teamId: worker.teamId } });
+  }
+
+  if (action === 'SEND_TO_APP') {
+    const { taskIds } = body;
+    if (!taskIds || !Array.isArray(taskIds)) return NextResponse.json({ error: 'Missing taskIds' }, { status: 400 });
+    
+    await prisma.task.updateMany({
+      where: { id: { in: taskIds }, tenantId },
+      data: { isSentToApp: true }
+    });
+    return NextResponse.json({ status: 'success' });
   }
 
   if (action === 'WORKER_MARK_COMPLETED') {

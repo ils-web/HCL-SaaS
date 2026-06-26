@@ -1466,7 +1466,7 @@
                         <td class="p-3 text-xs text-gray-500 whitespace-nowrap">${task.dateStr}</td>
                         <td class="p-3 font-bold">${task.dept}</td>
                         <td class="p-3 font-bold text-indigo-700">${task.room}</td>
-                        <td class="p-3 font-bold">${task.defect} ${isQr ? '<span class="text-pink-600 ml-1" title="QR"><i class="fas fa-qrcode"></i></span>' : ''}</td>
+                        <td class="p-3 font-bold">${task.defect} ${isQr ? '<span class="text-pink-600 ml-1" title="QR"><i class="fas fa-qrcode"></i></span>' : ''} ${task.isSentToApp ? '<span class="text-blue-500 ml-1" title="נשלח ל-WorkerApp"><i class="fas fa-mobile-alt"></i></span>' : ''}</td>
                         <td class="p-3 text-gray-500 max-w-[200px] truncate" title="${task.comment || ''}">${task.comment || ''}</td>
                         <td class="p-3">${isCompleted ? `<span class="text-green-700 font-bold text-xs bg-green-200 px-2 py-1 rounded"><i class="fas fa-check-double"></i> ממתין לאישור</span>` : (isPrinted ? `<span class="text-orange-700 font-bold text-xs bg-orange-100 px-2 py-1 rounded"><i class="fas fa-hammer"></i></span>` : `<span class="text-green-700 font-bold text-xs bg-green-100 px-2 py-1 rounded">פתוח</span>`)}</td>
                         <td class="p-3 font-bold text-xs text-orange-900">${task.worker || ''}</td>
@@ -1502,6 +1502,7 @@
                             <i class="fas fa-users ml-1"></i> צוות משויך: ${cleanSheetName}
                         </div>
                         ${isQr ? `<div class="inline-block bg-pink-100 text-pink-700 px-3 py-1 rounded-lg text-xs font-black mb-2 border border-pink-200 shadow-sm mr-2"><i class="fas fa-qrcode ml-1"></i> QR${reporterName && reporterName !== 'לא ידוע' ? ` | ${reporterName}` : ''}</div>` : ''}
+                        ${task.isSentToApp ? `<div class="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-xs font-black mb-2 border border-blue-200 shadow-sm mr-2"><i class="fas fa-mobile-alt ml-1"></i> WorkerApp</div>` : ''}
                         <div class="flex items-center gap-3">
                             <h3 class="text-xl font-bold">${task.dept} | חדר: ${task.room} <span class="text-sm font-normal px-2 bg-gray-100 rounded">${actT}</span></h3>
                         </div>
@@ -1538,7 +1539,7 @@
                                 <span class="font-black"><i class="fas fa-exclamation-circle ml-1"></i>ממתין לאישורך</span>
                             </div>
                         ` : ''}
-                        <button onclick="closeSingleTask(${realIdx})" class="w-full bg-indigo-600 text-white font-bold py-2 rounded-xl text-sm shadow hover:bg-indigo-700 transition-colors">
+                        <button id="btn-close-${realIdx}" onclick="closeSingleTask(${realIdx})" class="w-full bg-indigo-600 text-white font-bold py-2 rounded-xl text-sm shadow hover:bg-indigo-700 transition-colors">
                             <i class="fas fa-check ml-1"></i> סגור משימה
                         </button>
                         ${(!isPrinted && !isCompleted) ? `
@@ -1564,16 +1565,18 @@
 
         function closeSingleTask(realIdx) {
             const task = allTasks[realIdx];
-            showCustomConfirm("סגירת משימה", "לסגור את המשימה הזו מהמערכת ומחיקת תמונה?", async () => {
-                const b = document.getElementById(`btn-${realIdx}`); b.innerHTML = "..."; b.disabled = true;
+            showCustomConfirm("סגירת משימה", "לסגור את המשימה הזו סופית מהמערכת?", async () => {
+                const b = document.getElementById(`btn-close-${realIdx}`) || document.getElementById(`btn-${realIdx}`); 
+                if(b) { b.innerHTML = "..."; b.disabled = true; }
                 try {
                     const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "CLOSE_TASK", id: task.id, sheetName: task.sheet, date: task.dateStr, room: task.room, defect: task.defect, comment: task.comment || "" }) });
                     const out = await res.json();
                     if(out.status === "success") {
-                        document.getElementById(`task-card-${realIdx}`).style.opacity="0.3"; b.innerHTML = "סגור ✅";
+                        document.getElementById(`task-card-${realIdx}`).style.opacity="0.3"; 
+                        if(b) b.innerHTML = "סגור ✅";
                         allTasks = allTasks.filter(t => t !== task); if(fpInstance) fpInstance.redraw(); setTimeout(renderTasks, 400); showToast("המשימה נסגרה", "success");
                     }
-                } catch(e) { b.disabled = false; b.innerHTML = "בוצע"; }
+                } catch(e) { if(b) { b.disabled = false; b.innerHTML = "בוצע"; } }
             }, "fa-check-circle");
         }
 
@@ -1847,20 +1850,32 @@ function processOutput(mode) {
                 });
             }
         }
-        function sendToWorkerApp() {
+        async function sendToWorkerApp() {
             const checkboxes = Array.from(document.querySelectorAll('.task-checkbox:checked'));
             if (checkboxes.length === 0) {
                 showToast("יש לבחור לפחות משימה אחת", "warning"); 
                 return;
             }
-            const chosenWorker = document.getElementById('printWorker').value;
-            if (!chosenWorker) {
-                showCustomConfirm("בחר עובד תחילה", "לא נבחר עובד. האם להמשיך בשליחה לכלל הצוות?", () => { 
-                    showToast("המשימות נשלחו ל-WorkerApp!", "success");
-                }, "fa-mobile-alt", "המשך", "ביטול");
-                return;
+            const taskIds = checkboxes.map(cb => { const idx = parseInt(cb.dataset.index); return allTasks[idx] ? allTasks[idx].id : null; }).filter(Boolean);
+            
+            showLoader("שולח משימות לאפליקציה...");
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: "SEND_TO_APP", taskIds })
+                });
+                const out = await res.json();
+                if(out.status === "success") {
+                    showToast("המשימות נשלחו ל-WorkerApp בהצלחה!", "success");
+                    setTimeout(renderTasks, 400); // refresh list
+                } else {
+                    showToast("שגיאה בשליחה: " + (out.error || "Unknown"), "error");
+                }
+            } catch(e) {
+                showToast("שגיאת תקשורת", "error");
+            } finally {
+                hideLoader();
             }
-            showToast("המשימות נשלחו ל-" + chosenWorker + " באפליקציה WorkerApp", "success");
         }
 
         
