@@ -1204,7 +1204,49 @@
                     renderDynamicTabs();
                 }
                 if(fpInstance) fpInstance.redraw(); renderTasks(); if(typeof updateTabIndicators === 'function') updateTabIndicators();
+                if (!window.pollingInterval) startPolling();
             } catch(e) { console.error("Ошибка загрузки:", e); } hideLoader(); fetchMonthlyStats();
+        }
+
+        function startPolling() {
+            if (window.pollingInterval) clearInterval(window.pollingInterval);
+            window.pollingInterval = setInterval(async () => {
+                if (!document.getElementById('loginScreen').classList.contains('hidden')) return;
+                if (!document.getElementById('editModal').classList.contains('hidden')) return;
+                if (!document.getElementById('printModal').classList.contains('hidden')) return;
+                if (!document.getElementById('workersModal').classList.contains('hidden')) return;
+                try {
+                    const res = await fetch(`${API_URL}?action=getOpenTasks&t=${Date.now()}`);
+                    const data = await res.json();
+                    if (data.tasks) {
+                        const newHash = JSON.stringify(data.tasks);
+                        const oldHash = JSON.stringify(allTasks);
+                        if (newHash !== oldHash) {
+                            const checkedIds = Array.from(document.querySelectorAll('.task-checkbox:checked')).map(cb => {
+                                const idx = parseInt(cb.dataset.index);
+                                return allTasks[idx] ? allTasks[idx].id : null;
+                            }).filter(Boolean);
+                            allTasks = data.tasks;
+                            let missingTeams = false;
+                            allTasks.forEach(t => {
+                                if (t.sheet && !teamsList.includes(t.sheet)) {
+                                    teamsList.push(t.sheet); missingTeams = true;
+                                }
+                            });
+                            if (missingTeams) renderDynamicTabs();
+                            if(fpInstance) fpInstance.redraw();
+                            renderTasks();
+                            if(typeof updateTabIndicators === 'function') updateTabIndicators();
+                            
+                            document.querySelectorAll('.task-checkbox').forEach(cb => {
+                                const idx = parseInt(cb.dataset.index);
+                                if (allTasks[idx] && checkedIds.includes(allTasks[idx].id)) { cb.checked = true; }
+                            });
+                            if (typeof updateSelectAllBtn === 'function') updateSelectAllBtn();
+                        }
+                    }
+                } catch(e) {}
+            }, 8000);
         }
 
         function switchTab(t) { 
