@@ -81,7 +81,7 @@
 
     
     <!-- Stats Banners -->
-    <div id="leftBanner" class="hidden xl:flex fixed left-4 top-8 w-64 bg-white/80 backdrop-blur-md border border-white/40 shadow-2xl rounded-3xl p-5 flex-col z-0 print:hidden">
+    <div id="leftBanner" class="hidden xl:flex fixed left-4 top-8 w-64 bg-white/40 backdrop-blur-sm border border-white/40 shadow-sm rounded-3xl p-5 flex-col z-0 print:hidden">
         <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
             <h3 class="font-bold text-gray-800 text-lg">טוען...</h3>
             <button class="text-blue-600 hover:text-blue-800 transition-colors" title="הדפס סטטיסטיקה"><i class="fas fa-print"></i></button>
@@ -91,7 +91,7 @@
         </div>
     </div>
 
-    <div id="rightBanner" class="hidden xl:flex fixed right-4 top-8 w-64 bg-white/80 backdrop-blur-md border border-white/40 shadow-2xl rounded-3xl p-5 flex-col z-0 print:hidden">
+    <div id="rightBanner" class="hidden xl:flex fixed right-4 top-8 w-64 bg-white/40 backdrop-blur-sm border border-white/40 shadow-sm rounded-3xl p-5 flex-col z-0 print:hidden">
         <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
             <button class="text-blue-600 hover:text-blue-800 transition-colors" title="הדפס סטטיסטיקה"><i class="fas fa-print"></i></button>
             <h3 class="font-bold text-gray-800 text-lg">טוען...</h3>
@@ -332,7 +332,7 @@
         </div>
     </div>
 
-    <div id="mainApp" class="hidden max-w-5xl mx-auto p-4 md:p-6 print:p-0 print:max-w-full">
+    <div id="mainApp" class="hidden relative z-10 max-w-5xl mx-auto p-4 md:p-6 print:p-0 print:max-w-full">
         <div id="noPrintUI">
             
             <div id="unprintedAlertBanner" class="hidden mb-6">
@@ -347,7 +347,7 @@
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mb-6">
+            <div class="bg-white p-6 rounded-2xl shadow-2xl border border-gray-200 mb-6">
                 <div class="flex flex-col lg:flex-row justify-between items-center gap-4 mb-6 border-b pb-4">
                     <h1 class="text-3xl font-black text-gray-800">לוח בקרה <span class="text-indigo-600">HCL</span></h1>
                     
@@ -420,7 +420,7 @@
                 <div class="flex-grow"></div>
                 <button onclick="toggleViewMode()" id="viewModeBtn" class="bg-gray-100 text-gray-700 px-5 py-2 rounded-xl font-bold hover:bg-gray-200 shadow-sm border border-gray-300 transition-colors"><i class="fas fa-list ml-2"></i>שינוי תצוגה</button>
             </div>
-            <div id="dynamicTabsContainer" class="flex bg-white rounded-2xl shadow-sm mb-6 overflow-x-auto overflow-y-hidden border border-gray-200">
+            <div id="dynamicTabsContainer" class="flex bg-white rounded-2xl shadow-2xl mb-6 overflow-x-auto overflow-y-hidden border border-gray-200">
                 <!-- Dynamic Tabs injected here -->
             </div>
 
@@ -1562,10 +1562,7 @@ function processOutput(mode) {
                     שמור הגדרות
                 </button>
 
-                <button onclick="closeSettingsMainModal(); openBannersSettingsModal();" class="w-full flex items-center justify-between bg-amber-50 text-amber-800 p-4 rounded-xl font-bold hover:bg-amber-100 shadow-sm border border-amber-200 transition-colors text-lg">
-                    <span><i class="fas fa-columns ml-3 text-xl"></i>הגדרות באנרים</span>
-                    <i class="fas fa-chevron-left text-amber-400"></i>
-                </button>
+
             </div>
         </div>
     </div>
@@ -1948,7 +1945,9 @@ function processOutput(mode) {
                     <span><i class="fas fa-cogs ml-3 text-xl"></i>ניהול מערכות נבדקות</span>
                     <i class="fas fa-chevron-left text-cyan-400"></i>
                 </button>
-                <button onclick="closeSettingsMainModal(); openQrConfigModal();" class="w-full flex items-center justify-between bg-purple-50 text-purple-800 p-4 rounded-xl font-bold hover:bg-purple-100 shadow-sm border border-purple-200 transition-colors text-lg">
+                
+
+<button onclick="closeSettingsMainModal(); openQrConfigModal();" class="w-full flex items-center justify-between bg-purple-50 text-purple-800 p-4 rounded-xl font-bold hover:bg-purple-100 shadow-sm border border-purple-200 transition-colors text-lg">
                     <span><i class="fas fa-qrcode ml-3 text-xl"></i>הגדרות QR</span>
                     <i class="fas fa-chevron-left text-purple-400"></i>
                 </button>
