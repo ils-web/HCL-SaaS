@@ -549,15 +549,23 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
 
   if (action === 'CLOSE_TASK') {
-    const { room } = body;
-    const dbTask = await prisma.task.findFirst({
-      where: { tenantId, room: String(room), status: { in: ['NEW', 'IN_PROGRESS', 'COMPLETED'] } }
-    });
+    const { id, room } = body;
+    let dbTask = null;
+    if (id) {
+      dbTask = await prisma.task.findUnique({ where: { id } });
+    } else if (room) {
+      dbTask = await prisma.task.findFirst({
+        where: { tenantId, room: String(room), status: { in: ['NEW', 'IN_PROGRESS', 'COMPLETED'] } }
+      });
+    }
+    
     if (dbTask) {
         await prisma.task.update({
           where: { id: dbTask.id },
           data: { 
-            status: 'CLOSED'
+            status: 'CLOSED',
+            photoUrl: null,
+            afterPhotoUrl: null
           }
         });
     }
@@ -711,12 +719,22 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
 
   if (action === 'SEND_TO_APP') {
-    const { taskIds } = body;
+    const { taskIds, workerName } = body;
     if (!taskIds || !Array.isArray(taskIds)) return NextResponse.json({ error: 'Missing taskIds' }, { status: 400 });
     
+    let workerId = undefined;
+    if (workerName) {
+      const worker = await prisma.user.findFirst({ where: { tenantId, name: workerName } });
+      if (worker) workerId = worker.id;
+    }
+
     await prisma.task.updateMany({
       where: { id: { in: taskIds }, tenantId },
-      data: { isSentToApp: true }
+      data: { 
+        isSentToApp: true,
+        status: 'IN_PROGRESS',
+        ...(workerId ? { workerId } : {})
+      }
     });
     return NextResponse.json({ status: 'success' });
   }

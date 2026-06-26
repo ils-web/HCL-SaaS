@@ -1856,13 +1856,18 @@ function processOutput(mode) {
                 showToast("יש לבחור לפחות משימה אחת", "warning"); 
                 return;
             }
+            const workerName = document.getElementById('printWorker').value;
+            if (!workerName) {
+                showToast("חובה לבחור עובד תחילה!", "warning");
+                return;
+            }
             const taskIds = checkboxes.map(cb => { const idx = parseInt(cb.dataset.index); return allTasks[idx] ? allTasks[idx].id : null; }).filter(Boolean);
             
             showLoader("שולח משימות לאפליקציה...");
             try {
                 const res = await fetch(API_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ action: "SEND_TO_APP", taskIds })
+                    body: JSON.stringify({ action: "SEND_TO_APP", taskIds, workerName })
                 });
                 const out = await res.json();
                 if(out.status === "success") {
