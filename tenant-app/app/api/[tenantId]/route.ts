@@ -392,6 +392,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     
     // Fetch all current teams
     const currentTeams = await prisma.team.findMany({ where: { tenantId } });
+    const currentTeamNames = currentTeams.map(t => t.name);
     
     for (const ct of currentTeams) {
       if (!teams.includes(ct.name) && ct.name !== 'QR') {

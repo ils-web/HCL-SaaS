@@ -76,6 +76,8 @@ model Team {
   qrMappings QrMapping[]
 
   createdAt DateTime @default(now())
+
+  @@unique([tenantId, name])
 }
 
 // Отделения (מחלקה - для QR кодов)
