@@ -1754,11 +1754,7 @@ function processOutput(mode) {
         async function fetchStatsIfNeeded() {
             if(!cachedStats) {
                 try {
-                    const res = await fetch('/api/' + _tId, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'getMonthlyStats' })
-                    });
+                    const res = await fetch('/api/' + _tId + '?action=getMonthlyStats');
                     cachedStats = await res.json();
                 } catch(e) { console.error('Failed to fetch stats', e); }
             }
