@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/worker-manifest.json">
+    <title>Worker App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+        .glass-header { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+        .task-card { animation: slideIn 0.4s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        /* Fullscreen Viewer */
+        #fullscreenViewer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
+        #fullscreenViewer.active { display: flex; animation: fadeIn 0.2s ease-out; }
+        #fsImage { max-width: 95%; max-height: 80%; object-fit: contain; border-radius: 8px; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* Loader */
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #4f46e5; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Modal */
+        #completionModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 50; justify-content: center; align-items: flex-end; }
+        #completionModal.active { display: flex; animation: fadeIn 0.2s; }
+        .modal-content { background: white; width: 100%; border-radius: 20px 20px 0 0; padding: 20px; transform: translateY(100%); transition: transform 0.3s ease-out; }
+        #completionModal.active .modal-content { transform: translateY(0); }
+    </style>
+</head>
+<body class="pb-24">
+
+    <!-- Header -->
+    <header class="glass-header fixed top-0 w-full z-40 border-b border-gray-200 shadow-sm px-4 pt-12 pb-4 flex justify-between items-center">
+        <div>
+            <h1 id="uiTitle" class="text-2xl font-black text-indigo-900 tracking-tight">משימות</h1>
+            <p id="uiWorkerName" class="text-sm font-semibold text-gray-500">טוען...</p>
+        </div>
+        <button onclick="requestNotificationPermission()" class="text-gray-400 hover:text-indigo-600 transition-colors">
+            <i id="notifIcon" class="fas fa-bell text-xl"></i>
+        </button>
+    </header>
+
+    <!-- Main Content -->
+    <main class="pt-28 px-4" id="tasksContainer">
+        <div class="flex justify-center mt-10"><div class="loader"></div></div>
+    </main>
+
+    <!-- Completion Modal -->
+    <div id="completionModal">
+        <div class="modal-content shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="modalTitle" class="text-xl font-bold text-gray-800">סיום משימה</h2>
+                <button onclick="closeCompletionModal()" class="text-gray-400 hover:text-gray-600 text-2xl"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="mb-4">
+                <label id="modalCommentLbl" class="block text-sm font-bold text-gray-700 mb-2">הערה (אופציונלי)</label>
+                <textarea id="completionComment" class="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" rows="2"></textarea>
+            </div>
+
+            <div class="mb-6">
+                <label id="modalPhotoLbl" class="block text-sm font-bold text-gray-700 mb-2">תמונה לאחר ביצוע</label>
+                <div id="photoUploadBox" class="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors" onclick="document.getElementById('fileInput').click()">
+                    <i id="photoIcon" class="fas fa-camera text-gray-400 text-3xl mb-2"></i>
+                    <p id="photoText" class="text-gray-500 font-semibold text-sm">לחץ לצילום / העלאה</p>
+                    <img id="photoPreview" class="hidden mt-2 max-h-32 mx-auto rounded-lg shadow-sm" />
+                </div>
+                <input type="file" id="fileInput" class="hidden" accept="image/*" capture="environment" onchange="handlePhotoSelect(event)">
+            </div>
+
+            <button id="submitCompletionBtn" onclick="submitTaskCompletion()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-indigo-700 active:bg-indigo-800 transition-colors flex justify-center items-center">
+                <span id="submitBtnTxt">סיום משימה</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Fullscreen Viewer -->
+    <div id="fullscreenViewer" onclick="closeFullscreen()">
+        <button class="absolute top-8 right-6 text-white text-3xl opacity-80"><i class="fas fa-times"></i></button>
+        <img id="fsImage" src="" alt="Fullscreen">
+    </div>
+
+    <script>
+        // Dictionary
+        const dict = {
+            'he': { title: 'משימות', notFound: 'לא נמצא עובד. סרוק את קוד ה-QR שוב.', noTasks: 'אין משימות פתוחות! 🎉', room: 'חדר', dept: 'מחלקה', area: 'אזור', system: 'מערכת', defect: 'תקלה', action: 'פעולה', replace: 'החלפה', repair: 'תיקון', markDone: 'סיום משימה', commentLbl: 'הערה (אופציונלי)', photoLbl: 'תמונה לאחר ביצוע', photoBox: 'לחץ לצילום', submit: 'סיום', loading: 'שומר...', error: 'שגיאה', newTasks: 'משימה חדשה התקבלה!', reqNotif: 'אפשר התראות לקבלת עדכונים' },
+            'ru': { title: 'Задачи', notFound: 'Рабочий не найден. Отсканируйте QR-код заново.', noTasks: 'Нет открытых задач! 🎉', room: 'Комната', dept: 'Отделение', area: 'Зона', system: 'Система', defect: 'Поломка', action: 'Действие', replace: 'Замена', repair: 'Ремонт', markDone: 'Завершить', commentLbl: 'Комментарий (необяз.)', photoLbl: 'Фото результата', photoBox: 'Нажмите, чтобы сделать фото', submit: 'Готово', loading: 'Сохранение...', error: 'Ошибка', newTasks: 'Получена новая задача!', reqNotif: 'Включите уведомления' },
+            'ar': { title: 'مهام', notFound: 'لم يتم العثور على عامل. امسح الرمز ضوئيا مرة أخرى.', noTasks: 'لا توجد مهام مفتوحة! 🎉', room: 'غرفة', dept: 'قسم', area: 'منطقة', system: 'نظام', defect: 'عطل', action: 'عمل', replace: 'استبدال', repair: 'إصلاح', markDone: 'إنهاء المهمة', commentLbl: 'ملاحظة (اختياري)', photoLbl: 'صورة النتيجة', photoBox: 'اضغط لالتقاط صورة', submit: 'إنهاء', loading: 'جاري الحفظ...', error: 'خطأ', newTasks: 'مهمة جديدة!', reqNotif: 'السماح بالإشعارات' },
+            'en': { title: 'Tasks', notFound: 'Worker not found. Scan QR again.', noTasks: 'No open tasks! 🎉', room: 'Room', dept: 'Department', area: 'Area', system: 'System', defect: 'Defect', action: 'Action', replace: 'Replace', repair: 'Repair', markDone: 'Mark Done', commentLbl: 'Comment (optional)', photoLbl: 'After Photo', photoBox: 'Tap to take photo', submit: 'Finish', loading: 'Saving...', error: 'Error', newTasks: 'New task received!', reqNotif: 'Allow notifications' }
+        };
+
+        const navLang = navigator.language.slice(0, 2);
+        const lang = dict[navLang] ? navLang : 'he'; // fallback to Hebrew
+        const t = dict[lang];
+
+        if(lang === 'ru' || lang === 'en') {
+            document.documentElement.dir = 'ltr';
+            document.documentElement.lang = lang;
+        } else {
+            document.documentElement.dir = 'rtl';
+            document.documentElement.lang = lang;
+        }
+
+        // Apply translations
+        document.getElementById('uiTitle').innerText = t.title;
+        document.getElementById('modalTitle').innerText = t.markDone;
+        document.getElementById('modalCommentLbl').innerText = t.commentLbl;
+        document.getElementById('modalPhotoLbl').innerText = t.photoLbl;
+        document.getElementById('photoText').innerText = t.photoBox;
+        document.getElementById('submitBtnTxt').innerText = t.submit;
+
+        // Params
+        let tenantId = localStorage.getItem('worker_tenantId');
+        let workerId = localStorage.getItem('worker_workerId');
+
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('tenantId') && params.has('workerId')) {
+            tenantId = params.get('tenantId');
+            workerId = params.get('workerId');
+            localStorage.setItem('worker_tenantId', tenantId);
+            localStorage.setItem('worker_workerId', workerId);
+            // clean url
+            window.history.replaceState({}, document.title, "/worker.html");
+        }
+
+        const API_URL = tenantId ? `/api/${tenantId}` : '';
+        let currentTasksIds = [];
+        let pollingInterval = null;
+        let workerInfo = null;
+
+        let activeTaskId = null;
+        let currentPhotoBase64 = null;
+
+        // Audio setup
+        const beepSound = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU'+'A'.repeat(500)); // Silent fallback, real sound below
+        const realBeep = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // Quick sharp notification beep
+
+        async function init() {
+            if (!tenantId || !workerId) {
+                document.getElementById('tasksContainer').innerHTML = `<p class="text-center text-red-500 font-bold mt-10">${t.notFound}</p>`;
+                return;
+            }
+            await fetchTasks();
+            pollingInterval = setInterval(fetchTasks, 10000);
+            
+            if ("Notification" in window) {
+                if (Notification.permission === "granted") {
+                    document.getElementById('notifIcon').classList.add('text-indigo-600');
+                    document.getElementById('notifIcon').classList.remove('text-gray-400');
+                }
+            }
+        }
+
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) return;
+            Notification.requestPermission().then(permission => {
+                if (permission === "granted") {
+                    document.getElementById('notifIcon').classList.add('text-indigo-600');
+                    document.getElementById('notifIcon').classList.remove('text-gray-400');
+                    alert(t.reqNotif + " - OK");
+                }
+            });
+        }
+
+        async function fetchTasks() {
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'GET_WORKER_TASKS', workerId })
+                });
+                const data = await res.json();
+                
+                if (data.status !== 'success') {
+                    if (data.error === 'Worker not found') {
+                        document.getElementById('tasksContainer').innerHTML = `<p class="text-center text-red-500 font-bold mt-10">${t.notFound}</p>`;
+                        clearInterval(pollingInterval);
+                    }
+                    return;
+                }
+
+                workerInfo = data.worker;
+                document.getElementById('uiWorkerName').innerText = workerInfo.name + (workerInfo.teamId ? ` (${workerInfo.teamId})` : ''); // UI will just show name and team uuid for now, could be better
+
+                const tasks = data.tasks || [];
+                const newIds = tasks.map(tk => tk.id);
+                
+                // Check if there are completely NEW tasks
+                const hasNew = newIds.some(id => !currentTasksIds.includes(id));
+                if (hasNew && currentTasksIds.length > 0) {
+                    playBeepAndNotify();
+                }
+
+                currentTasksIds = newIds;
+                renderTasks(tasks);
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function playBeepAndNotify() {
+            realBeep.play().catch(e => console.log('Audio play prevented', e));
+            if (("Notification" in window) && Notification.permission === "granted") {
+                new Notification(t.newTasks, { icon: '/icon-192.png' });
+            } else if (navigator.vibrate) {
+                navigator.vibrate([200, 100, 200]);
+            }
+        }
+
+        function renderTasks(tasks) {
+            const container = document.getElementById('tasksContainer');
+            if (tasks.length === 0) {
+                container.innerHTML = `
+                    <div class="flex flex-col items-center justify-center mt-20 opacity-50">
+                        <i class="fas fa-check-circle text-6xl text-gray-300 mb-4"></i>
+                        <h2 class="text-xl font-bold text-gray-400">${t.noTasks}</h2>
+                    </div>`;
+                return;
+            }
+
+            let html = '';
+            tasks.forEach(tk => {
+                let statusBg = tk.status === 'NEW' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200';
+                let statusDot = tk.status === 'NEW' ? 'bg-red-500' : 'bg-amber-500';
+
+                html += `
+                <div class="task-card bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4 ${statusBg} border">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-3 h-3 rounded-full ${statusDot} animate-pulse"></div>
+                            <span class="text-xs font-bold text-gray-500">${tk.dateStr.split(',')[0]}</span>
+                        </div>
+                        <span class="text-xs font-bold px-2 py-1 bg-white rounded-lg border shadow-sm">${tk.department}</span>
+                    </div>
+
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <h3 class="text-lg font-black text-gray-800 mb-1">${t.room}: <span class="text-indigo-600">${tk.room}</span></h3>
+                            <p class="text-sm font-bold text-gray-600 mb-1">${t.area} / ${t.system}: <span class="text-gray-800">${tk.area} / ${tk.system}</span></p>
+                            <p class="text-sm font-bold text-gray-600 mb-3">${t.defect}: <span class="text-gray-800 bg-yellow-100 px-1 rounded">${tk.defect}</span></p>
+                            
+                            <div class="inline-block px-3 py-1 bg-gray-800 text-white text-xs font-bold rounded-lg mb-4">
+                                <i class="fas fa-wrench ml-1"></i> ${tk.actionType === 1 ? t.replace : t.repair}
+                            </div>
+                        </div>
+                        
+                        ${tk.photoUrl ? `
+                        <div class="w-24 h-24 shrink-0 rounded-xl overflow-hidden shadow-sm border border-gray-200 cursor-pointer" onclick="openFullscreen('${tk.photoUrl}')">
+                            <img src="${tk.photoUrl}" class="w-full h-full object-cover">
+                        </div>` : ''}
+                    </div>
+
+                    ${tk.notes ? `<div class="bg-white/60 p-2 rounded-lg text-sm text-gray-700 italic mb-4">"${tk.notes}"</div>` : ''}
+
+                    <button onclick="openCompletionModal('${tk.id}')" class="w-full py-3 bg-indigo-50 text-indigo-700 font-black rounded-xl border border-indigo-200 shadow-sm hover:bg-indigo-100 active:bg-indigo-200 transition-colors">
+                        <i class="fas fa-check-double ml-1"></i> ${t.markDone}
+                    </button>
+                </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // Fullscreen
+        function openFullscreen(url) {
+            document.getElementById('fsImage').src = url;
+            document.getElementById('fullscreenViewer').classList.add('active');
+        }
+        function closeFullscreen() {
+            document.getElementById('fullscreenViewer').classList.remove('active');
+        }
+
+        // Completion Modal
+        function openCompletionModal(id) {
+            activeTaskId = id;
+            document.getElementById('completionComment').value = '';
+            document.getElementById('photoPreview').src = '';
+            document.getElementById('photoPreview').classList.add('hidden');
+            document.getElementById('photoIcon').className = "fas fa-camera text-gray-400 text-3xl mb-2";
+            document.getElementById('photoText').innerText = t.photoBox;
+            currentPhotoBase64 = null;
+            document.getElementById('completionModal').classList.add('active');
+        }
+
+        function closeCompletionModal() {
+            document.getElementById('completionModal').classList.remove('active');
+            activeTaskId = null;
+        }
+
+        function handlePhotoSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                currentPhotoBase64 = e.target.result;
+                const prev = document.getElementById('photoPreview');
+                prev.src = currentPhotoBase64;
+                prev.classList.remove('hidden');
+                document.getElementById('photoIcon').className = "fas fa-check-circle text-green-500 text-2xl mb-1";
+                document.getElementById('photoText').innerText = "תמונה נבחרה";
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function submitTaskCompletion() {
+            if (!activeTaskId) return;
+
+            const btn = document.getElementById('submitCompletionBtn');
+            const originalTxt = document.getElementById('submitBtnTxt').innerText;
+            const comment = document.getElementById('completionComment').value.trim();
+
+            btn.disabled = true;
+            document.getElementById('submitBtnTxt').innerHTML = `<i class="fas fa-spinner fa-spin ml-2"></i> ${t.loading}`;
+
+            let finalPhotoUrl = null;
+
+            try {
+                if (currentPhotoBase64) {
+                    const formData = new FormData();
+                    formData.append('image', currentPhotoBase64.split(',')[1]);
+                    const upRes = await fetch('https://api.imgbb.com/1/upload?key=a1e675bb6065e233261327255af41c48', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const upData = await upRes.json();
+                    if (upData.success) {
+                        finalPhotoUrl = upData.data.url;
+                    } else {
+                        throw new Error("ImgBB error");
+                    }
+                }
+
+                const payload = {
+                    action: 'WORKER_MARK_COMPLETED',
+                    taskId: activeTaskId,
+                    workerId: workerId,
+                    afterPhotoUrl: finalPhotoUrl,
+                    comment: comment
+                };
+
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!res.ok) throw new Error("Server error");
+                
+                closeCompletionModal();
+                await fetchTasks();
+
+            } catch (e) {
+                console.error(e);
+                alert(t.error);
+            } finally {
+                btn.disabled = false;
+                document.getElementById('submitBtnTxt').innerText = originalTxt;
+            }
+        }
+
+        init();
+    </script>
+</body>
+</html>

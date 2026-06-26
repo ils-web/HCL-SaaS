@@ -469,6 +469,7 @@
         let categoriesConfig = {};
         let systemTeams = {};
         let teamsList = [];
+        let teamsData = [];
         let activeConfigTeam = null;
         let currentTab = "חשמל";
         let viewMode = "cards";
@@ -588,6 +589,7 @@
                 const data = await res.json();
                 workersPool = data.workers || [];
                 categoriesConfig = data.categories || {};
+                teamsData = data.teamsData || [];
                 teamsList = data.teams && data.teams.length > 0 ? data.teams : ["כללי"];
                 if(!teamsList.includes("כללי")) teamsList.push("כללי");
                 teamsList = [...new Set(teamsList)];
@@ -601,7 +603,96 @@
         function updateWorkersSelectUI() {
             const sel = document.getElementById('printWorker');
             sel.innerHTML = '<option value="">בחר עובד... (Без мастера)</option>';
-            workersPool.forEach(w => { sel.innerHTML += `<option value="${w}">${w}</option>`; });
+            workersPool.forEach(w => { sel.innerHTML += `<option value="${w.name}">${w.name}</option>`; });
+        }
+
+        
+        function printWorkerQR(workerId, workerName) {
+            if(!workerId) {
+                showToast("יש לשמור את העובד קודם כדי לקבל QR", "warning");
+                return;
+            }
+            const appUrl = window.location.origin + "/worker.html?tenantId=" + _tId + "&workerId=" + workerId;
+            const qrBox = document.getElementById('qrcodeBox');
+            qrBox.classList.remove('hidden');
+            const qrEl = document.getElementById('qrcodeElement');
+            qrEl.innerHTML = "";
+            new QRCode(qrEl, {
+                text: appUrl,
+                width: 220,
+                height: 220,
+                colorDark : "#1f2937",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+            setTimeout(() => { 
+                const actualImg = qrEl.innerHTML;
+                const win = window.open('', '_blank');
+                win.document.write(`
+                    <html dir="rtl"><head><title>Print QR - ${workerName}</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
+                        .card { border: 4px solid #4f46e5; border-radius: 20px; display: inline-block; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                        h1 { font-size: 36px; margin-bottom: 10px; color: #4f46e5; font-weight: 900; }
+                        p { font-size: 24px; color: #4b5563; font-weight: bold; margin-bottom: 30px; }
+                        .dept-badge { display: inline-block; background: #e0e7ff; color: #4338ca; padding: 10px 20px; border-radius: 12px; font-size: 28px; font-weight: 900; margin-bottom: 30px; border: 2px dashed #818cf8; }
+                        .qr-container { padding: 20px; border: 3px solid #e5e7eb; border-radius: 16px; display: inline-block; background: #fff; }
+                    </style>
+                    </head><body>
+                    <div class="card">
+                        <h1>אפליקציית עובד</h1>
+                        <p>סרוק כדי לפתוח את האפליקציה שלך.</p>
+                        <div class="dept-badge">עובד: ${workerName}</div><br>
+                        <div class="qr-container">${actualImg}</div>
+                    </div>
+                    <script>setTimeout(()=>window.print(), 800);</`+`script>
+                    </body></html>
+                `);
+            }, 300);
+        }
+
+        function printWorkerQR(workerId, workerName) {
+            if(!workerId) {
+                showToast("יש לשמור את העובד קודם כדי לקבל QR", "warning");
+                return;
+            }
+            const appUrl = window.location.origin + "/worker.html?tenantId=" + _tId + "&workerId=" + workerId;
+            const qrBox = document.getElementById('qrcodeBox');
+            qrBox.classList.remove('hidden');
+            const qrEl = document.getElementById('qrcodeElement');
+            qrEl.innerHTML = "";
+            new QRCode(qrEl, {
+                text: appUrl,
+                width: 220,
+                height: 220,
+                colorDark : "#1f2937",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+            setTimeout(() => { 
+                const actualImg = qrEl.innerHTML;
+                const win = window.open('', '_blank');
+                win.document.write(`
+                    <html dir="rtl"><head><title>Print QR - ${workerName}</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
+                        .card { border: 4px solid #4f46e5; border-radius: 20px; display: inline-block; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                        h1 { font-size: 36px; margin-bottom: 10px; color: #4f46e5; font-weight: 900; }
+                        p { font-size: 24px; color: #4b5563; font-weight: bold; margin-bottom: 30px; }
+                        .dept-badge { display: inline-block; background: #e0e7ff; color: #4338ca; padding: 10px 20px; border-radius: 12px; font-size: 28px; font-weight: 900; margin-bottom: 30px; border: 2px dashed #818cf8; }
+                        .qr-container { padding: 20px; border: 3px solid #e5e7eb; border-radius: 16px; display: inline-block; background: #fff; }
+                    </style>
+                    </head><body>
+                    <div class="card">
+                        <h1>אפליקציית עובד</h1>
+                        <p>סרוק כדי לפתוח את האפליקציה שלך.</p>
+                        <div class="dept-badge">עובד: ${workerName}</div><br>
+                        <div class="qr-container">${actualImg}</div>
+                    </div>
+                    <script>setTimeout(()=>window.print(), 800);</`+`script>
+                    </body></html>
+                `);
+            }, 300);
         }
 
         function openWorkersModal() { document.body.style.overflow = 'hidden'; document.getElementById('workersModal').classList.remove('hidden'); renderWorkersListUI(); }
@@ -952,25 +1043,86 @@
             switchTab(currentTab);
         }
 
+        function printWorkerQR(workerId, workerName) {
+            if(!workerId) {
+                showToast("יש לשמור את העובד קודם כדי לקבל QR", "warning");
+                return;
+            }
+            const appUrl = window.location.origin + "/worker.html?tenantId=" + _tId + "&workerId=" + workerId;
+            const qrBox = document.getElementById('qrcodeBox');
+            if(qrBox) qrBox.classList.remove('hidden');
+            const qrEl = document.getElementById('qrcodeElement');
+            if(qrEl) qrEl.innerHTML = "";
+            
+            // Generate QR code and print window
+            setTimeout(() => {
+                const win = window.open('', '_blank');
+                win.document.write(`
+                    <html dir="rtl"><head><title>Print QR - ${workerName}</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
+                        .card { border: 4px solid #4f46e5; border-radius: 20px; display: inline-block; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                        h1 { font-size: 36px; margin-bottom: 10px; color: #4f46e5; font-weight: 900; }
+                        p { font-size: 24px; color: #4b5563; font-weight: bold; margin-bottom: 30px; }
+                        .dept-badge { display: inline-block; background: #e0e7ff; color: #4338ca; padding: 10px 20px; border-radius: 12px; font-size: 28px; font-weight: 900; margin-bottom: 30px; border: 2px dashed #818cf8; }
+                        .qr-container { padding: 20px; border: 3px solid #e5e7eb; border-radius: 16px; display: inline-block; background: #fff; }
+                    </style>
+                    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+                    </head><body>
+                    <div class="card">
+                        <h1>אפליקציית עובד</h1>
+                        <p>סרוק כדי לפתוח את האפליקציה שלך.</p>
+                        <div class="dept-badge">עובד: ${workerName}</div><br>
+                        <div class="qr-container" id="qrhere"></div>
+                    </div>
+                    <script>
+                        new QRCode(document.getElementById("qrhere"), { text: "${appUrl}", width: 220, height: 220, correctLevel: QRCode.CorrectLevel.H });
+                        setTimeout(()=>window.print(), 800);
+                    </`+`script>
+                    </body></html>
+                `);
+            }, 300);
+        }
+
         function renderWorkersListUI() {
             const zone = document.getElementById('workersListZone');
             zone.innerHTML = '';
             if(workersPool.length === 0) { zone.innerHTML = '<p class="text-center text-gray-400 p-4">אין עובדים ברשימה</p>'; return; }
             workersPool.forEach((w, idx) => {
+                let teamsOpts = `<option value="">ללא צוות</option>`;
+                teamsData.forEach(t => {
+                    teamsOpts += `<option value="${t.id}" ${w.teamId === t.id ? 'selected' : ''}>${t.name}</option>`;
+                });
+                const wName = typeof w === 'string' ? w : (w.name || '');
+                const wId = typeof w === 'string' ? '' : (w.id || '');
                 zone.innerHTML += `
-                <div class="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-200">
-                    <span class="font-bold text-gray-700">${w}</span>
-                    <button onclick="removeWorkerFromList(${idx})" class="text-red-500 hover:text-red-700 p-1"><i class="fas fa-trash-alt"></i></button>
+                <div class="flex flex-col sm:flex-row justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-200 mb-2 gap-2">
+                    <input type="text" class="w-full sm:w-1/3 border-gray-300 rounded shadow-sm px-2 py-1 font-bold text-gray-700" value="${wName}" onchange="updateWorkerName(${idx}, this.value)">
+                    <select class="w-full sm:w-1/3 border-gray-300 rounded shadow-sm px-2 py-1 text-sm" onchange="updateWorkerTeam(${idx}, this.value)">
+                        ${teamsOpts}
+                    </select>
+                    <div class="flex gap-2 w-full sm:w-auto justify-end">
+                        <button onclick="printWorkerQR('${wId}', '${wName}')" class="text-blue-500 hover:text-blue-700 p-2" title="הדפס QR לאפליקציה"><i class="fas fa-qrcode"></i> QR</button>
+                        <button onclick="removeWorkerFromList(${idx})" class="text-red-500 hover:text-red-700 p-2"><i class="fas fa-trash-alt"></i></button>
+                    </div>
                 </div>`;
             });
+        }
+        function updateWorkerName(idx, val) { 
+            if(typeof workersPool[idx] === 'string') workersPool[idx] = { id: '', name: val.trim(), teamId: null };
+            else workersPool[idx].name = val.trim(); 
+        }
+        function updateWorkerTeam(idx, val) { 
+            if(typeof workersPool[idx] === 'string') workersPool[idx] = { id: '', name: workersPool[idx], teamId: val || null };
+            else workersPool[idx].teamId = val || null; 
         }
 
         function addWorkerToList() {
             const inp = document.getElementById('newWorkerName');
             const name = inp.value.trim();
             if(!name) return;
-            if(workersPool.includes(name)) { showToast("עובד כבר קיים ברשימה!", "error"); return; }
-            workersPool.push(name); inp.value = ''; renderWorkersListUI();
+            if(workersPool.find(w => w.name === name)) { showToast("עובד כבר קיים ברשימה!", "error"); return; }
+            workersPool.push({ id: '', name: name, teamId: null }); inp.value = ''; renderWorkersListUI();
         }
 
         function removeWorkerFromList(idx) { workersPool.splice(idx, 1); renderWorkersListUI(); }

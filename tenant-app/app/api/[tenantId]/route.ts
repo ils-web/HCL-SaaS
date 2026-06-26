@@ -61,11 +61,12 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
   if (action === 'getSettings') {
     // get workers
     const workersDb = await prisma.user.findMany({ where: { tenantId, role: 'WORKER' } });
-    const workers = workersDb.map(w => w.name);
+    const workers = workersDb.map(w => ({ id: w.id, name: w.name, teamId: w.teamId }));
 
     // get teams
     const teamsDb = await prisma.team.findMany({ where: { tenantId }, orderBy: { createdAt: 'asc' } });
     const teams = teamsDb.map(t => t.name);
+    const teamsData = teamsDb.map(t => ({ id: t.id, name: t.name }));
 
     // get categories & systemTeams
     const areas = await prisma.area.findMany({
@@ -87,7 +88,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
   
     const qrSettings = (tenant as any).qrSettings || { mode: '24/7', start: '08:00', end: '17:00' };
 
-    return NextResponse.json({ workers, categories, teams, systemTeams, qrSettings });
+    return NextResponse.json({ workers, categories, teams, teamsData, systemTeams, qrSettings });
   }
 
   if (action === 'getOpenTasks') {
@@ -411,20 +412,48 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
 
   if (action === 'SAVE_WORKERS') {
-    const workersList: string[] = body.workers || [];
+    const workersList: { id?: string, name: string, teamId?: string | null }[] = body.workers || [];
     
+    // Find existing workers
     const currentWorkers = await prisma.user.findMany({ where: { tenantId, role: 'WORKER' }});
+    
+    // Keep a set of IDs/Names we are keeping
+    const keepingIds = new Set(workersList.filter(w => w.id).map(w => w.id));
+    const keepingNames = new Set(workersList.map(w => w.name)); // fallback for ones without ID
+
+    // For any current worker not in the new list, remove tasks assignment and delete
     for (const cw of currentWorkers) {
-      if (!workersList.includes(cw.name)) {
+      if (!keepingIds.has(cw.id) && !keepingNames.has(cw.name)) {
         await prisma.task.updateMany({ where: { workerId: cw.id }, data: { workerId: null } });
         await prisma.user.delete({ where: { id: cw.id } });
       }
     }
 
-    for (const wName of workersList) {
-      const ext = await prisma.user.findFirst({ where: { tenantId, name: wName, role: 'WORKER' }});
-      if(!ext) await prisma.user.create({ data: { tenantId, name: wName, role: 'WORKER' } });
+    // Upsert the remaining workers
+    for (const wData of workersList) {
+      if (wData.id) {
+        // Update existing
+        await prisma.user.update({
+          where: { id: wData.id },
+          data: { name: wData.name, teamId: wData.teamId || null }
+        });
+      } else {
+        // Find by name just in case
+        const ext = await prisma.user.findFirst({ where: { tenantId, name: wData.name, role: 'WORKER' }});
+        if (ext) {
+          await prisma.user.update({
+            where: { id: ext.id },
+            data: { teamId: wData.teamId || null }
+          });
+        } else {
+          // Create new
+          await prisma.user.create({
+            data: { tenantId, name: wData.name, role: 'WORKER', teamId: wData.teamId || null }
+          });
+        }
+      }
     }
+    
     return NextResponse.json({ status: 'success' });
   }
 
@@ -625,6 +654,80 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         data: { notes: comment }
       });
     }
+    return NextResponse.json({ status: 'success' });
+  }
+
+  if (action === 'GET_WORKER_TASKS') {
+    const { workerId } = body;
+    if (!workerId) return NextResponse.json({ error: 'Missing workerId' }, { status: 400 });
+
+    const worker = await prisma.user.findUnique({ where: { id: workerId } });
+    if (!worker || worker.tenantId !== tenantId) return NextResponse.json({ error: 'Worker not found' }, { status: 404 });
+
+    const whereClause: any = {
+      tenantId,
+      status: { in: ['NEW', 'IN_PROGRESS'] },
+      OR: [
+        { workerId: worker.id }
+      ]
+    };
+    
+    if (worker.teamId) {
+      whereClause.OR.push({ teamId: worker.teamId });
+    }
+
+    const tasksDb = await prisma.task.findMany({
+      where: whereClause,
+      include: {
+        department: true,
+        area: true,
+        system: true,
+        team: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const tasks = tasksDb.map(t => ({
+      id: t.id,
+      dateStr: new Date(t.createdAt).toLocaleString('ru-RU', { timeZone: 'Asia/Jerusalem' }),
+      department: t.department?.name || '',
+      room: t.room,
+      area: t.area?.name || '',
+      system: t.system?.name || '',
+      customDefectName: t.customDefectName || '',
+      defect: t.system?.name || t.customDefectName || '',
+      actionType: t.actionType === 'REPLACE' ? 1 : 2,
+      notes: t.notes || '',
+      photoUrl: t.photoUrl || '',
+      status: t.status,
+      team: t.team?.name || '',
+      workerId: t.workerId
+    }));
+
+    return NextResponse.json({ status: 'success', tasks, worker: { id: worker.id, name: worker.name, teamId: worker.teamId } });
+  }
+
+  if (action === 'WORKER_MARK_COMPLETED') {
+    const { taskId, workerId, afterPhotoUrl, comment } = body;
+    if (!taskId || !workerId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+    
+    const updateData: any = {
+      status: 'COMPLETED',
+      workerId: workerId // mark that this worker completed it
+    };
+    if (afterPhotoUrl) updateData.afterPhotoUrl = afterPhotoUrl;
+    
+    if (comment) {
+      const task = await prisma.task.findUnique({ where: { id: taskId } });
+      if (task) {
+        updateData.notes = task.notes ? task.notes + '\n[Рабочий]: ' + comment : '[Рабочий]: ' + comment;
+      }
+    }
+
+    await prisma.task.update({
+      where: { id: taskId },
+      data: updateData
+    });
     return NextResponse.json({ status: 'success' });
   }
 
