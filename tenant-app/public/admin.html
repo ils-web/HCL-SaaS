@@ -118,15 +118,6 @@
         </div>
     </div>
 
-    <div id="loginScreen" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center">
-            <i class="fas fa-lock text-indigo-600 text-5xl mb-4"></i>
-            <h2 class="text-2xl font-black mb-6">כניסת מנהל</h2>
-            <input type="password" id="pinCode" placeholder="קוד גישה" class="w-full p-4 mb-4 bg-gray-50 border rounded-xl text-center text-2xl font-bold tracking-widest outline-none focus:ring-2 focus:ring-indigo-500">
-            <button onclick="checkPin()" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg">כניסה</button>
-            <p id="pinError" class="text-red-500 font-bold mt-2 hidden">קוד שגוי!</p>
-        </div>
-    </div>
 
     <div id="loader" class="fixed inset-0 bg-white/90 hidden z-40 flex items-center justify-center">
         <div class="flex flex-col items-center"><div class="loader mb-4"></div><p class="font-bold text-indigo-600" id="loaderText">מעדכן נתונים...</p></div>
@@ -447,8 +438,24 @@
         <div id="printTasksContainer"></div>
     </div>
     <script>
-        const _tId = new URLSearchParams(window.location.search).get('tenantId') || 'default';
+        const localToken = localStorage.getItem('hcl_token');
+        let _tId = localStorage.getItem('hcl_tenantId');
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        if (urlParams.get('tenantId') && localStorage.getItem('hcl_role') === 'SUPERADMIN') {
+            _tId = urlParams.get('tenantId');
+        }
+
+        if (!localToken || !_tId) {
+            window.location.href = '/index.html';
+        }
+
         const API_URL = `/api/${_tId}`;
+        
+        // Auto load tasks on start since we bypassed login screen
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTasks();
+        });
                 const TRANSLATION_MAP = {
             'he': { 'מחלקה': 'מחלקה', 'תאריך': 'תאריך', 'תקלה': 'תקלה', 'חדר': 'חדר', 'כללי': 'כללי' },
             'ru': { 'מחלקה': 'Отделение', 'תאריך': 'Дата', 'תקלה': 'Дефект', 'חדר': 'Комната', 'כללי': 'Общее' },
@@ -1166,12 +1173,7 @@
             });
         }
 
-        function checkPin() {
-            if(document.getElementById('pinCode').value === "1234") { 
-                document.getElementById('loginScreen').classList.add('hidden');
-                document.getElementById('mainApp').classList.remove('hidden'); loadTasks();
-            } else { document.getElementById('pinError').classList.remove('hidden'); }
-        }
+
 
         function fixImageUrl(url) {
             if(!url) return ""; let id = "";
@@ -1211,12 +1213,10 @@
         function startPolling() {
             if (window.pollingInterval) clearInterval(window.pollingInterval);
             window.pollingInterval = setInterval(async () => {
-                const ls = document.getElementById('loginScreen');
                 const em = document.getElementById('editModal');
                 const pm = document.getElementById('printModal');
                 const wm = document.getElementById('workersModal');
                 
-                if (ls && !ls.classList.contains('hidden')) return;
                 if (em && !em.classList.contains('hidden')) return;
                 if (pm && !pm.classList.contains('hidden')) return;
                 if (wm && !wm.classList.contains('hidden')) return;

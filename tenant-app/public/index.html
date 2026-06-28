@@ -80,9 +80,9 @@
                 <a href="#features" class="hover:text-indigo-300 transition-colors">יתרונות</a>
                 <a href="#contact" class="hover:text-indigo-300 transition-colors">צור קשר</a>
             </nav>
-            <a href="/admin.html" class="glass-card px-6 py-2 rounded-full font-semibold hover:bg-white/10 transition-colors text-sm">
-                כניסת לקוחות
-            </a>
+            <button onclick="openLoginModal()" class="glass-card px-6 py-2 rounded-full font-semibold hover:bg-white/10 transition-colors text-sm cursor-pointer">
+                התחברות למערכת
+            </button>
         </div>
     </header>
 
@@ -249,6 +249,100 @@
             document.getElementById('successMsg').classList.add('hidden');
             document.getElementById('successMsg').classList.remove('flex');
         }
+
+        function openLoginModal() {
+            document.getElementById('loginModal').classList.remove('hidden');
+            document.getElementById('loginError').classList.add('hidden');
+        }
+
+        function closeLoginModal() {
+            document.getElementById('loginModal').classList.add('hidden');
+        }
+
+        async function submitLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPwd').value;
+            const btn = document.getElementById('loginBtn');
+            const errorDiv = document.getElementById('loginError');
+
+            if(!email || !password) {
+                errorDiv.innerText = 'נא להזין אימייל וסיסמה';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> מתחבר...';
+            errorDiv.classList.add('hidden');
+
+            try {
+                const res = await fetch('/api/auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+                
+                if (res.ok && data.success) {
+                    // Save token and role
+                    localStorage.setItem('hcl_token', data.token);
+                    localStorage.setItem('hcl_role', data.role);
+                    
+                    if (data.role === 'SUPERADMIN') {
+                        window.location.href = '/superadmin.html';
+                    } else {
+                        localStorage.setItem('hcl_tenantId', data.tenantId);
+                        window.location.href = '/admin.html'; // Or whatever the tenant dashboard is
+                    }
+                } else {
+                    errorDiv.innerText = data.error || 'פרטי התחברות שגויים';
+                    errorDiv.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.innerHTML = 'התחבר';
+                }
+            } catch (err) {
+                errorDiv.innerText = 'שגיאת תקשורת, נסה שוב.';
+                errorDiv.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = 'התחבר';
+            }
+        }
     </script>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-black/60 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-[#1e1b4b] border border-indigo-500/30 rounded-3xl max-w-sm w-full p-8 shadow-2xl relative">
+            <button onclick="closeLoginModal()" class="absolute top-4 left-4 text-gray-400 hover:text-white transition"><i class="fas fa-times text-xl"></i></button>
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-indigo-600/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-indigo-500/50">
+                    <i class="fas fa-user-lock text-2xl text-indigo-400"></i>
+                </div>
+                <h3 class="text-2xl font-bold text-white">התחברות למערכת</h3>
+                <p class="text-indigo-200 text-sm mt-1">הזן את פרטי הגישה שלך</p>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-indigo-200 mb-1">אימייל</label>
+                    <input type="email" id="loginEmail" class="w-full p-3 input-glass rounded-xl font-bold dir-ltr" dir="ltr" placeholder="email@example.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-indigo-200 mb-1">סיסמה</label>
+                    <input type="password" id="loginPwd" class="w-full p-3 input-glass rounded-xl font-bold dir-ltr" dir="ltr" placeholder="••••••••">
+                </div>
+                
+                <div id="loginError" class="hidden bg-red-500/20 border border-red-500/50 text-red-200 text-sm p-3 rounded-lg text-center font-bold">
+                    פרטי התחברות שגויים
+                </div>
+            </div>
+
+            <div class="mt-8">
+                <button id="loginBtn" onclick="submitLogin()" class="w-full btn-gradient text-white py-3 rounded-xl font-bold text-lg shadow-lg">
+                    התחבר
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

@@ -92,8 +92,13 @@ export async function POST(req: Request) {
 
     switch (action) {
       case 'CREATE_TENANT':
-        const { name, plan, price, maxInspectors, contactEmail, contactPhone } = body;
-        const tenant = await prisma.tenant.create({
+        const { name, plan, price, maxInspectors, contactEmail, contactPhone, adminEmail, adminPassword } = body;
+        
+        if (!adminEmail || !adminPassword) {
+          return NextResponse.json({ error: 'adminEmail and adminPassword are required for new tenants' }, { status: 400 });
+        }
+
+        const newTenant = await prisma.tenant.create({
           data: {
             name,
             plan: plan || 'FREE',
@@ -101,10 +106,41 @@ export async function POST(req: Request) {
             maxInspectors: Number(maxInspectors) || 1,
             contactEmail,
             contactPhone,
-            status: 'ACTIVE'
-          }
+            status: 'ACTIVE',
+            users: {
+              create: {
+                email: adminEmail,
+                password: adminPassword,
+                role: 'ADMIN',
+                name: 'Menahel'
+              }
+            }
+          },
+          include: { users: true }
         });
-        return NextResponse.json({ success: true, tenant });
+        return NextResponse.json({ success: true, tenant: newTenant });
+
+      case 'RESET_TENANT_PASSWORD':
+        const { tenantId, newPassword } = body;
+        if (!tenantId || !newPassword) {
+            return NextResponse.json({ error: 'tenantId and newPassword are required' }, { status: 400 });
+        }
+        
+        // Find the admin user for this tenant
+        const adminUser = await prisma.user.findFirst({
+            where: { tenantId: tenantId, role: 'ADMIN' }
+        });
+
+        if (!adminUser) {
+            return NextResponse.json({ error: 'Admin user not found for this tenant' }, { status: 404 });
+        }
+
+        await prisma.user.update({
+            where: { id: adminUser.id },
+            data: { password: newPassword }
+        });
+        
+        return NextResponse.json({ success: true });
 
       case 'UPDATE_TENANT':
         const { id, updates } = body;
