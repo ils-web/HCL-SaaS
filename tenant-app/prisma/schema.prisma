@@ -206,8 +206,7 @@ model Lead {
   phone     String?
   email     String?
   company   String?
-  status    String   @default(\
-NEW\) // NEW, CONTACTED, CLOSED
+  status    String   @default("NEW") // NEW, CONTACTED, CLOSED
   createdAt DateTime @default(now())
 }
 
@@ -215,11 +214,9 @@ model Invoice {
   id        String   @id @default(uuid())
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  type      String   @default(\
-INVOICE\) // INVOICE, OFFER
+  type      String   @default("INVOICE") // INVOICE, OFFER
   amount    Float
   extraInspectors Int @default(0)
-  status    String   @default(\
-PENDING\) // PENDING, PAID, CANCELLED
+  status    String   @default("PENDING") // PENDING, PAID, CANCELLED
   createdAt DateTime @default(now())
 }
