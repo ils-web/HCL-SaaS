@@ -1,0 +1,1598 @@
+
+        const _tId = new URLSearchParams(window.location.search).get('tenantId') || 'default';
+        const API_URL = `/api/${_tId}`;
+                const TRANSLATION_MAP = {
+            'he': { 'מחלקה': 'מחלקה', 'תאריך': 'תאריך', 'תקלה': 'תקלה', 'חדר': 'חדר', 'כללי': 'כללי' },
+            'ru': { 'מחלקה': 'Отделение', 'תאריך': 'Дата', 'תקלה': 'Дефект', 'חדר': 'Комната', 'כללי': 'Общее' },
+            'en': { 'מחלקה': 'Department', 'תאריך': 'Date', 'תקלה': 'Defect', 'חדר': 'Room', 'כללי': 'General' },
+            'ar': { 'מחלקה': 'قسم', 'תאריך': 'تاريخ', 'תקלה': 'عطل', 'חדר': 'غرفة', 'כללי': 'عام' }
+        };
+        function translateHtmlStr(text) {
+            const targetLang = document.getElementById('printLang') ? document.getElementById('printLang').value : 'he';
+            if (targetLang === 'he' || !TRANSLATION_MAP[targetLang]) return text;
+            let out = text;
+            for (let k in TRANSLATION_MAP[targetLang]) {
+                out = out.replace(new RegExp(k, 'g'), TRANSLATION_MAP[targetLang][k]);
+            }
+            return out;
+        }
+        let allTasks = [];
+        let workersPool = []; 
+        let categoriesConfig = {};
+        let systemTeams = {};
+        let teamsList = [];
+        let teamsData = [];
+        let activeConfigTeam = null;
+        let currentTab = "חשמל";
+        let viewMode = "cards";
+        let searchQuery = "";
+        let lastCheckedIndex = null;
+        let fpInstance = null;
+        let currentQrSettings = { mode: '24/7', start: '08:00', end: '17:00' };
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `p-4 rounded-xl shadow-xl font-bold text-sm text-white flex items-center gap-3 transform translate-y-4 opacity-0 transition-all duration-300 pointer-events-auto border`;
+            
+            let icon = 'fa-check-circle';
+            if (type === 'success') { toast.classList.add('bg-emerald-600', 'border-emerald-500'); icon = 'fa-check-circle'; }
+            else if (type === 'error') { toast.classList.add('bg-rose-600', 'border-rose-500'); icon = 'fa-exclamation-circle'; }
+            else if (type === 'warning') { toast.classList.add('bg-amber-500', 'border-amber-400'); icon = 'fa-exclamation-triangle'; }
+            else { toast.classList.add('bg-indigo-600', 'border-indigo-500'); icon = 'fa-info-circle'; }
+
+            toast.innerHTML = `<i class="fas ${icon} text-lg"></i><span class="flex-grow text-right">${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => { toast.classList.remove('translate-y-4', 'opacity-0'); }, 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => { toast.remove(); }, 300);
+            }, 3500);
+        }
+
+        function showCustomConfirm(title, message, onConfirm, iconClass = 'fa-question-circle', confirmText = 'אישור', cancelText = 'ביטול') {
+            const modal = document.getElementById('customConfirmModal');
+            const box = modal.querySelector('div');
+            
+            document.getElementById('confirmTitle').innerText = title;
+            document.getElementById('confirmMessage').innerText = message;
+            document.getElementById('confirmIconContainer').innerHTML = `<i class="fas ${iconClass}"></i>`;
+            
+            const sBtn = document.getElementById('confirmSuccessBtn');
+            const cBtn = document.getElementById('confirmCancelBtn');
+            sBtn.innerText = confirmText;
+            cBtn.innerText = cancelText;
+
+            if (iconClass.includes('trash') || iconClass.includes('exclamation') || iconClass.includes('warning') || iconClass.includes('pdf')) {
+                sBtn.className = "flex-1 bg-rose-600 hover:bg-rose-500 text-white py-3 rounded-xl font-bold transition-colors shadow-md";
+                document.getElementById('confirmIconContainer').className = "w-16 h-16 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-4";
+            } else {
+                sBtn.className = "flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-3 rounded-xl font-bold transition-colors shadow-md";
+                document.getElementById('confirmIconContainer').className = "w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center text-2xl mx-auto mb-4";
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => { modal.classList.remove('opacity-0'); box.classList.remove('scale-95'); }, 10);
+
+            const close = () => {
+                modal.classList.add('opacity-0'); box.classList.add('scale-95');
+                setTimeout(() => { modal.classList.add('hidden'); }, 300);
+            };
+            sBtn.onclick = () => { close(); if(onConfirm) onConfirm(); };
+            cBtn.onclick = () => { close(); };
+        }
+
+        window.addEventListener('scroll', () => {
+            const btn = document.getElementById('backToTopBtn');
+            if (window.scrollY > 300) { btn.classList.remove('opacity-0', 'invisible'); } 
+            else { btn.classList.add('opacity-0', 'invisible'); }
+        });
+
+        document.addEventListener("DOMContentLoaded", () => {
+            fpInstance = flatpickr("#filterDate", {
+                dateFormat: "Y-m-d",
+                allowInput: false,
+                disableMobile: true,
+                onChange: function(selectedDates, dateStr) {
+                    if (allTasks && allTasks.length > 0 && dateStr) {
+                        const parts = dateStr.split("-");
+                        if (parts.length === 3) {
+                            const dateMatch = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                            const tasksOnDay = allTasks.filter(t => t.dateStr && t.dateStr.startsWith(dateMatch));
+                            if (tasksOnDay.length > 0) {
+                                const teamsOnDay = [...new Set(tasksOnDay.map(t => t.sheet))].filter(Boolean);
+                                if (teamsOnDay.length === 1 && teamsOnDay[0] !== currentTab) {
+                                    switchTab(teamsOnDay[0]);
+                                    return; // switchTab already calls renderTasks
+                                }
+                            }
+                        }
+                    }
+                    renderTasks(); 
+                },
+                onDayCreate: function(dObj, dStr, fp, dayElem) {
+                    if (!allTasks || allTasks.length === 0) return;
+                    const cellDate = dayElem.dateObj;
+                    const offsetObj = new Date(cellDate.getTime() - cellDate.getTimezoneOffset() * 60000);
+                    const dateKey = offsetObj.toISOString().split('T')[0];
+                    const hasTasksOnDay = allTasks.some(t => {
+                        if (!t.dateStr || !t.dateStr.includes("/")) return false;
+                        const p = t.dateStr.split(" ")[0].split("/");
+                        if (p.length < 3) return false;
+                        const taskIso = `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+                        return taskIso === dateKey;
+                    });
+                    if (hasTasksOnDay) { dayElem.classList.add("has-tasks-dot"); }
+                }
+            });
+            loadSettings(); 
+        });
+
+        function showLoader(text = "מעדכן נתונים...") {
+            document.getElementById('loaderText').innerText = text;
+            document.getElementById('loader').classList.remove('hidden');
+        }
+        function hideLoader() { document.getElementById('loader').classList.add('hidden'); }
+
+        async function loadSettings() {
+            try {
+                const res = await fetch(`${API_URL}?action=getSettings&t=${Date.now()}`);
+                const data = await res.json();
+                workersPool = data.workers || [];
+                categoriesConfig = data.categories || {};
+                teamsData = data.teamsData || [];
+                teamsList = data.teams && data.teams.length > 0 ? data.teams : ["כללי"];
+                if(!teamsList.includes("כללי")) teamsList.push("כללי");
+                teamsList = [...new Set(teamsList)];
+                systemTeams = data.systemTeams || {};
+                if (data.qrSettings) currentQrSettings = data.qrSettings;
+                updateWorkersSelectUI();
+                renderDynamicTabs();
+            } catch(e) { console.error("Ошибка загрузки настроек:", e); }
+        }
+
+        function updateWorkersSelectUI() {
+            const sel = document.getElementById('printWorker');
+            sel.innerHTML = '<option value="">בחר עובד... (Без мастера)</option>';
+            workersPool.forEach(w => { sel.innerHTML += `<option value="${w.name}">${w.name}</option>`; });
+        }
+
+        
+        function printWorkerQR(workerId, workerName) {
+            if(!workerId) {
+                showToast("יש לשמור את העובד קודם כדי לקבל QR", "warning");
+                return;
+            }
+            const appUrl = window.location.origin + "/worker.html?tenantId=" + _tId + "&workerId=" + workerId;
+            const qrBox = document.getElementById('qrcodeBox');
+            qrBox.classList.remove('hidden');
+            const qrEl = document.getElementById('qrcodeElement');
+            qrEl.innerHTML = "";
+            new QRCode(qrEl, {
+                text: appUrl,
+                width: 220,
+                height: 220,
+                colorDark : "#1f2937",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+            setTimeout(() => { 
+                const actualImg = qrEl.innerHTML;
+                const win = window.open('', '_blank');
+                win.document.write(`
+                    <html dir="rtl"><head><title>Print QR - ${workerName}</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
+                        .card { border: 4px solid #4f46e5; border-radius: 20px; display: inline-block; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                        h1 { font-size: 36px; margin-bottom: 10px; color: #4f46e5; font-weight: 900; }
+                        p { font-size: 24px; color: #4b5563; font-weight: bold; margin-bottom: 30px; }
+                        .dept-badge { display: inline-block; background: #e0e7ff; color: #4338ca; padding: 10px 20px; border-radius: 12px; font-size: 28px; font-weight: 900; margin-bottom: 30px; border: 2px dashed #818cf8; }
+                        .qr-container { padding: 20px; border: 3px solid #e5e7eb; border-radius: 16px; display: inline-block; background: #fff; }
+                    </style>
+                    </head><body>
+                    <div class="card">
+                        <h1>אפליקציית עובד</h1>
+                        <p>סרוק כדי לפתוח את האפליקציה שלך.</p>
+                        <div class="dept-badge">עובד: ${workerName}</div><br>
+                        <div class="qr-container">${actualImg}</div>
+                    </div>
+                    <script>setTimeout(()=>window.print(), 800);</`+`script>
+                    </body></html>
+                `);
+            }, 300);
+        }
+
+        function printWorkerQR(workerId, workerName) {
+            if(!workerId) {
+                showToast("יש לשמור את העובד קודם כדי לקבל QR", "warning");
+                return;
+            }
+            const appUrl = window.location.origin + "/worker.html?tenantId=" + _tId + "&workerId=" + workerId;
+            const qrBox = document.getElementById('qrcodeBox');
+            qrBox.classList.remove('hidden');
+            const qrEl = document.getElementById('qrcodeElement');
+            qrEl.innerHTML = "";
+            new QRCode(qrEl, {
+                text: appUrl,
+                width: 220,
+                height: 220,
+                colorDark : "#1f2937",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+            setTimeout(() => { 
+                const actualImg = qrEl.innerHTML;
+                const win = window.open('', '_blank');
+                win.document.write(`
+                    <html dir="rtl"><head><title>Print QR - ${workerName}</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
+                        .card { border: 4px solid #4f46e5; border-radius: 20px; display: inline-block; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                        h1 { font-size: 36px; margin-bottom: 10px; color: #4f46e5; font-weight: 900; }
+                        p { font-size: 24px; color: #4b5563; font-weight: bold; margin-bottom: 30px; }
+                        .dept-badge { display: inline-block; background: #e0e7ff; color: #4338ca; padding: 10px 20px; border-radius: 12px; font-size: 28px; font-weight: 900; margin-bottom: 30px; border: 2px dashed #818cf8; }
+                        .qr-container { padding: 20px; border: 3px solid #e5e7eb; border-radius: 16px; display: inline-block; background: #fff; }
+                    </style>
+                    </head><body>
+                    <div class="card">
+                        <h1>אפליקציית עובד</h1>
+                        <p>סרוק כדי לפתוח את האפליקציה שלך.</p>
+                        <div class="dept-badge">עובד: ${workerName}</div><br>
+                        <div class="qr-container">${actualImg}</div>
+                    </div>
+                    <script>setTimeout(()=>window.print(), 800);</`+`script>
+                    </body></html>
+                `);
+            }, 300);
+        }
+
+        function openWorkersModal() { document.body.style.overflow = 'hidden'; document.getElementById('workersModal').classList.remove('hidden'); renderWorkersListUI(); }
+        function closeWorkersModal() { document.getElementById('workersModal').classList.add('hidden'); document.body.style.overflow = ''; openSettingsMainModal(); }
+
+        // Config Modal Logic
+        function openConfigModal() { document.body.style.overflow = 'hidden';
+            document.getElementById('configModal').classList.remove('hidden');
+            renderConfigTeams();
+        }
+
+        function closeConfigModal() {
+            document.body.style.overflow = '';
+            openSettingsMainModal();
+            document.getElementById('configModal').classList.add('hidden');
+        }
+
+        let reportsFpStart = null;
+        let reportsFpEnd = null;
+
+        
+        function openSettingsMainModal() { document.body.style.overflow = 'hidden';
+            document.getElementById('settingsMainModal').classList.remove('hidden');
+            document.getElementById('settingsMainModal').classList.add('flex');
+        }
+        function closeSettingsMainModal() { document.body.style.overflow = '';
+            document.getElementById('settingsMainModal').classList.add('hidden');
+            document.getElementById('settingsMainModal').classList.remove('flex');
+        }
+
+        function openReportsModal() { document.body.style.overflow = 'hidden';
+            document.getElementById('reportsModal').classList.remove('hidden');
+            if (!reportsFpStart) {
+                reportsFpStart = flatpickr("#reportStartDate", { dateFormat: "Y-m-d", disableMobile: true });
+                reportsFpEnd = flatpickr("#reportEndDate", { dateFormat: "Y-m-d", disableMobile: true });
+            }
+        }
+        function closeReportsModal() { document.body.style.overflow = '';
+            document.getElementById('reportsModal').classList.add('hidden');
+        }
+
+        async function generateReport() {
+            let start = document.getElementById('reportStartDate').value;
+            let end = document.getElementById('reportEndDate').value;
+            if(!start || !end) {
+                showToast("יש לבחור תאריכים", "warning");
+                return;
+            }
+            if (new Date(start) > new Date(end)) {
+                const temp = start; start = end; end = temp;
+                document.getElementById('reportStartDate').value = start;
+                document.getElementById('reportEndDate').value = end;
+            }
+            showLoader("מפיק דוח...");
+            try {
+                const res = await fetch(`${API_URL}?action=getReports&startDate=${start}&endDate=${end}&t=${Date.now()}`);
+                const data = await res.json();
+                const tasks = data.tasks || [];
+                const tbody = document.getElementById('reportsTableBody');
+                tbody.innerHTML = '';
+                document.getElementById('reportsCount').innerText = `סה"כ משימות: ${tasks.length}`;
+                if(tasks.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-500 font-bold">לא נמצאו משימות בטווח זה</td></tr>`;
+                } else {
+                    tasks.forEach(t => {
+                        const tr = document.createElement('tr');
+                        const photosHtml = [];
+                        if(t.photo) photosHtml.push(`<a href="${t.photo}" target="_blank" class="text-blue-600 underline">לפני</a>`);
+                        if(t.afterPhoto) photosHtml.push(`<a href="${t.afterPhoto}" target="_blank" class="text-green-600 underline">אחרי</a>`);
+                        
+                        tr.innerHTML = `
+                            <td class="p-2 border-b">${t.dateStr}</td>
+                            <td class="p-2 border-b">${t.dept}</td>
+                            <td class="p-2 border-b font-bold">${t.room}</td>
+                            <td class="p-2 border-b">${t.defect}</td>
+                            <td class="p-2 border-b">${(t.inspector && t.inspector.startsWith("צוות: ")) ? t.inspector.replace("צוות: ", "") : (t.inspector && t.inspector.startsWith("צוות") ? "דיווח עובד" : (t.inspector || "-"))}</td>
+                            <td class="p-2 border-b font-bold ${t.status === 'הושלם' ? 'text-emerald-600' : (t.status === 'בעבודה' ? 'text-amber-500' : 'text-rose-500')}">${t.status}</td>
+                            <td class="p-2 border-b">${t.worker || '-'}</td>
+                            <td class="p-2 border-b text-center">${photosHtml.join(' | ')}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } catch(e) {
+                console.error(e);
+                showToast("שגיאה בהפקת דוח", "error");
+            }
+            hideLoader();
+        }
+
+        function printReport() {
+            const printContents = document.querySelector('#reportsModal .flex-grow').innerHTML;
+            let container = document.getElementById('reportPrintContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'reportPrintContainer';
+                container.style.direction = 'rtl';
+                document.body.appendChild(container);
+            }
+            container.innerHTML = `<h2 class="text-2xl font-bold text-center mb-4">דוח משימות שהושלמו</h2>${printContents}`;
+            
+            document.body.classList.add('printing-table');
+            
+            setTimeout(() => {
+                window.print();
+                document.body.classList.remove('printing-table');
+                container.innerHTML = '';
+            }, 300);
+        }
+
+        async function openQrConfigModal() { document.body.style.overflow = 'hidden';
+            document.getElementById('qrConfigModal').classList.remove('hidden');
+            document.getElementById('qrMode247').checked = currentQrSettings.mode === '24/7';
+            document.getElementById('qrModeSchedule').checked = currentQrSettings.mode === 'SCHEDULED';
+            document.getElementById('qrStart').value = currentQrSettings.start || '08:00';
+            document.getElementById('qrEnd').value = currentQrSettings.end || '17:00';
+            toggleQrScheduleUI();
+        }
+
+        function toggleQrScheduleUI() {
+            const isScheduled = document.getElementById('qrModeSchedule').checked;
+            document.getElementById('qrScheduleControls').classList.toggle('hidden', !isScheduled);
+        }
+
+        function closeQrConfigModal() {
+            document.body.style.overflow = '';
+            openSettingsMainModal();
+            document.getElementById('qrConfigModal').classList.add('hidden');
+        }
+
+        async function saveQrConfig() {
+            const mode = document.getElementById('qrMode247').checked ? '24/7' : 'SCHEDULED';
+            const start = document.getElementById('qrStart').value;
+            const end = document.getElementById('qrEnd').value;
+            const newSettings = { mode, start, end };
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'SAVE_QR_SETTINGS', qrSettings: newSettings })
+                });
+                if(res.ok) {
+                    showToast('הגדרות פעילות QR נשמרו בהצלחה', 'success');
+                    currentQrSettings = newSettings;
+                    closeQrConfigModal();
+                } else {
+                    showToast('שגיאה בשמירת הגדרות', 'error');
+                }
+            } catch(e) {
+                console.error(e);
+                showToast('שגיאה בשמירת הגדרות', 'error');
+            }
+        }
+
+        function renderConfigTeams() {
+            const list = document.getElementById('configTeamsList');
+            list.innerHTML = '';
+            const cats = Object.keys(categoriesConfig);
+            cats.forEach(team => {
+                const isSelected = activeConfigTeam === team;
+                const canDelete = team !== 'כללי' && team !== 'Общее';
+                list.innerHTML += `
+                <div class="flex justify-between items-center p-2 rounded-lg cursor-pointer border ${isSelected ? 'bg-indigo-100 border-indigo-300' : 'bg-white border-gray-200 hover:bg-gray-50'}" onclick="selectConfigTeam('${team}')">
+                    <span class="font-bold text-gray-700">${team}</span>
+                    ${canDelete ? `<button onclick="removeTeamConfig('${team}', event)" class="text-red-500 hover:text-red-700"><i class="fas fa-trash-alt"></i></button>` : ''}
+                </div>`;
+            });
+            if (!activeConfigTeam && cats.length > 0) selectConfigTeam(cats[0]);
+            else renderConfigSystems();
+        }
+
+        function selectConfigTeam(team) {
+            activeConfigTeam = team;
+            document.getElementById('configSystemsHeader').innerText = `מערכות ב: ${team}`;
+            renderConfigTeams(); // re-render to update selection style
+            renderConfigSystems();
+        }
+
+        function renderConfigSystems() {
+            const list = document.getElementById('configSystemsList');
+            list.innerHTML = '';
+            if (!activeConfigTeam || !categoriesConfig[activeConfigTeam]) return;
+            categoriesConfig[activeConfigTeam].forEach((sys, idx) => {
+                let options = `<option value="">-- ללא צוות -- (שיוך אוטומטי)</option>`;
+                let currentLabel = "<span class='text-gray-400'>ללא צוות</span>";
+                teamsList.forEach(t => {
+                   let sel = (systemTeams[sys] === t) ? "selected" : "";
+                   let label = t;
+                   options += `<option value="${t}" ${sel}>${label}</option>`;
+                   if (sel) currentLabel = `<span class='text-green-600 font-bold'>${label}</span>`;
+                });
+                
+                list.innerHTML += `
+                <div class="flex flex-col bg-white p-2 rounded-lg border border-gray-200 mb-2 gap-2">
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-gray-800">${sys}</span>
+                        <button onclick="removeSystemConfig('${sys}')" class="text-red-500 hover:text-red-700"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-gray-500">צוות מטפל:</span>
+                        <select onchange="updateSystemTeam('${sys}', this.value)" class="flex-grow text-sm p-1 border rounded bg-gray-50 outline-none">
+                            ${options}
+                        </select>
+                    </div>
+                </div>`;
+            });
+        }
+
+        function updateSystemTeam(sys, team) {
+            if(team) systemTeams[sys] = team;
+            else delete systemTeams[sys];
+        }
+
+        function addTeamConfig() {
+            const inp = document.getElementById('newTeamName');
+            const val = inp.value.trim();
+            if (!val || categoriesConfig[val]) return;
+            categoriesConfig[val] = [];
+            inp.value = '';
+            selectConfigTeam(val);
+        }
+
+        function removeTeamConfig(team, event) {
+            if (event) event.stopPropagation();
+            showCustomConfirm('מחיקת אזור', `האם אתה בטוח שברצונך למחוק את האזור "${team}"? כל המערכות בו יימחקו מההגדרות.`, () => {
+                delete categoriesConfig[team];
+                activeConfigTeam = null;
+                renderConfigTeams();
+            });
+        }
+
+        function addSystemConfig() {
+            const inp = document.getElementById('newSystemName');
+            const val = inp.value.trim();
+            if (!val || !activeConfigTeam) return;
+            if (!categoriesConfig[activeConfigTeam].includes(val)) {
+                categoriesConfig[activeConfigTeam].push(val);
+            }
+            inp.value = '';
+            renderConfigSystems();
+        }
+
+        function removeSystemConfig(sys) {
+            if (!activeConfigTeam) return;
+            categoriesConfig[activeConfigTeam] = categoriesConfig[activeConfigTeam].filter(s => s !== sys);
+            delete systemTeams[sys];
+            renderConfigSystems();
+        }
+
+        async function saveConfigToServer() {
+            showLoader("שומר הגדרות...");
+            try {
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "SAVE_CATEGORIES", categories: categoriesConfig, systemTeams: systemTeams }) });
+                const out = await res.json();
+                if(out.status === "success") { 
+                    closeConfigModal(); 
+                    showToast("הגדרות נשמרו בהצלחה", "success"); 
+                } else {
+                    showToast("שגיאה בשמירת הגדרות", "error");
+                }
+            } catch(e) { console.error(e); showToast("שגיאת תקשורת", "error"); } 
+            hideLoader();
+        }
+
+        // Teams UI Logic
+        function openTeamsModal() { document.body.style.overflow = 'hidden';
+            document.getElementById('teamsModal').classList.remove('hidden');
+            renderTeamsListUI();
+        }
+
+        function closeTeamsModal() {
+            document.body.style.overflow = '';
+            openSettingsMainModal();
+            document.getElementById('teamsModal').classList.add('hidden');
+        }
+
+        function renderTeamsListUI() {
+            const list = document.getElementById('teamsListZone');
+            list.innerHTML = '';
+            teamsList.forEach((t, idx) => {
+                const isGeneral = (t === 'כללי' || t === 'בינוי_ודלתות' || t === 'מיזוג_אוויר' || t === 'חשמל');
+                const canDelete = !isGeneral;
+                const label = t;
+                list.innerHTML += `
+                <div class="flex justify-between items-center bg-white p-3 rounded-xl border shadow-sm mb-2" data-id="${t}">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-grip-vertical text-gray-300 cursor-grab hover:text-gray-500 drag-handle"></i>
+                        <span class="font-bold text-gray-800">${label}</span>
+                    </div>
+                    ${canDelete ? `<button onclick="removeTeamFromList('${t}')" class="text-red-500 hover:text-red-700 bg-red-50 p-2 rounded-lg"><i class="fas fa-trash-alt"></i></button>` : ''}
+                </div>`;
+            });
+            if (window.teamSortable) window.teamSortable.destroy();
+            window.teamSortable = new Sortable(list, {
+                handle: '.drag-handle',
+                animation: 150,
+                onEnd: function() {
+                    const newOrder = [];
+                    list.querySelectorAll('[data-id]').forEach(el => newOrder.push(el.getAttribute('data-id')));
+                    teamsList = newOrder;
+                }
+            });
+        }
+
+        function addTeam() {
+            const val = document.getElementById('newTeamInput').value.trim();
+            if(val && !teamsList.includes(val)) { 
+                teamsList.push(val); 
+                renderTeamsListUI(); 
+                document.getElementById('newTeamInput').value = ''; 
+            }
+        }
+
+        function removeTeamFromList(teamName) { teamsList = teamsList.filter(t => t !== teamName); renderTeamsListUI(); }
+
+        async function saveTeamsToServer() {
+            showLoader("שומר צוותים...");
+            try {
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "SAVE_TEAMS", teams: teamsList }) });
+                const out = await res.json();
+                if(out.status === "success") { 
+                    closeTeamsModal(); 
+                    showToast("צוותים נשמרו בהצלחה", "success"); 
+                    renderDynamicTabs();
+                } else {
+                    showToast("שגיאה", "error");
+                }
+            } catch(e) { console.error(e); showToast("שגיאה", "error"); } 
+            hideLoader();
+        }
+
+        function renderDynamicTabs() {
+            const container = document.getElementById('dynamicTabsContainer');
+            if(!container) return;
+            container.innerHTML = '';
+            
+            teamsList.forEach(c => {
+                const btn = document.createElement('button');
+                btn.id = 'tab-' + c;
+                btn.className = `tab-btn flex-1 min-w-[120px] py-4 px-4 font-bold text-gray-500 whitespace-nowrap`;
+                btn.innerText = c;
+                btn.onclick = () => switchTab(c);
+                container.appendChild(btn);
+            });
+            
+            if(!teamsList.includes(currentTab) && teamsList.length > 0) currentTab = teamsList[0];
+            switchTab(currentTab);
+        }
+
+        function printWorkerQR(workerId, workerName) {
+            if(!workerId) {
+                showToast("יש לשמור את העובד קודם כדי לקבל QR", "warning");
+                return;
+            }
+            const appUrl = window.location.origin + "/worker.html?tenantId=" + _tId + "&workerId=" + workerId;
+            const qrBox = document.getElementById('qrcodeBox');
+            if(qrBox) qrBox.classList.remove('hidden');
+            const qrEl = document.getElementById('qrcodeElement');
+            if(qrEl) qrEl.innerHTML = "";
+            
+            // Generate QR code and print window
+            setTimeout(() => {
+                const win = window.open('', '_blank');
+                win.document.write(`
+                    <html dir="rtl"><head><title>Print QR - ${workerName}</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
+                        .card { border: 4px solid #4f46e5; border-radius: 20px; display: inline-block; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                        h1 { font-size: 36px; margin-bottom: 10px; color: #4f46e5; font-weight: 900; }
+                        p { font-size: 24px; color: #4b5563; font-weight: bold; margin-bottom: 30px; }
+                        .dept-badge { display: inline-block; background: #e0e7ff; color: #4338ca; padding: 10px 20px; border-radius: 12px; font-size: 28px; font-weight: 900; margin-bottom: 30px; border: 2px dashed #818cf8; }
+                        .qr-container { padding: 20px; border: 3px solid #e5e7eb; border-radius: 16px; display: inline-block; background: #fff; }
+                    </style>
+                    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js">
+
+                        new QRCode(document.getElementById("qrhere"), { text: "${appUrl}", width: 220, height: 220, correctLevel: QRCode.CorrectLevel.H });
+                        setTimeout(()=>window.print(), 800);
+                    </`+`script>
+                    </body></html>
+                `);
+            }, 300);
+        }
+
+        function renderWorkersListUI() {
+            const zone = document.getElementById('workersListZone');
+            zone.innerHTML = '';
+            if(workersPool.length === 0) { zone.innerHTML = '<p class="text-center text-gray-400 p-4">אין עובדים ברשימה</p>'; return; }
+            workersPool.forEach((w, idx) => {
+                let teamsOpts = `<option value="">ללא צוות</option>`;
+                teamsData.forEach(t => {
+                    teamsOpts += `<option value="${t.id}" ${w.teamId === t.id ? 'selected' : ''}>${t.name}</option>`;
+                });
+                const wName = typeof w === 'string' ? w : (w.name || '');
+                const wId = typeof w === 'string' ? '' : (w.id || '');
+                zone.innerHTML += `
+                <div class="flex flex-col sm:flex-row justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-200 mb-2 gap-2">
+                    <input type="text" class="w-full sm:w-1/3 border-gray-300 rounded shadow-sm px-2 py-1 font-bold text-gray-700" value="${wName}" onchange="updateWorkerName(${idx}, this.value)">
+                    <select class="w-full sm:w-1/3 border-gray-300 rounded shadow-sm px-2 py-1 text-sm" onchange="updateWorkerTeam(${idx}, this.value)">
+                        ${teamsOpts}
+                    </select>
+                    <div class="flex gap-2 w-full sm:w-auto justify-end">
+                        <button onclick="printWorkerQR('${wId}', '${wName}')" class="text-blue-500 hover:text-blue-700 p-2" title="הדפס QR לאפליקציה"><i class="fas fa-qrcode"></i> QR</button>
+                        <button onclick="removeWorkerFromList(${idx})" class="text-red-500 hover:text-red-700 p-2"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                </div>`;
+            });
+        }
+        function updateWorkerName(idx, val) { 
+            if(typeof workersPool[idx] === 'string') workersPool[idx] = { id: '', name: val.trim(), teamId: null };
+            else workersPool[idx].name = val.trim(); 
+        }
+        function updateWorkerTeam(idx, val) { 
+            if(typeof workersPool[idx] === 'string') workersPool[idx] = { id: '', name: workersPool[idx], teamId: val || null };
+            else workersPool[idx].teamId = val || null; 
+        }
+
+        function addWorkerToList() {
+            const inp = document.getElementById('newWorkerName');
+            const name = inp.value.trim();
+            if(!name) return;
+            if(workersPool.find(w => w.name === name)) { showToast("עובד כבר קיים ברשימה!", "error"); return; }
+            workersPool.push({ id: '', name: name, teamId: null }); inp.value = ''; renderWorkersListUI();
+        }
+
+        function removeWorkerFromList(idx) { workersPool.splice(idx, 1); renderWorkersListUI(); }
+
+        async function saveWorkersToServer() {
+            showLoader("שומר עובדים...");
+            try {
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "SAVE_WORKERS", workers: workersPool }) });
+                const out = await res.json();
+                if(out.status === "success") { updateWorkersSelectUI(); closeWorkersModal(); showToast("רשימת העובדים עודכנה", "success"); }
+            } catch(e) { console.error(e); } hideLoader();
+        }
+
+        function updateTabIndicators() {
+            teamsList.forEach(c => {
+                const hasNewTasks = allTasks.some(t => t.sheet === c && t.status !== 'בעבודה');
+                const tabBtn = document.getElementById('tab-' + c);
+                if (tabBtn) {
+                    tabBtn.classList.add('relative');
+                    let dot = tabBtn.querySelector('.new-tasks-dot');
+                    if (hasNewTasks && !dot) {
+                        tabBtn.insertAdjacentHTML('beforeend', `<span class="new-tasks-dot absolute top-2 right-2 w-3 h-3 bg-orange-500 rounded-full animate-pulse border border-gray-300"></span>`);
+                    } else if (!hasNewTasks && dot) {
+                        dot.remove();
+                    }
+                }
+            });
+        }
+
+        function checkPin() {
+            if(document.getElementById('pinCode').value === "1234") { 
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden'); loadTasks();
+            } else { document.getElementById('pinError').classList.remove('hidden'); }
+        }
+
+        function fixImageUrl(url) {
+            if(!url) return ""; let id = "";
+            if(url.includes('id=')) id = url.split('id=')[1].split('&')[0];
+            else if(url.includes('/d/')) id = url.split('/d/')[1].split('/')[0];
+            return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1000` : url;
+        }
+
+        function escapeStr(str) { return String(str || "").replace(/'/g, "\\'").replace(/"/g, "&quot;"); }
+
+        function toggleBannerDetails() {
+            const details = document.getElementById('bannerDetails'); const chevron = document.getElementById('bannerChevron');
+            if(details.classList.contains('hidden')) { details.classList.remove('hidden'); chevron.style.transform = 'rotate(180deg)'; } 
+            else { details.classList.add('hidden'); chevron.style.transform = 'rotate(0deg)'; }
+        }
+
+        async function loadTasks() {
+            showLoader();
+            try {
+                const res = await fetch(`${API_URL}?action=getOpenTasks&t=${Date.now()}`);
+                                const data = await res.json(); allTasks = data.tasks || [];
+                let missingTeams = false;
+                allTasks.forEach(t => {
+                    if (t.sheet && !teamsList.includes(t.sheet)) {
+                        teamsList.push(t.sheet);
+                        missingTeams = true;
+                    }
+                });
+                if (missingTeams) {
+                    renderDynamicTabs();
+                }
+                if(fpInstance) fpInstance.redraw(); renderTasks(); if(typeof updateTabIndicators === 'function') updateTabIndicators();
+            } catch(e) { console.error("Ошибка загрузки:", e); } hideLoader(); fetchMonthlyStats();
+        }
+
+        function switchTab(t) { 
+            currentTab = t; 
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active', 'bg-white')); 
+            const targetTab = document.getElementById('tab-'+t) || document.getElementById('tab-כללי');
+            if(targetTab) targetTab.classList.add('active', 'bg-white'); renderTasks(); 
+        }
+
+        function resetFilters() { document.getElementById('filterDept').value="ALL"; document.getElementById('filterDate').value=""; if(fpInstance) fpInstance.clear(); renderTasks(); }
+
+        function showUnassignedTasks() {
+            resetFilters();
+            const firstUnassigned = allTasks.find(t => t.status !== "בעבודה");
+            if (firstUnassigned && firstUnassigned.sheet !== currentTab) {
+                switchTab(firstUnassigned.sheet);
+            }
+        }
+
+        function resetPrintStamp(realIdx) {
+            const task = allTasks[realIdx];
+            showCustomConfirm("ביטול סטטוס", "לבטל את סטטוס 'בעבודה' למשימה זו?", async () => {
+                showLoader("מעדכן סטטוס...");
+                try {
+                    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "UNMARK_PRINTED", tasks: [{ id: task.id, sheet: task.sheet, room: task.room, defect: task.defect, comment: task.comment || "", date: task.dateStr }] }) });
+                    await loadTasks(); showToast("הסטטוס שונה ל'פתוח'", "success");
+                } catch(e) { console.error(e); hideLoader(); }
+            }, "fa-undo");
+        }
+
+        
+        function toggleViewMode() {
+            viewMode = viewMode === 'cards' ? 'table' : 'cards';
+            const btn = document.getElementById('viewModeBtn');
+            btn.innerHTML = viewMode === 'cards' ? '<i class="fas fa-list ml-2"></i>תצוגת טבלה' : '<i class="fas fa-th-large ml-2"></i>תצוגת כרטיסיות';
+            renderTasks();
+        }
+
+        function handleSearch() {
+            searchQuery = document.getElementById('searchInput').value.toLowerCase();
+            renderTasks();
+        }
+
+        function handleCheckboxClick(event, realIdx) {
+            const checkboxes = Array.from(document.querySelectorAll('.task-checkbox:not(:disabled)'));
+            const currentCb = document.querySelector(`.task-checkbox[data-index='${realIdx}']`);
+            if (!currentCb) return;
+            
+            if (event.shiftKey && lastCheckedIndex !== null) {
+                const currentIndex = checkboxes.indexOf(currentCb);
+                const lastIndex = checkboxes.findIndex(cb => parseInt(cb.dataset.index) === lastCheckedIndex);
+                if (currentIndex !== -1 && lastIndex !== -1) {
+                    const start = Math.min(currentIndex, lastIndex);
+                    const end = Math.max(currentIndex, lastIndex);
+                    for (let i = start; i <= end; i++) {
+                        checkboxes[i].checked = currentCb.checked;
+                    }
+                }
+            }
+            lastCheckedIndex = realIdx;
+            updateSelectAllBtn();
+        }
+
+        async function revertWorkerTasks() {
+            const workerName = document.getElementById('printWorker').value;
+            if(!workerName) { showToast("יש לבחור עובד תחילה מתוך הרשימה ליד", "warning"); return; }
+            const workerTasks = allTasks.filter(t => t.status === "בעבודה" && t.worker === workerName);
+            if(workerTasks.length === 0) { showToast("אין משימות בעבודה לעובד זה", "warning"); return; }
+            
+            showCustomConfirm("החזרת משימות", `האם להחזיר ${workerTasks.length} משימות של ${workerName} למצב פתוח?`, async () => {
+                showLoader("מחזיר משימות...");
+                try {
+                    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "UNMARK_PRINTED", tasks: workerTasks.map(t => ({sheet: t.sheet, room: t.room, defect: t.defect, comment: t.comment, date: t.dateStr})) }) });
+                    await loadTasks();
+                    showToast("משימות הוחזרו בהצלחה", "success");
+                } catch(e) { showToast("שגיאה", "error"); }
+                hideLoader();
+            }, "fa-undo-alt");
+        }
+
+        function toggleSelectAll() {
+            const checkboxes = document.querySelectorAll('.task-checkbox:not(:disabled)');
+            if (checkboxes.length === 0) return;
+            const anyUnchecked = Array.from(checkboxes).some(cb => !cb.checked);
+            checkboxes.forEach(cb => cb.checked = anyUnchecked);
+            updateSelectAllBtn();
+        }
+
+        function updateSelectAllBtn() {
+            const checkboxes = document.querySelectorAll('.task-checkbox:not(:disabled)');
+            const btn = document.getElementById('selectAllBtn');
+            if(!btn || checkboxes.length === 0) return;
+            const anyUnchecked = Array.from(checkboxes).some(cb => !cb.checked);
+            const span = btn.querySelector('span'); const icon = btn.querySelector('i');
+            if (anyUnchecked) { if(span) span.innerText = "בחר הכל"; if(icon) icon.className = "fas fa-check-square ml-2"; } 
+            else { if(span) span.innerText = "בטל בחירה"; if(icon) icon.className = "fas fa-minus-square ml-2"; }
+        }
+
+        function moveTask(realIdx, tgtSheet) {
+            const task = allTasks[realIdx];
+            if (!tgtSheet) return;
+            showCustomConfirm("העברת משימה", "לשים לב: להעביר משימה זו לצוות אחר?", async () => {
+                showLoader("מעביר...");
+                try {
+                    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "MOVE_TASK", id: task.id, targetSheet: tgtSheet, room: task.room, defect: task.defect, comment: task.comment || "" }) });
+                    const out = await res.json();
+                    if(out.status === "success") { await loadTasks(); showToast("העברה בוצעה בהצלחה", "success"); }
+                } catch(e) { console.error(e); } hideLoader();
+            }, "fa-exchange-alt");
+        }
+
+        function editDefect(realIdx) {
+            const task = allTasks[realIdx];
+            const newVal = prompt("ערוך את תיאור התקלה (מה שכתב המפקח):", task.comment || "");
+            if(newVal !== null && newVal.trim() !== '' && newVal !== task.comment) {
+                showLoader("מעדכן תקלה...");
+                fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: "UPDATE_TASK_COMMENT", id: task.id, comment: newVal.trim() })
+                }).then(res => res.json()).then(out => {
+                    if(out.status === 'success') {
+                        showToast("תקלה עודכנה בהצלחה", "success");
+                        loadTasks();
+                    } else {
+                        showToast("שגיאה בעדכון", "error");
+                        hideLoader();
+                    }
+                }).catch(e => {
+                    console.error(e);
+                    showToast("שגיאה בעדכון", "error");
+                    hideLoader();
+                });
+            }
+        }
+
+        function renderTasks() {
+            const screen = document.getElementById('screenTasksContainer'); const tbody = document.getElementById('managerTableBody');
+            screen.innerHTML = ''; tbody.innerHTML = '';
+            
+            const unassignedCount = allTasks.filter(t => t.status !== "בעבודה").length;
+            const alertBox = document.getElementById('unassignedTasksAlert');
+            if (alertBox) {
+                if (unassignedCount > 0) {
+                    document.getElementById('unassignedCount').innerText = unassignedCount;
+                    alertBox.classList.remove('hidden');
+                } else {
+                    alertBox.classList.add('hidden');
+                }
+            }
+
+            const fDept = document.getElementById('filterDept').value; const fDate = document.getElementById('filterDate').value;
+            let now = new Date();
+
+            
+            let tasksForDeptFilter = allTasks; 
+            if(fDate) {
+                tasksForDeptFilter = tasksForDeptFilter.filter(t => {
+                    if (!t.dateStr || !t.dateStr.includes("/")) return false;
+                    const p = t.dateStr.split(" ")[0].split("/");
+                    if (p.length < 3) return false;
+                    const taskIso = `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+                    return taskIso === fDate;
+                });
+            }
+ 
+            
+            const activeDepts = [...new Set(tasksForDeptFilter.map(t => t.dept))].filter(Boolean);
+            
+            const sel = document.getElementById('filterDept'); const previousValue = sel.value;
+            sel.innerHTML = '<option value="ALL">כל המחלקות</option>';
+            activeDepts.forEach(d => sel.innerHTML += `<option value="${d}">${d}</option>`);
+            if (activeDepts.includes(previousValue)) { sel.value = previousValue; }
+
+            let filtered = allTasks.filter(t => t.sheet === currentTab);
+            if(fDept !== "ALL") filtered = filtered.filter(t => t.dept === fDept);
+                          if(fDate) {
+                  filtered = filtered.filter(t => {
+                      if (!t.dateStr || !t.dateStr.includes("/")) return false;
+                      const p = t.dateStr.split(" ")[0].split("/");
+                      if (p.length < 3) return false;
+                      const taskIso = `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`;
+                      return taskIso === fDate;
+                  });
+              }
+              
+              if(searchQuery) {
+                  filtered = filtered.filter(t => 
+                      (t.room && t.room.toLowerCase().includes(searchQuery)) || 
+                      (t.defect && t.defect.toLowerCase().includes(searchQuery)) || 
+                      (t.comment && t.comment.toLowerCase().includes(searchQuery)) ||
+                      (t.dept && t.dept.toLowerCase().includes(searchQuery)) ||
+                      (t.worker && t.worker.toLowerCase().includes(searchQuery))
+                  );
+              }
+            
+            let unprintedList = []; let overdueList = []; let unprintedTaskCount = 0; let overdueTaskCount = 0;
+
+            allTasks.forEach(t => {
+                  const isPrinted = (t.status === "בעבודה" || t.status === "מודפס");
+                  if (!t.dateStr || !t.dateStr.includes("/")) return;
+                  const p = t.dateStr.split(" ")[0].split("/"); 
+                  if (p.length < 3) return;
+                  const tm = t.dateStr.split(" ")[1] ? t.dateStr.split(" ")[1].split(":") : ["00","00"];
+                  const taskDate = new Date(p[2], p[1]-1, p[0], tm[0], tm[1]);
+                  const diffHours = (now.getTime() - taskDate.getTime()) / (1000 * 60 * 60); const dateOnly = t.dateStr.split(" ")[0];
+
+                if (!isPrinted) { unprintedTaskCount++; let itemStr = `מחלקה: ${t.dept} | צוות: ${t.sheet} | תאריך: ${dateOnly}`; if(!unprintedList.includes(itemStr)) unprintedList.push(itemStr); }
+                if (diffHours >= 48) { overdueTaskCount++; let itemStr = `מחלקה: ${t.dept} | צוות: ${t.sheet} | תאריך: ${dateOnly}`; if(!overdueList.includes(itemStr)) overdueList.push(itemStr); }
+            });
+
+            const banner = document.getElementById('unprintedAlertBanner');
+            const bannerSummary = document.getElementById('bannerSummaryText');
+            const bannerTextZone = document.getElementById('unprintedAlertText');
+
+            if (unprintedTaskCount > 0 || overdueTaskCount > 0) {
+                let summaryHTML = `<i class="fas fa-exclamation-triangle text-amber-500 text-lg"></i> <span>סיכום אזהרות:</span> `;
+                if(unprintedTaskCount > 0) summaryHTML += `<span class="text-amber-700 font-black">${unprintedTaskCount} להדפסה</span>`;
+                if(unprintedTaskCount > 0 && overdueTaskCount > 0) summaryHTML += `<span class="mx-2 text-gray-300">|</span>`;
+                if(overdueTaskCount > 0) summaryHTML += `<span class="text-red-600 font-black">${overdueTaskCount} חריגות (48 שעות)!</span>`;
+                bannerSummary.innerHTML = summaryHTML;
+
+                let bannerHtml = `<div class="flex flex-col gap-4 text-right text-sm">`;
+                if (unprintedList.length > 0) { bannerHtml += `<div><p class="text-amber-900 font-bold mb-2 text-base border-b border-amber-200 pb-1"><i class="fas fa-print ml-2 text-amber-600"></i> ממתין להדפסה (לא יצא לעבודה):</p><ul class="list-disc list-inside text-gray-700 space-y-1 pr-2">${unprintedList.map(item => `<li>${item}</li>`).join('')}</ul></div>`; }
+                if (overdueList.length > 0) { bannerHtml += `<div class="${unprintedList.length > 0 ? 'border-t border-gray-200 pt-3' : ''}"><p class="text-red-800 font-bold mb-2 text-base border-b border-red-200 pb-1"><i class="fas fa-clock ml-2 text-red-600"></i> חריגת 48 שעות (פתוח מעל יומיים):</p><ul class="list-disc list-inside text-gray-700 space-y-1 pr-2">${overdueList.map(item => `<li>${item}</li>`).join('')}</ul></div>`; }
+                bannerHtml += `</div>`; bannerTextZone.innerHTML = bannerHtml; banner.classList.remove('hidden');
+            } else { banner.classList.add('hidden'); }
+
+            if(filtered.length === 0) { screen.innerHTML = '<p class="text-center p-10 text-gray-400 font-bold">אין משימות (Нет заданий)</p>'; updateSelectAllBtn(); return; }
+
+            // Sort QR tasks to the top
+            filtered.sort((a, b) => {
+                const aIsQr = (a.defect.includes("דיווח מהמחלקה") || a.defect.includes("תקלה חדשה") || a.inspector.includes("צוות")) ? 1 : 0;
+                const bIsQr = (b.defect.includes("דיווח מהמחלקה") || b.defect.includes("תקלה חדשה") || b.inspector.includes("צוות")) ? 1 : 0;
+                return bIsQr - aIsQr;
+            });
+
+            
+            let tableHTML = `<div class="overflow-x-auto bg-white rounded-2xl shadow-sm border border-gray-200 mb-6"><table class="w-full text-right text-sm"><thead class="bg-gray-100 text-gray-700 font-bold border-b border-gray-200"><tr><th class="p-3 w-10"></th><th class="p-3">תאריך</th><th class="p-3">מחלקה</th><th class="p-3">חדר</th><th class="p-3">תקלה</th><th class="p-3">הערה</th><th class="p-3">סטטוס</th><th class="p-3">עובד</th><th class="p-3 text-center">פעולה</th></tr></thead><tbody class="divide-y divide-gray-100">`;
+
+            filtered.forEach((task) => {
+
+                const actT = task.actionType == 1 ? "החלפה" : "תיקון"; const img = fixImageUrl(task.photo);
+                const isPrinted = (task.status === "בעבודה");
+                const p = task.dateStr.split(" ")[0].split("/");
+                const tm = task.dateStr.split(" ")[1] ? task.dateStr.split(" ")[1].split(":") : ["00","00"];
+                const taskDate = new Date(p[2], p[1]-1, p[0], tm[0], tm[1]);
+                const diffHours = (now.getTime() - taskDate.getTime()) / (1000 * 60 * 60);
+                
+                let ageClass = '';
+                if(!isPrinted) {
+                    if(diffHours >= 48) ageClass = 'border-red-400 bg-red-50 ring-2 ring-red-200';
+                    else if(diffHours >= 24) ageClass = 'border-orange-400 bg-orange-50 ring-1 ring-orange-200';
+                    else if(diffHours >= 12) ageClass = 'border-yellow-400 bg-yellow-50';
+                } const cleanSheetName = escapeStr(task.sheet).replace(/_/g, ' ');
+                const isQr = (task.defect.includes("דיווח מהמחלקה") || task.defect.includes("תקלה חדשה") || task.inspector.includes("צוות"));
+                let reporterName = '';
+                if (isQr) {
+                    if (task.inspector.startsWith("צוות: ")) {
+                        reporterName = task.inspector.replace("צוות: ", "");
+                    } else if (task.inspector.startsWith("צוות")) {
+                        reporterName = "דיווח עובד";
+                    }
+                }
+                const realIdx = allTasks.indexOf(task);
+
+                
+                if (viewMode === 'table') {
+                    tableHTML += `<tr id="task-card-${realIdx}" class="hover:bg-gray-50 transition-colors ${isPrinted ? 'bg-orange-50/30' : (ageClass ? ageClass.split(' ')[1] : '')}">
+                        <td class="p-3"><input type="checkbox" checked class="task-checkbox w-5 h-5 rounded border-gray-300 text-indigo-600 cursor-pointer" data-index="${realIdx}" onclick="handleCheckboxClick(event, ${realIdx})"></td>
+                        <td class="p-3 text-xs text-gray-500 whitespace-nowrap">${task.dateStr}</td>
+                        <td class="p-3 font-bold">${task.dept}</td>
+                        <td class="p-3 font-bold text-indigo-700">${task.room}</td>
+                        <td class="p-3 font-bold">${task.defect} ${isQr ? '<span class="text-pink-600 ml-1" title="QR"><i class="fas fa-qrcode"></i></span>' : ''}</td>
+                        <td class="p-3 text-gray-500 max-w-[200px] truncate" title="${task.comment || ''}">${task.comment || ''}</td>
+                        <td class="p-3">${isPrinted ? `<span class="text-orange-700 font-bold text-xs bg-orange-100 px-2 py-1 rounded"><i class="fas fa-hammer"></i></span>` : `<span class="text-green-700 font-bold text-xs bg-green-100 px-2 py-1 rounded">פתוח</span>`}</td>
+                        <td class="p-3 font-bold text-xs text-orange-900">${task.worker || ''}</td>
+                        <td class="p-3 text-center">
+                            <button id="btn-${realIdx}" onclick="closeSingleTask(${realIdx})" class="bg-green-50 text-green-600 border border-green-500 px-3 py-1 rounded-lg font-bold text-xs hover:bg-green-100"><i class="fas fa-check"></i></button>
+                        </td>
+                    </tr>`;
+                } else {
+                    screen.innerHTML += `
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border flex flex-col md:flex-row gap-5 mb-4 relative ${isPrinted ? 'border-orange-300 bg-orange-50/50' : (isQr ? 'border-pink-400 bg-pink-50 ring-2 ring-pink-200' : ageClass)}" id="task-card-${realIdx}">
+                    <div class="absolute top-4 left-4 md:static md:flex md:items-center">
+                        <input type="checkbox" checked class="task-checkbox w-7 h-7 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm" data-index="${realIdx}" onclick="handleCheckboxClick(event, ${realIdx})">
+                    </div>
+                    <div class="relative z-10 w-24 h-24 shrink-0">
+                        <img src="${img}" class="w-full h-full object-cover rounded-xl border" onerror="this.src='https://placehold.co/100x100?text=No+Photo'">
+                        ${img && !img.includes('placehold') ? `<div class="absolute -top-2 -right-2 group/img cursor-pointer"><i class="fas fa-search-plus relative z-20 bg-white rounded-full p-1 text-xs shadow border cursor-pointer text-gray-500 hover:text-indigo-600 transition-colors"></i>
+                        <div class="hidden group-hover/img:block absolute bottom-full -right-4 mb-2 z-[100] p-2 bg-white rounded-2xl shadow-2xl border w-[400px] h-[400px] origin-bottom-right">
+                            <img src="${img}" class="w-full h-full object-contain rounded-xl" onerror="this.src='https://placehold.co/100x100?text=No+Photo'">
+                        </div></div>` : ''}
+                    </div>
+                    <div class="flex-grow pr-10 md:pr-0">
+                        <div class="inline-block bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-black mb-2 border border-blue-200 shadow-sm">
+                            <i class="fas fa-users ml-1"></i> צוות משויך: ${cleanSheetName}
+                        </div>
+                        ${isQr ? `<div class="inline-block bg-pink-100 text-pink-700 px-3 py-1 rounded-lg text-xs font-black mb-2 border border-pink-200 shadow-sm mr-2"><i class="fas fa-qrcode ml-1"></i> QR${reporterName && reporterName !== 'לא ידוע' ? ` | ${reporterName}` : ''}</div>` : ''}
+                        <div class="flex items-center gap-3">
+                            <h3 class="text-xl font-bold">${task.dept} | חדר: ${task.room} <span class="text-sm font-normal px-2 bg-gray-100 rounded">${actT}</span></h3>
+                        </div>
+                        <p class="font-bold mt-1">${task.defect}</p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <p class="text-gray-500 text-sm">${task.comment || ""}</p>
+                            <button onclick="editDefect(${realIdx})" class="text-gray-400 hover:text-indigo-600 transition-colors" title="ערוך תיאור"><i class="fas fa-pencil-alt text-sm"></i></button>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1"><i class="fas fa-clock ml-1"></i>${task.dateStr} | ${task.inspector}</p>
+                    </div>
+                      ${isPrinted ? `
+                      <div class="hidden md:flex flex-col justify-center border-r-2 border-orange-200 pr-5 w-40">
+                          <span class="text-xs text-gray-400">נמסר לטיפול:</span>
+                          <span class="font-bold text-gray-800">${task.worker || 'לא צוין עובד'}</span>
+                          <span class="text-[11px] text-gray-500 mt-1"><i class="fas fa-print ml-1"></i><span dir="ltr">${task.printedTime || ''}</span></span>
+                      </div>
+                      ` : ''}
+                    <div class="flex flex-row md:flex-col items-center justify-center gap-2 w-full md:w-48">
+                        ${isPrinted ? `
+                            <div class="flex flex-col items-center justify-center gap-1 bg-orange-100 border border-orange-300 rounded-xl px-2 py-1 text-xs text-orange-900 w-full text-center shadow-inner">
+                                <span class="font-black text-[11px] uppercase text-orange-800"><i class="fas fa-hammer ml-1"></i>בעבודה</span>
+                                ${task.worker ? `<span class="font-bold whitespace-nowrap overflow-hidden text-ellipsis max-w-full" title="${task.worker}">${task.worker}</span>` : ''}
+                                <button onclick="resetPrintStamp(${realIdx})" class="text-orange-600 font-bold hover:text-red-600 underline mt-1"><i class="fas fa-undo"></i> החזר לפתוח</button>
+                            </div>
+                        ` : ''}
+                        <select onchange="moveTask(${realIdx}, this.value)" class="bg-gray-50 border border-gray-300 text-gray-700 py-2 px-3 rounded-xl font-bold text-sm outline-none cursor-pointer w-full">
+                            <option value="" disabled selected>העבר צוות...</option>
+                            ${teamsList.filter(t => t !== task.sheet).map(t => `<option value="${t}">${t}</option>`).join('')}
+                        </select>
+                        <button id="btn-${realIdx}" onclick="closeSingleTask(${realIdx})" class="bg-green-50 text-green-600 border-2 border-green-500 px-6 py-2 rounded-xl font-bold w-full">בוצע</button>
+                    </div>
+                </div>`;
+                }
+
+                tbody.innerHTML += `<tr><td>${task.dateStr}</td><td>${task.inspector || "אנדרי"}</td><td>${task.dept}</td><td>${task.room}</td><td>${task.defect}</td><td>${task.comment || ""}</td><td>${isPrinted ? "בעבודה" : "פתוח"}</td><td>${task.worker || ""}</td></tr>`;
+            });
+            
+            if(viewMode === 'table') {
+                tableHTML += `</tbody></table></div>`;
+                screen.innerHTML = tableHTML;
+            }
+            updateSelectAllBtn();
+        }
+
+        function closeSingleTask(realIdx) {
+            const task = allTasks[realIdx];
+            showCustomConfirm("סגירת משימה", "לסגור את המשימה הזו מהמערכת ומחיקת תמונה?", async () => {
+                const b = document.getElementById(`btn-${realIdx}`); b.innerHTML = "..."; b.disabled = true;
+                try {
+                    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "CLOSE_TASK", id: task.id, sheetName: task.sheet, date: task.dateStr, room: task.room, defect: task.defect, comment: task.comment || "" }) });
+                    const out = await res.json();
+                    if(out.status === "success") {
+                        document.getElementById(`task-card-${realIdx}`).style.opacity="0.3"; b.innerHTML = "סגור ✅";
+                        allTasks = allTasks.filter(t => t !== task); if(fpInstance) fpInstance.redraw(); setTimeout(renderTasks, 400); showToast("המשימה נסגרה", "success");
+                    }
+                } catch(e) { b.disabled = false; b.innerHTML = "בוצע"; }
+            }, "fa-check-circle");
+        }
+
+        function closeSelectedTasks() {
+            const checkboxes = document.querySelectorAll('.task-checkbox:checked:not(:disabled)');
+            if(checkboxes.length === 0) { showToast("בחר לפחות משימה אחת!", "warning"); return; }
+            showCustomConfirm("סגירת משימות", `לסגור את כל ${checkboxes.length} המשימות שנבחרו?`, async () => {
+                showLoader("סוגר משימות...");
+                const tasksToClose = []; checkboxes.forEach(cb => { const idx = parseInt(cb.dataset.index); if (allTasks[idx]) tasksToClose.push(allTasks[idx]); });
+                for(let task of tasksToClose) {
+                    try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "CLOSE_TASK", id: task.id, sheetName: task.sheet, date: task.dateStr, room: task.room, defect: task.defect, comment: task.comment || "" }) }); allTasks = allTasks.filter(t => t !== task); } catch(e) {}
+                }
+                if(fpInstance) fpInstance.redraw(); hideLoader(); renderTasks(); showToast("המשימות נסגרו", "success");
+            }, "fa-check-double");
+        }
+
+        function revertSelectedTasks() {
+            const checkboxes = document.querySelectorAll('.task-checkbox:checked:not(:disabled)');
+            if(checkboxes.length === 0) { showToast("בחר לפחות משימה אחת!", "warning"); return; }
+            
+            const tasksToRevert = []; 
+            checkboxes.forEach(cb => { 
+                const idx = parseInt(cb.dataset.index); 
+                if (allTasks[idx] && allTasks[idx].status === "בעבודה") {
+                    tasksToRevert.push({ id: allTasks[idx].id, sheet: allTasks[idx].sheet, room: allTasks[idx].room, defect: allTasks[idx].defect, comment: allTasks[idx].comment || "", date: allTasks[idx].dateStr }); 
+                }
+            });
+
+            if(tasksToRevert.length === 0) { showToast("אין משימות במצב 'בעבודה' בין הנבחרים", "warning"); return; }
+
+            showCustomConfirm("החזרה לפתוח", `להחזיר ${tasksToRevert.length} משימות נבחרות לסטטוס 'פתוח'?`, async () => {
+                showLoader("מעדכן משימות...");
+                try {
+                    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "UNMARK_PRINTED", tasks: tasksToRevert }) });
+                    await loadTasks(); showToast("המשימות הוחזרו לפתוח", "success");
+                } catch(e) { console.error(e); hideLoader(); }
+            }, "fa-undo");
+        }
+
+        function printManagerReport() { 
+            const printTitle = document.getElementById('printTitleManager'); const printTable = document.getElementById('managerTable'); const selDate = document.getElementById('filterDate').value || 'כל התאריכים';
+            printTitle.innerText = `דוח מנהל - ${currentTab} (${selDate})`; printTitle.classList.add('print-active'); printTable.classList.add('print-active');
+            setTimeout(() => { window.print(); printTitle.classList.remove('print-active'); printTable.classList.remove('print-active'); }, 300); 
+        }
+
+function processOutput(mode) {
+            const checkboxes = document.querySelectorAll('.task-checkbox:checked:not(:disabled)');
+            if(checkboxes.length === 0) { showToast("אנא בחר כרטיסיות!", "warning"); return; }
+
+            const targetLang = document.getElementById('printLang').value; 
+            const chosenWorker = document.getElementById('printWorker').value; 
+
+            if(!chosenWorker) {
+                showCustomConfirm("המשך ללא עובד", "לא נבחר עובד לביצוע. האם להמשיך להפקה?", () => { executeOutputSequence(checkboxes, targetLang, chosenWorker, mode); }, mode === 'pdf' ? "fa-file-pdf" : "fa-print", "המשך", "ביטול");
+            } else { executeOutputSequence(checkboxes, targetLang, chosenWorker, mode); }
+        }
+
+        // QR Code functions
+        function openQrModal() { document.body.style.overflow = 'hidden';
+            document.getElementById('qrModal').classList.remove('hidden');
+            const sel = document.getElementById('qrDeptSelect');
+            sel.innerHTML = '<option value="כללי (General)">כללי (General)</option>';
+            const activeDepts = [...new Set(allTasks.map(t => t.dept))].filter(Boolean);
+            activeDepts.forEach(d => sel.innerHTML += `<option value="${d}">${d}</option>`);
+            document.getElementById('qrcodeBox').classList.add('hidden');
+        }
+        
+        function closeQrModal() { document.body.style.overflow = ''; document.getElementById('qrModal').classList.add('hidden'); }
+
+        function openInspectorQrModal() {
+            document.getElementById('inspectorQrModal').classList.remove('hidden');
+            generateInspectorQR();
+        }
+
+        function closeInspectorQrModal() { document.getElementById('inspectorQrModal').classList.add('hidden'); }
+
+        function generateInspectorQR() {
+            const finalUrl = window.location.origin + "/inspector.html?tenantId=" + _tId;
+            document.getElementById('inspectorDirectLink').href = finalUrl;
+            const qrEl = document.getElementById('inspectorQrcodeElement');
+            qrEl.innerHTML = "";
+            new QRCode(qrEl, {
+                text: finalUrl,
+                width: 220,
+                height: 220,
+                colorDark : "#1f2937",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+        
+        let qrCodeObj = null;
+        function generateQR() {
+            let dept = document.getElementById('qrCustomDept').value.trim();
+            if(!dept) dept = document.getElementById('qrDeptSelect').value;
+            
+            const finalUrl = window.location.origin + "/report.html?tenantId=" + _tId + "&dept=" + encodeURIComponent(dept);
+            
+            const qrBox = document.getElementById('qrcodeBox');
+            qrBox.classList.remove('hidden');
+            const qrEl = document.getElementById('qrcodeElement');
+            qrEl.innerHTML = "";
+            qrCodeObj = new QRCode(qrEl, {
+                text: finalUrl,
+                width: 220,
+                height: 220,
+                colorDark : "#1f2937",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+        
+        function printQR() {
+            let dept = document.getElementById('qrCustomDept').value.trim();
+            if(!dept) dept = document.getElementById('qrDeptSelect').value;
+            const imgHtml = document.getElementById('qrcodeElement').innerHTML;
+            const win = window.open('', '_blank');
+            win.document.write(`
+                <html dir="rtl"><head><title>Print QR - ${dept}</title>
+                <style>
+                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
+                    .card { border: 4px solid #4f46e5; border-radius: 20px; display: inline-block; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                    h1 { font-size: 36px; margin-bottom: 10px; color: #4f46e5; font-weight: 900; }
+                    p { font-size: 24px; color: #4b5563; font-weight: bold; margin-bottom: 30px; }
+                    .dept-badge { display: inline-block; background: #e0e7ff; color: #4338ca; padding: 10px 20px; border-radius: 12px; font-size: 28px; font-weight: 900; margin-bottom: 30px; border: 2px dashed #818cf8; }
+                    .qr-container { padding: 20px; border: 3px solid #e5e7eb; border-radius: 16px; display: inline-block; background: #fff; }
+                </style>
+                </head><body>
+                <div class="card">
+                    <h1>דיווח על תקלה - סרוק אותי!</h1>
+                    <p>נתקלת בתקלה? סרוק את הברקוד ודווח בקלות.</p>
+                    <div class="dept-badge">מחלקה: ${dept}</div><br>
+                    <div class="qr-container">${imgHtml}</div>
+                </div>
+                <script>setTimeout(()=>window.print(), 800);</`+`script>
+                
+
+
+</body></html>
+            `);
+        }
+
+
+        async function executeOutputSequence(checkboxes, targetLang, chosenWorker, mode) {
+            let tasksToPrint = []; let tasksToUpdateOnServer = []; let translationPayload = [];
+
+            checkboxes.forEach(cb => {
+                const realIdx = parseInt(cb.dataset.index); const task = allTasks[realIdx];
+                if (task) {
+                    if (task.status !== "בעבודה" || chosenWorker) { tasksToUpdateOnServer.push({ id: task.id, sheet: task.sheet, room: task.room, defect: task.defect, comment: task.comment || "", date: task.dateStr }); }
+                    const actT = task.actionType == 1 ? "החלפה" : "תיקון"; const img = fixImageUrl(task.photo); const dDate = task.dateStr.split(" ")[0];
+                    const isQr = (task.defect.includes("דיווח מהמחלקה") || task.defect.includes("תקלה חדשה") || task.inspector.includes("צוות"));
+                    let reporterName = '';
+                    if (isQr) {
+                        if (task.inspector.startsWith("צוות: ")) {
+                            reporterName = task.inspector.replace("צוות: ", "");
+                        } else if (task.inspector.startsWith("צוות")) {
+                            reporterName = "דיווח עובד";
+                        }
+                    }
+                    let printTask = {...task, actT, img, dDate, id: realIdx, isQr, reporterName};
+                    if (targetLang !== 'he') { translationPayload.push({ id: realIdx, defect: task.defect, comment: task.comment, actT: actT }); }
+                    tasksToPrint.push(printTask);
+                }
+            });
+
+            let printLabels = { room: "חדר: ", name: "שם: ", date: "תאריך: ", sign: "חתימה: " }; let textDirection = "rtl";
+
+            if (targetLang !== 'he' && translationPayload.length > 0) {
+                showLoader(targetLang === 'ru' ? "מתרגם לרוסית..." : "מתרגם לערבית...");
+                try {
+                    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "TRANSLATE_TASKS", targetLang: targetLang, tasks: translationPayload }) });
+                    const transData = await res.json();
+                    if (transData.status === "success" && transData.translations) {
+                        transData.translations.forEach(transItem => { let matchTask = tasksToPrint.find(t => t.id === transItem.id); if (matchTask) { matchTask.defect = transItem.defect; matchTask.comment = transItem.comment; matchTask.actT = transItem.actT; } });
+                        printLabels = transData.translations[0].labels || printLabels; 
+                        textDirection = (targetLang === 'ru' || targetLang === 'en') ? "ltr" : "rtl"; 
+                    }
+                } catch (e) { console.error(e); } hideLoader();
+            }
+
+            if (tasksToUpdateOnServer.length > 0) { showLoader("מעדכן שרת..."); try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "MARK_PRINTED", tasks: tasksToUpdateOnServer, worker: chosenWorker }) }); } catch(e) {} hideLoader(); }
+
+            const printNow = new Date(); const printNowStr = printNow.toLocaleDateString('en-GB') + ' ' + printNow.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
+            let groups = {}; tasksToPrint.forEach(task => { let key = `${task.dept}|${task.dDate}`; if(!groups[key]) groups[key] = []; groups[key].push(task); });
+
+            const printContainer = document.getElementById('printTasksContainer'); printContainer.innerHTML = '';
+
+            for(let key in groups) {
+                let g = groups[key];
+                for(let i=0; i<g.length; i+=4) {
+                    let chunk = g.slice(i, i+4);
+                    let page = `<div class="print-page"><div class="print-page-header"><div>צוות: ${currentTab.replace(/_/g, ' ')} | ${translateHtmlStr('מחלקה')}: ${translateHtmlStr(g[0].dept)} | ${translateHtmlStr('תאריך')}: ${g[0].dDate}</div><div class="print-page-header-sub">הופק ב${translateHtmlStr('תאריך')}: ${printNowStr}</div></div><div class="print-cards-grid">`;
+                    chunk.forEach(t => {
+                        let nameVal = chosenWorker ? `<strong>${chosenWorker}</strong>` : "_________";
+                        let qrBadge = t.isQr ? `<span style="background:#fbcfe8;color:#be185d;padding:2px 8px;border-radius:6px;font-size:14px;margin-left:10px;display:inline-block;vertical-align:middle;">QR${t.reporterName && t.reporterName !== 'לא ידוע' ? ` | ${t.reporterName}` : ''}</span>` : '';
+                        page += `<div class="print-card" dir="${textDirection}"><div class="print-card-top"><span class="font-black text-xl">${printLabels.room} ${translateHtmlStr(t.room)}</span><div style="display:inline-block;vertical-align:middle;">${qrBadge}<span class="px-2 border rounded">${t.actT}</span></div></div><div class="print-card-body"><img src="${t.img}" class="print-photo" onerror="this.style.display='none'"><div class="print-info"><p class="defect-title">${translateHtmlStr(t.defect)}</p><p class="defect-comment">${translateHtmlStr(t.comment || "")}</p></div></div><div class="signature-box" dir="${textDirection}"><span>${printLabels.name} ${nameVal}</span><span>${printLabels.date} _________</span><span>${printLabels.sign} _________</span></div></div>`;
+                    });
+                    printContainer.innerHTML += page + `</div></div>`;
+                }
+            }
+
+            if (mode === 'print') {
+                printContainer.removeAttribute('style');
+                printContainer.removeAttribute('dir');
+                setTimeout(() => { window.print(); printContainer.innerHTML = ''; document.getElementById('printWorker').value = ""; document.getElementById('printLang').value = "he"; loadTasks(); }, 300); 
+            } else if (mode === 'pdf') {
+                showLoader("מייצר קובץ PDF... מכין תמונות (זה יכול לקחת כמה שניות)");
+                document.getElementById('loader').classList.replace('bg-white/90', 'bg-white');
+                
+                const noPrintUI = document.getElementById('noPrintUI');
+                noPrintUI.style.display = 'none';
+                printContainer.style.display = 'block';
+                printContainer.style.width = '210mm';
+                printContainer.style.margin = '0';
+                printContainer.style.position = 'relative';
+                printContainer.style.left = '0';
+                printContainer.style.top = '0';
+                printContainer.dir = 'ltr';
+                printContainer.style.backgroundColor = 'white';
+                document.documentElement.dir = 'ltr';
+                document.body.dir = 'ltr';
+                
+                window.scrollTo(0, 0);
+                
+                const today = new Date();
+                const dateStrFile = ("0" + today.getDate()).slice(-2) + "-" + ("0" + (today.getMonth() + 1)).slice(-2) + "-" + today.getFullYear();
+                
+                const opt = {
+                  margin: 0, filename: `HCL_Tasks_${currentTab}_${dateStrFile}.pdf`, image: { type: 'jpeg', quality: 0.98 },
+                  html2canvas: { scale: 2, useCORS: true, logging: false }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+                
+                const imgs = Array.from(printContainer.querySelectorAll('img.print-photo'));
+                Promise.all(imgs.map(img => {
+                    if (!img.src.includes('drive.google.com')) return Promise.resolve();
+                    const p1 = 'https://wsrv.nl/?url=' + encodeURIComponent(img.src);
+                    const p2 = 'https://corsproxy.io/?' + encodeURIComponent(img.src);
+                    return fetch(p1)
+                        .then(r => { if(!r.ok) throw new Error(); return r.blob(); })
+                        .catch(() => fetch(p2).then(r => { if(!r.ok) throw new Error(); return r.blob(); }))
+                        .then(blob => new Promise(resolve => {
+                            let reader = new FileReader();
+                            reader.onloadend = () => { img.src = reader.result; resolve(); };
+                            reader.readAsDataURL(blob);
+                        }))
+                        .catch(e => { console.error("Proxy failed", e); return Promise.resolve(); });
+                })).then(() => {
+                    setTimeout(() => {
+                        html2pdf().set(opt).from(printContainer).save().then(() => {
+                            noPrintUI.style.display = 'block';
+                            printContainer.removeAttribute('style');
+                            printContainer.removeAttribute('dir');
+                            printContainer.innerHTML = '';
+                            applyLanguage();
+                            document.getElementById('loader').classList.replace('bg-white', 'bg-white/90');
+                            document.getElementById('printWorker').value = ""; 
+                            document.getElementById('printLang').value = "he"; 
+                            hideLoader(); loadTasks(); 
+                            showToast("קובץ PDF הורד בהצלחה", "success");
+                        }).catch(err => { 
+                            console.error(err); 
+                            noPrintUI.style.display = 'block';
+                            printContainer.removeAttribute('style');
+                            printContainer.removeAttribute('dir');
+                            applyLanguage();
+                            document.getElementById('loader').classList.replace('bg-white', 'bg-white/90');
+                            hideLoader(); showToast("שגיאה ביצירת PDF", "error"); 
+                        });
+                    }, 500);
+                });
+            }
+        }
+        function sendToWorkerApp() {
+            const checkboxes = Array.from(document.querySelectorAll('.task-checkbox:checked'));
+            if (checkboxes.length === 0) {
+                showToast("יש לבחור לפחות משימה אחת", "warning"); 
+                return;
+            }
+            const chosenWorker = document.getElementById('printWorker').value;
+            if (!chosenWorker) {
+                showCustomConfirm("בחר עובד תחילה", "לא נבחר עובד. האם להמשיך בשליחה לכלל הצוות?", () => { 
+                    showToast("המשימות נשלחו ל-WorkerApp!", "success");
+                }, "fa-mobile-alt", "המשך", "ביטול");
+                return;
+            }
+            showToast("המשימות נשלחו ל-" + chosenWorker + " באפליקציה WorkerApp", "success");
+        }
+
+        
+        
+        let bannerConfig = { left: 'workers', right: 'teams' };
+        try {
+            const stored = localStorage.getItem('hcl_banners_config');
+            if (stored) {
+                bannerConfig = JSON.parse(stored) || bannerConfig;
+            }
+        } catch (e) {
+            console.error('Failed to parse banner config', e);
+        }
+
+        function openBannersSettingsModal() {
+            document.getElementById('rightBannerSelect').value = bannerConfig.right || 'none';
+            document.getElementById('leftBannerSelect').value = bannerConfig.left || 'none';
+            document.getElementById('bannersSettingsModal').classList.remove('hidden');
+            document.getElementById('bannersSettingsModal').classList.add('flex');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeBannersSettingsModal() {
+            document.getElementById('bannersSettingsModal').classList.add('hidden');
+            document.getElementById('bannersSettingsModal').classList.remove('flex');
+            document.body.style.overflow = '';
+            openSettingsMainModal();
+        }
+
+        function saveBannerConfig() {
+            bannerConfig.left = document.getElementById('leftBannerSelect').value;
+            bannerConfig.right = document.getElementById('rightBannerSelect').value;
+            localStorage.setItem('hcl_banners_config', JSON.stringify(bannerConfig));
+            closeBannersSettingsModal();
+            updateBannersDisplay();
+        }
+
+        let cachedStats = null;
+        let cachedWeather = null;
+
+        async function fetchStatsIfNeeded() {
+            if(!cachedStats) {
+                try {
+                    const res = await fetch('/api/' + _tId + '?action=getMonthlyStats');
+                    cachedStats = await res.json();
+                } catch(e) { console.error('Failed to fetch stats', e); }
+            }
+            return cachedStats;
+        }
+
+        async function fetchWeatherIfNeeded() {
+            if(!cachedWeather) {
+                try {
+                    const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=32.0809&longitude=34.7806&current_weather=true');
+                    const data = await res.json();
+                    cachedWeather = data.current_weather;
+                } catch(e) { console.error('Failed to fetch weather', e); }
+            }
+            return cachedWeather;
+        }
+
+        function getWeatherIcon(code) {
+            if(code === 0) return 'fa-sun text-yellow-500';
+            if(code >= 1 && code <= 3) return 'fa-cloud-sun text-gray-400';
+            if(code >= 51 && code <= 67) return 'fa-cloud-rain text-blue-500';
+            if(code >= 71 && code <= 77) return 'fa-snowflake text-blue-300';
+            if(code >= 95) return 'fa-bolt text-purple-500';
+            return 'fa-cloud text-gray-500';
+        }
+
+        function getWeatherDescriptionHebrew(code) {
+            if(code === 0) return 'בהיר';
+            if(code === 1) return 'מעונן חלקית';
+            if(code === 2) return 'מעונן חלקית';
+            if(code === 3) return 'מעונן';
+            if(code >= 51 && code <= 67) return 'גשום';
+            if(code >= 71 && code <= 77) return 'שלג';
+            if(code >= 95) return 'סופת רעמים';
+            return 'מעונן';
+        }
+
+        async function renderBannerContent(containerId, type, side) {
+            const container = document.getElementById(containerId);
+            if(!container) return;
+            const parent = container.parentElement;
+            const titleEl = parent.querySelector('h3');
+            const printBtn = parent.querySelector('button');
+
+            if(type === 'workers') {
+                titleEl.innerText = 'עובדים (החודש)';
+                printBtn.style.display = 'block';
+                printBtn.onclick = () => printStats('workers', containerId);
+                const stats = await fetchStatsIfNeeded();
+                if(stats && stats.workersStats) renderStatsList(container, stats.workersStats);
+            } else if(type === 'teams') {
+                titleEl.innerText = 'צוותים (החודש)';
+                printBtn.style.display = 'block';
+                printBtn.onclick = () => printStats('teams', containerId);
+                const stats = await fetchStatsIfNeeded();
+                if(stats && stats.teamsStats) renderStatsList(container, stats.teamsStats);
+            } else if(type === 'weather') {
+                titleEl.innerText = 'מזג אוויר';
+                printBtn.style.display = 'none';
+                const w = await fetchWeatherIfNeeded();
+                if(w) {
+                    container.innerHTML = `
+                        <div class="flex flex-col items-center justify-center p-4">
+                            <i class="fas ${getWeatherIcon(w.weathercode)} text-5xl mb-4"></i>
+                            <div class="text-3xl font-black text-gray-800">${Math.round(w.temperature)}°C</div>
+                            <div class="text-gray-500 mt-2 text-lg font-bold">${getWeatherDescriptionHebrew(w.weathercode)}</div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = '<div class="text-sm text-gray-500 text-center py-2">שגיאה בטעינת מזג אוויר</div>';
+                }
+            }
+        }
+
+        function renderStatsList(container, stats) {
+            container.innerHTML = '';
+            if (stats.length === 0) {
+                container.innerHTML = '<div class="text-sm text-gray-500 text-center py-2">אין נתונים לחודש זה</div>';
+                return;
+            }
+            stats.forEach(item => {
+                container.innerHTML += `
+                    <div class="flex justify-between items-center bg-gray-50/80 p-2 rounded-lg border border-gray-100">
+                        <span class="font-bold text-gray-700 truncate max-w-[140px]" title="${item.name}">${item.name}</span>
+                        <span class="bg-blue-100 text-blue-800 text-xs font-black px-2.5 py-1 rounded-full">${item.count}</span>
+                    </div>
+                `;
+            });
+        }
+
+        async function updateBannersDisplay() {
+            const leftBanner = document.getElementById('leftBanner');
+            const rightBanner = document.getElementById('rightBanner');
+            leftBanner.classList.add('hidden'); leftBanner.classList.remove('xl:flex');
+            rightBanner.classList.add('hidden'); rightBanner.classList.remove('xl:flex');
+
+            if(bannerConfig.left !== 'none') {
+                leftBanner.classList.remove('hidden'); leftBanner.classList.add('xl:flex');
+                await renderBannerContent('leftBannerContent', bannerConfig.left, 'left');
+            }
+            if(bannerConfig.right !== 'none') {
+                rightBanner.classList.remove('hidden'); rightBanner.classList.add('xl:flex');
+                await renderBannerContent('rightBannerContent', bannerConfig.right, 'right');
+            }
+        }
+
+        async function fetchMonthlyStats() {
+            updateBannersDisplay();
+        }
+
+
+        function printStats(type, containerId) {
+            const isTeams = type === 'teams';
+            const title = isTeams ? 'סטטיסטיקה חודשית - צוותים' : 'סטטיסטיקה חודשית - עובדים';
+            const container = document.getElementById(containerId);
+            if(!container) return;
+            const listHtml = container.innerHTML;
+            const win = window.open('', '_blank');
+            win.document.write(`
+                <html dir="rtl">
+                <head>
+                    <title>${title}</title>
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin: 40px; color: #111827; }
+                        h1 { color: #4f46e5; margin-bottom: 30px; font-size: 28px; }
+                        table { width: 100%; max-width: 500px; margin: 0 auto; border-collapse: collapse; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+                        th, td { padding: 12px 15px; border: 1px solid #e5e7eb; text-align: right; }
+                        th { background-color: #f3f4f6; font-weight: bold; }
+                        tr:nth-child(even) { background-color: #f9fafb; }
+                        .count-badge { display: inline-block; background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 9999px; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <h1>${title}</h1>
+                    <div style="display:none;" id="rawList">${listHtml.replace(/\x60/g, '\\x60')}</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>שם</th>
+                                <th>משימות שהושלמו</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                        </tbody>
+                    </table>
+                    <script>
+                        const raw = document.getElementById('rawList');
+                        const spans = raw.querySelectorAll('span.font-bold');
+                        const counts = raw.querySelectorAll('span.bg-blue-100');
+                        let tbodyHtml = '';
+                        for(let i=0; i<spans.length; i++) {
+                            tbodyHtml += '<tr><td>' + spans[i].innerText + '</td><td><span class="count-badge">' + counts[i].innerText + '</span></td></tr>';
+                        }
+                        if(spans.length === 0) {
+                            tbodyHtml = '<tr><td colspan="2" style="text-align:center;">אין נתונים לחודש זה</td></tr>';
+                        }
+                        document.getElementById('tableBody').innerHTML = tbodyHtml;
+                        setTimeout(() => window.print(), 800);
+                    <\/script>
+                </body>
+                </html>
+            `);
+            win.document.close();
+        }
+
+
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => console.error('SW error', err));
+            });
+        }
+    

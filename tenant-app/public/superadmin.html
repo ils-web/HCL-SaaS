@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HCL Superadmin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; }
+        .glass-header { backdrop-filter: blur(8px); background: rgba(255, 255, 255, 0.9); }
+        .tab-btn.active { color: #4f46e5; border-bottom: 3px solid #4f46e5; font-weight: bold; }
+    </style>
+</head>
+<body class="text-gray-800">
+    
+    <!-- Login Screen -->
+    <div id="loginScreen" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center">
+            <i class="fas fa-user-shield text-indigo-600 text-5xl mb-4"></i>
+            <h2 class="text-2xl font-black mb-6">כניסת מנהל ראשי</h2>
+            <input type="password" id="adminPwd" placeholder="סיסמה" class="w-full p-4 mb-4 bg-gray-50 border rounded-xl text-center text-xl font-bold tracking-widest outline-none focus:ring-2 focus:ring-indigo-500" onkeyup="if(event.key === 'Enter') login()">
+            <button onclick="login()" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 transition">כניסה</button>
+            <p id="loginError" class="text-red-500 font-bold mt-2 hidden">סיסמה שגויה!</p>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="mainApp" class="hidden min-h-screen flex flex-col">
+        <header class="glass-header sticky top-0 z-40 border-b border-gray-200 shadow-sm">
+            <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+                <div class="text-2xl font-black text-indigo-900 flex items-center gap-2">
+                    <i class="fas fa-crown text-indigo-600"></i> HCL Superadmin
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="logout()" class="text-gray-500 hover:text-red-600 font-bold"><i class="fas fa-sign-out-alt ml-1"></i>התנתק</button>
+                </div>
+            </div>
+            <div class="container mx-auto px-6 flex gap-6 mt-2">
+                <button onclick="switchTab('tenants')" id="tab-tenants" class="tab-btn active pb-2 px-2 text-gray-500 hover:text-indigo-600">לקוחות (Tenants)</button>
+                <button onclick="switchTab('leads')" id="tab-leads" class="tab-btn pb-2 px-2 text-gray-500 hover:text-indigo-600 flex items-center gap-2">
+                    לידים 
+                    <span id="newLeadsBadge" class="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full hidden">0</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="container mx-auto px-6 py-8 flex-grow">
+            <!-- Stats -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
+                    <div class="text-gray-500 text-sm font-bold mb-1">לקוחות פעילים</div>
+                    <div class="text-3xl font-black text-indigo-600" id="statActiveTenants">-</div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
+                    <div class="text-gray-500 text-sm font-bold mb-1">סה"כ לקוחות</div>
+                    <div class="text-3xl font-black text-blue-600" id="statTotalTenants">-</div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
+                    <div class="text-gray-500 text-sm font-bold mb-1">לידים חדשים</div>
+                    <div class="text-3xl font-black text-pink-600" id="statNewLeads">-</div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
+                    <div class="text-gray-500 text-sm font-bold mb-1">סה"כ משימות במערכת</div>
+                    <div class="text-3xl font-black text-green-600" id="statTotalTasks">-</div>
+                </div>
+            </div>
+
+            <!-- Tenants View -->
+            <div id="view-tenants">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold">ניהול לקוחות</h2>
+                    <button onclick="openTenantModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-indigo-500 shadow-sm"><i class="fas fa-plus ml-2"></i>לקוח חדש</button>
+                </div>
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                    <table class="w-full text-right text-sm">
+                        <thead class="bg-gray-50 border-b">
+                            <tr>
+                                <th class="p-4 font-bold text-gray-600">שם לקוח</th>
+                                <th class="p-4 font-bold text-gray-600">ID</th>
+                                <th class="p-4 font-bold text-gray-600">סטטוס</th>
+                                <th class="p-4 font-bold text-gray-600">מפקחים</th>
+                                <th class="p-4 font-bold text-gray-600">משימות</th>
+                                <th class="p-4 font-bold text-gray-600">נוצר ב</th>
+                                <th class="p-4 font-bold text-gray-600 text-center">פעולות</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tenantsTableBody" class="divide-y divide-gray-100">
+                            <tr><td colspan="7" class="p-8 text-center text-gray-500">טוען...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Leads View -->
+            <div id="view-leads" class="hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold">פניות מהאתר</h2>
+                </div>
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6" id="leadsGrid">
+                    <!-- Leads injected here -->
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Tenant Modal -->
+    <div id="tenantModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 id="tenantModalTitle" class="text-xl font-black text-gray-800">לקוח חדש</h3>
+                <button onclick="closeTenantModal()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="flex-grow overflow-y-auto space-y-4 pr-2">
+                <input type="hidden" id="tId">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">שם הלקוח / מוסד</label>
+                    <input type="text" id="tName" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">אימייל איש קשר</label>
+                        <input type="email" id="tEmail" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">טלפון איש קשר</label>
+                        <input type="text" id="tPhone" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">מספר מפקחים (מנהלים)</label>
+                        <input type="number" id="tInspectors" value="1" min="1" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">סטטוס</label>
+                        <select id="tStatus" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="ACTIVE">פעיל (ACTIVE)</option>
+                            <option value="UNPAID">לא שולם (UNPAID)</option>
+                            <option value="BLOCKED">חסום (BLOCKED)</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="tAdminPasswordZone" class="hidden border-t pt-4 mt-2">
+                    <label class="block text-sm font-bold text-gray-700 mb-1">איפוס סיסמת מנהל (השאר ריק כדי לא לשנות)</label>
+                    <input type="password" id="tAdminPwd" placeholder="סיסמה חדשה..." class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+
+            <div class="mt-6 border-t pt-4">
+                <button onclick="saveTenant()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-500 shadow-md">שמור לקוח</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoice Modal -->
+    <div id="invoiceModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl flex flex-col">
+            <div class="flex justify-between items-center border-b pb-3 mb-4">
+                <h3 class="text-xl font-black text-gray-800"><i class="fas fa-file-invoice-dollar text-green-600 ml-2"></i>הפקת מסמך (Invoice / Offer)</h3>
+                <button onclick="closeInvoiceModal()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="space-y-4 mb-4" id="invoiceControls">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">סוג מסמך</label>
+                    <select id="invType" class="w-full p-2 border rounded-lg" onchange="previewInvoice()">
+                        <option value="INVOICE">חשבונית מס / קבלה</option>
+                        <option value="OFFER">הצעת מחיר (Offer)</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">סכום כולל (₪)</label>
+                        <input type="number" id="invAmount" value="500" class="w-full p-2 border rounded-lg" oninput="previewInvoice()">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">תוספת מפקחים</label>
+                        <input type="number" id="invInspectors" value="0" min="0" class="w-full p-2 border rounded-lg" oninput="previewInvoice()">
+                    </div>
+                </div>
+                <div class="text-sm text-gray-500 italic mt-1">
+                    * מסמך יופק אוטומטית עבור הלקוח: <span id="invTenantName" class="font-bold"></span>
+                </div>
+            </div>
+
+            <!-- PDF Preview Container -->
+            <div id="invoicePreview" class="border-2 border-dashed border-gray-300 p-8 rounded-xl bg-white mb-4 relative" dir="rtl">
+                <!-- Template will be injected here for preview -->
+            </div>
+
+            <div class="flex gap-4">
+                <button onclick="downloadInvoicePDF()" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold hover:bg-green-500 shadow"><i class="fas fa-download ml-2"></i>הורד PDF</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        let token = "";
+        let tenants = [];
+        let leads = [];
+        let currentInvTenant = null;
+
+        async function login() {
+            const pwd = document.getElementById('adminPwd').value;
+            try {
+                const res = await fetch(`/api/superadmin?action=AUTH&pwd=${pwd}`);
+                const data = await res.json();
+                if (data.success) {
+                    token = data.token;
+                    document.getElementById('loginScreen').classList.add('hidden');
+                    document.getElementById('mainApp').classList.remove('hidden');
+                    loadDashboard();
+                } else {
+                    document.getElementById('loginError').classList.remove('hidden');
+                }
+            } catch(e) { alert('Error logging in'); }
+        }
+
+        function logout() {
+            token = "";
+            document.getElementById('adminPwd').value = "";
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+        }
+
+        async function apiCall(action, method='GET', body=null) {
+            const url = method === 'GET' ? `/api/superadmin?action=${action}` : `/api/superadmin`;
+            const options = {
+                method,
+                headers: { 'Authorization': `Bearer ${token}` }
+            };
+            if (body) {
+                options.headers['Content-Type'] = 'application/json';
+                body.action = action;
+                options.body = JSON.stringify(body);
+            }
+            const res = await fetch(url, options);
+            if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
+            return await res.json();
+        }
+
+        async function loadDashboard() {
+            try {
+                const stats = await apiCall('DASHBOARD_STATS');
+                if (stats.success) {
+                    document.getElementById('statActiveTenants').innerText = stats.stats.activeTenants;
+                    document.getElementById('statTotalTenants').innerText = stats.stats.totalTenants;
+                    document.getElementById('statNewLeads').innerText = stats.stats.newLeads;
+                    document.getElementById('statTotalTasks').innerText = stats.stats.totalTasks;
+                    
+                    const badge = document.getElementById('newLeadsBadge');
+                    if (stats.stats.newLeads > 0) {
+                        badge.innerText = stats.stats.newLeads;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                }
+
+                const tRes = await apiCall('GET_TENANTS');
+                if (tRes.success) { tenants = tRes.tenants; renderTenants(); }
+
+                const lRes = await apiCall('GET_LEADS');
+                if (lRes.success) { leads = lRes.leads; renderLeads(); }
+
+            } catch(e) { console.error(e); }
+        }
+
+        function switchTab(tab) {
+            document.getElementById('view-tenants').classList.add('hidden');
+            document.getElementById('view-leads').classList.add('hidden');
+            document.getElementById('tab-tenants').classList.remove('active');
+            document.getElementById('tab-leads').classList.remove('active');
+
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        function renderTenants() {
+            const tbody = document.getElementById('tenantsTableBody');
+            tbody.innerHTML = '';
+            tenants.forEach(t => {
+                let statusColor = "bg-green-100 text-green-700";
+                if(t.status === "BLOCKED") statusColor = "bg-red-100 text-red-700";
+                if(t.status === "UNPAID") statusColor = "bg-orange-100 text-orange-700";
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="p-4 font-bold">${t.name}</td>
+                        <td class="p-4 text-xs text-gray-500 font-mono">${t.id}</td>
+                        <td class="p-4"><span class="px-2 py-1 rounded-md font-bold text-xs ${statusColor}">${t.status}</span></td>
+                        <td class="p-4 font-bold text-gray-600">${t.maxInspectors || 1}</td>
+                        <td class="p-4 text-gray-600">${t._count.tasks} משימות</td>
+                        <td class="p-4 text-gray-500">${new Date(t.createdAt).toLocaleDateString('he-IL')}</td>
+                        <td class="p-4 text-center space-x-2 space-x-reverse">
+                            <button onclick="editTenant('${t.id}')" class="text-blue-600 hover:text-blue-800 p-2"><i class="fas fa-edit"></i></button>
+                            <button onclick="openInvoiceModal('${t.id}')" class="text-green-600 hover:text-green-800 p-2" title="הפק חשבונית/הצעה"><i class="fas fa-file-invoice-dollar"></i></button>
+                            <a href="/admin.html?tenantId=${t.id}" target="_blank" class="text-indigo-600 hover:text-indigo-800 p-2" title="כניסה למערכת"><i class="fas fa-external-link-alt"></i></a>
+                            <button onclick="deleteTenant('${t.id}')" class="text-red-500 hover:text-red-700 p-2"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderLeads() {
+            const grid = document.getElementById('leadsGrid');
+            grid.innerHTML = '';
+            leads.forEach(l => {
+                let badge = `<span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded font-bold">חדש</span>`;
+                if(l.status === 'CONTACTED') badge = `<span class="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded font-bold">בטיפול</span>`;
+                if(l.status === 'CLOSED') badge = `<span class="bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded font-bold">סגור</span>`;
+
+                grid.innerHTML += `
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 class="font-bold text-lg">${l.name}</h3>
+                            ${badge}
+                        </div>
+                        <div class="text-sm text-gray-600 space-y-2 mb-4">
+                            <p><i class="fas fa-phone ml-2 w-4"></i><span dir="ltr">${l.phone}</span></p>
+                            <p><i class="fas fa-envelope ml-2 w-4"></i>${l.email || '---'}</p>
+                            <p><i class="fas fa-building ml-2 w-4"></i>${l.company || '---'}</p>
+                            <p class="text-xs text-gray-400 mt-2">${new Date(l.createdAt).toLocaleString('he-IL')}</p>
+                        </div>
+                        <div class="flex gap-2 border-t pt-3">
+                            <select onchange="updateLeadStatus('${l.id}', this.value)" class="flex-grow p-1 border rounded text-sm bg-gray-50 outline-none">
+                                <option value="NEW" ${l.status==='NEW'?'selected':''}>חדש</option>
+                                <option value="CONTACTED" ${l.status==='CONTACTED'?'selected':''}>בטיפול</option>
+                                <option value="CLOSED" ${l.status==='CLOSED'?'selected':''}>סגור</option>
+                            </select>
+                            <button onclick="createTenantFromLead('${l.id}')" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded hover:bg-indigo-200 text-sm font-bold" title="הפוך ללקוח">
+                                <i class="fas fa-user-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        async function updateLeadStatus(id, status) {
+            try {
+                await apiCall('UPDATE_LEAD_STATUS', 'POST', { leadId: id, status });
+                loadDashboard();
+            } catch(e) { alert('Error updating lead'); }
+        }
+
+        function createTenantFromLead(id) {
+            const lead = leads.find(l => l.id === id);
+            if(!lead) return;
+            openTenantModal();
+            document.getElementById('tName').value = lead.company || lead.name;
+            document.getElementById('tEmail').value = lead.email || '';
+            document.getElementById('tPhone').value = lead.phone || '';
+        }
+
+        // Tenant Modal functions
+        function openTenantModal() {
+            document.getElementById('tId').value = "";
+            document.getElementById('tName').value = "";
+            document.getElementById('tEmail').value = "";
+            document.getElementById('tPhone').value = "";
+            document.getElementById('tInspectors').value = "1";
+            document.getElementById('tStatus').value = "ACTIVE";
+            document.getElementById('tAdminPwd').value = "";
+            document.getElementById('tenantModalTitle').innerText = "לקוח חדש";
+            document.getElementById('tAdminPasswordZone').classList.add('hidden'); // MVP: password logic will be added when Security plan executes
+            document.getElementById('tenantModal').classList.remove('hidden');
+        }
+
+        function closeTenantModal() { document.getElementById('tenantModal').classList.add('hidden'); }
+
+        function editTenant(id) {
+            const t = tenants.find(x => x.id === id);
+            if(!t) return;
+            openTenantModal();
+            document.getElementById('tId').value = t.id;
+            document.getElementById('tName').value = t.name;
+            document.getElementById('tEmail').value = t.contactEmail || "";
+            document.getElementById('tPhone').value = t.contactPhone || "";
+            document.getElementById('tInspectors').value = t.maxInspectors || 1;
+            document.getElementById('tStatus').value = t.status;
+            document.getElementById('tenantModalTitle').innerText = "עריכת לקוח";
+            document.getElementById('tAdminPasswordZone').classList.remove('hidden'); // visible for edit
+        }
+
+        async function saveTenant() {
+            const id = document.getElementById('tId').value;
+            const data = {
+                name: document.getElementById('tName').value,
+                contactEmail: document.getElementById('tEmail').value,
+                contactPhone: document.getElementById('tPhone').value,
+                maxInspectors: parseInt(document.getElementById('tInspectors').value),
+                status: document.getElementById('tStatus').value,
+            };
+            if(!data.name) return alert('שם חובה');
+
+            try {
+                if(id) {
+                    await apiCall('UPDATE_TENANT', 'POST', { id, updates: data });
+                } else {
+                    await apiCall('CREATE_TENANT', 'POST', data);
+                }
+                closeTenantModal();
+                loadDashboard();
+            } catch(e) { alert('Error saving tenant'); }
+        }
+
+        async function deleteTenant(id) {
+            if(!confirm('האם אתה בטוח שברצונך למחוק לקוח זה לחלוטין? כל הנתונים יאבדו!')) return;
+            try {
+                await apiCall('DELETE_TENANT', 'POST', { tenantIdToDelete: id });
+                loadDashboard();
+            } catch(e) { alert('Error deleting tenant'); }
+        }
+
+
+        // Invoice Functions
+        function openInvoiceModal(tenantId) {
+            const t = tenants.find(x => x.id === tenantId);
+            if(!t) return;
+            currentInvTenant = t;
+            document.getElementById('invTenantName').innerText = t.name;
+            document.getElementById('invoiceModal').classList.remove('hidden');
+            previewInvoice();
+        }
+        function closeInvoiceModal() { document.getElementById('invoiceModal').classList.add('hidden'); currentInvTenant = null; }
+
+        function previewInvoice() {
+            if(!currentInvTenant) return;
+            const type = document.getElementById('invType').value;
+            const amount = document.getElementById('invAmount').value;
+            const inspectors = document.getElementById('invInspectors').value;
+            
+            const title = type === 'INVOICE' ? 'חשבונית מס / קבלה' : 'הצעת מחיר (Offer)';
+            const tName = currentInvTenant.name;
+            const tEmail = currentInvTenant.contactEmail || "";
+            const tPhone = currentInvTenant.contactPhone || "";
+            const date = new Date().toLocaleDateString('he-IL');
+
+            const html = `
+                <div class="text-right p-4 font-sans text-gray-800">
+                    <div class="flex justify-between items-start border-b pb-4 mb-6">
+                        <div>
+                            <h1 class="text-3xl font-black text-indigo-700">${title}</h1>
+                            <p class="text-gray-500 mt-1">תאריך: ${date}</p>
+                        </div>
+                        <div class="text-left">
+                            <div class="text-xl font-bold">HCL System Ltd.</div>
+                            <p class="text-sm text-gray-500">ח.פ: 512345678<br>תל אביב, ישראל</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="font-bold text-lg mb-2">לכבוד:</h3>
+                        <p class="font-bold">${tName}</p>
+                        <p>${tPhone}</p>
+                        <p>${tEmail}</p>
+                    </div>
+
+                    <table class="w-full text-right mb-8">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="p-2 border">תיאור שירות</th>
+                                <th class="p-2 border w-24">כמות</th>
+                                <th class="p-2 border w-32">מחיר (₪)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="p-2 border">מנוי למערכת ניהול HCL SaaS</td>
+                                <td class="p-2 border text-center">1</td>
+                                <td class="p-2 border">${amount}</td>
+                            </tr>
+                            ${inspectors > 0 ? `
+                            <tr>
+                                <td class="p-2 border">תוספת מפקחים (Inspectors)</td>
+                                <td class="p-2 border text-center">${inspectors}</td>
+                                <td class="p-2 border">כלול</td>
+                            </tr>` : ''}
+                        </tbody>
+                    </table>
+
+                    <div class="flex justify-end">
+                        <div class="w-64">
+                            <div class="flex justify-between font-bold border-t pt-2 mt-2 text-xl">
+                                <span>סה"כ לתשלום:</span>
+                                <span>${amount} ₪</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-16 text-center text-gray-400 text-sm">
+                        <p>תודה על העסקים!</p>
+                        <p>מסמך זה הופק דיגיטלית על ידי מערכת HCL</p>
+                    </div>
+                </div>
+            `;
+            document.getElementById('invoicePreview').innerHTML = html;
+        }
+
+        function downloadInvoicePDF() {
+            const element = document.getElementById('invoicePreview');
+            const type = document.getElementById('invType').value;
+            const tName = currentInvTenant.name;
+            const opt = {
+                margin:       10,
+                filename:     `${type}_${tName}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+            
+            // Generate PDF
+            html2pdf().set(opt).from(element).save().then(() => {
+                // Optionally save to DB here via API call
+            });
+        }
+
+    </script>
+</body>
+</html>

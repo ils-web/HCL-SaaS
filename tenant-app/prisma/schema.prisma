@@ -30,8 +30,17 @@ model Tenant {
   systems     System[]
   tasks       Task[]
   qrMappings  QrMapping[]
+  invoices    Invoice[]
   qrSettings  Json?    // Stores schedule mode, start, and end time
   telegramChatId String? // ID for telegram notifications
+
+  logoUrl            String?
+  plan               String   @default("FREE")
+  price              Float    @default(0.0)
+  subscriptionEndsAt DateTime?
+  contactEmail       String?
+  contactPhone       String?
+  maxInspectors      Int      @default(1)
 }
 
 enum Role {
@@ -189,4 +198,28 @@ model QrMapping {
   team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, category])
+}
+
+model Lead {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String?
+  email     String?
+  company   String?
+  status    String   @default(\
+NEW\) // NEW, CONTACTED, CLOSED
+  createdAt DateTime @default(now())
+}
+
+model Invoice {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  type      String   @default(\
+INVOICE\) // INVOICE, OFFER
+  amount    Float
+  extraInspectors Int @default(0)
+  status    String   @default(\
+PENDING\) // PENDING, PAID, CANCELLED
+  createdAt DateTime @default(now())
 }
