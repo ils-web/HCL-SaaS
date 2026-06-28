@@ -1211,10 +1211,16 @@
         function startPolling() {
             if (window.pollingInterval) clearInterval(window.pollingInterval);
             window.pollingInterval = setInterval(async () => {
-                if (!document.getElementById('loginScreen').classList.contains('hidden')) return;
-                if (!document.getElementById('editModal').classList.contains('hidden')) return;
-                if (!document.getElementById('printModal').classList.contains('hidden')) return;
-                if (!document.getElementById('workersModal').classList.contains('hidden')) return;
+                const ls = document.getElementById('loginScreen');
+                const em = document.getElementById('editModal');
+                const pm = document.getElementById('printModal');
+                const wm = document.getElementById('workersModal');
+                
+                if (ls && !ls.classList.contains('hidden')) return;
+                if (em && !em.classList.contains('hidden')) return;
+                if (pm && !pm.classList.contains('hidden')) return;
+                if (wm && !wm.classList.contains('hidden')) return;
+                
                 try {
                     const res = await fetch(`${API_URL}?action=getOpenTasks&t=${Date.now()}`);
                     const data = await res.json();
