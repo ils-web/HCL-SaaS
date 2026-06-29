@@ -1983,7 +1983,7 @@ function processOutput(mode) {
         
         let bannerConfig = { left: 'workers', right: 'teams' };
         try {
-            const stored = localStorage.getItem('hcl_banners_config');
+            const stored = localStorage.getItem(`hcl_banners_config_${_tId}`);
             if (stored) {
                 bannerConfig = JSON.parse(stored) || bannerConfig;
             }
@@ -2009,7 +2009,7 @@ function processOutput(mode) {
         function saveBannerConfig() {
             bannerConfig.left = document.getElementById('leftBannerSelect').value;
             bannerConfig.right = document.getElementById('rightBannerSelect').value;
-            localStorage.setItem('hcl_banners_config', JSON.stringify(bannerConfig));
+            localStorage.setItem(`hcl_banners_config_${_tId}`, JSON.stringify(bannerConfig));
             closeBannersSettingsModal();
             updateBannersDisplay();
         }

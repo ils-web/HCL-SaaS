@@ -246,31 +246,31 @@
                         });
                     }
                 });
-                localStorage.setItem('hcl_draft_room', state.currentRoom);
-                localStorage.setItem('hcl_draft_html', document.getElementById('issuesList').innerHTML);
+                localStorage.setItem(`hcl_draft_room_${_tId}`, state.currentRoom);
+                localStorage.setItem(`hcl_draft_html_${_tId}`, document.getElementById('issuesList').innerHTML);
             }
         }, 2000);
 
-        function saveSession() { localStorage.setItem('hcl_state_v2', JSON.stringify(state)); }
+        function saveSession() { localStorage.setItem(`hcl_state_v2_${_tId}`, JSON.stringify(state)); }
         
         function restoreSession() { 
-            const saved = localStorage.getItem('hcl_state_v2'); 
+            const saved = localStorage.getItem(`hcl_state_v2_${_tId}`); 
             if (saved) { 
                 state = JSON.parse(saved); 
                 if (state.isRunning) { 
                     document.getElementById('headerInfo').innerText = `${state.inspector} | ${state.department}`; 
                     updateInspectedUI(); navigate('inspectionPage'); 
-                    const draftRoom = localStorage.getItem('hcl_draft_room');
+                    const draftRoom = localStorage.getItem(`hcl_draft_room_${_tId}`);
                     if(draftRoom) {
                         state.currentRoom = draftRoom; document.getElementById('roomName').value = draftRoom; document.getElementById('currentRoomDisplay').innerText = draftRoom;
-                        document.getElementById('activeRoomBlock').classList.remove('hidden'); document.getElementById('issuesList').innerHTML = localStorage.getItem('hcl_draft_html') || "";
+                        document.getElementById('activeRoomBlock').classList.remove('hidden'); document.getElementById('issuesList').innerHTML = localStorage.getItem(`hcl_draft_html_${_tId}`) || "";
                         if(document.getElementById('issuesList').children.length > 0) { document.getElementById('allGoodBtn').classList.add('hidden'); document.getElementById('saveRoomBtn').classList.remove('hidden'); }
                     }
                 } 
             } 
         }
 
-        function clearSession() { state.isRunning = false; localStorage.removeItem('hcl_state_v2'); localStorage.removeItem('hcl_draft_room'); localStorage.removeItem('hcl_draft_html'); location.reload(); }
+        function clearSession() { state.isRunning = false; localStorage.removeItem(`hcl_state_v2_${_tId}`); localStorage.removeItem(`hcl_draft_room_${_tId}`); localStorage.removeItem(`hcl_draft_html_${_tId}`); location.reload(); }
         async function confirmExit() { if(await appConfirm(isHebrew ? "לצאת מהבדיקה? הנתונים יאבדו." : "Выйти из инспекции? Данные удалятся.")) clearSession(); }
 
         async function startInspection() {
@@ -278,7 +278,7 @@
             if(!insp || !dept) return appAlert(isHebrew ? "מלא את כל השדות!" : "Заполните все поля!");
             state.inspector = insp; state.department = dept; state.isRunning = true;
             document.getElementById('loaderText').innerText = T.syncText; document.getElementById('loader').classList.remove('hidden');
-            try { const cached = localStorage.getItem('hcl_cats'); if (cached) state.categories = JSON.parse(cached); const res = await fetch(`${API_URL}?action=getSettings`); const data = await res.json(); if (data.categories && Object.keys(data.categories).length > 0) { state.categories = data.categories; localStorage.setItem('hcl_cats', JSON.stringify(state.categories)); } } catch(e) {}
+            try { const cached = localStorage.getItem(`hcl_cats_${_tId}`); if (cached) state.categories = JSON.parse(cached); const res = await fetch(`${API_URL}?action=getSettings`); const data = await res.json(); if (data.categories && Object.keys(data.categories).length > 0) { state.categories = data.categories; localStorage.setItem(`hcl_cats_${_tId}`, JSON.stringify(state.categories)); } } catch(e) {}
             if(Object.keys(state.categories).length === 0) { state.categories = isHebrew ? {"כללי": ["חלון", "דלת"]} : {"Общее": ["Окно", "Дверь"]}; }
             saveSession(); document.getElementById('headerInfo').innerText = `${state.inspector} | ${state.department}`; navigate('inspectionPage'); document.getElementById('loader').classList.add('hidden'); vibrate('light');
         }
@@ -437,7 +437,7 @@
             try {
                 const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ inspector: state.inspector, department: state.department, room: state.currentRoom, items: items }) });
                 if (!res.ok) throw new Error('Server returned ' + res.status);
-                localStorage.removeItem('hcl_draft_room'); localStorage.removeItem('hcl_draft_html');
+                localStorage.removeItem(`hcl_draft_room_${_tId}`); localStorage.removeItem(`hcl_draft_html_${_tId}`);
                 state.inspectedRooms[state.currentRoom] = historyLog; saveSession(); updateInspectedUI();
                 document.getElementById('activeRoomBlock').classList.add('hidden'); document.getElementById('roomName').value = '';
                 document.getElementById('roomDetailsDisplay').classList.add('hidden'); window.scrollTo(0, 0);
