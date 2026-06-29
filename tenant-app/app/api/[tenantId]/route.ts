@@ -88,7 +88,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
   
     const qrSettings = (tenant as any).qrSettings || { mode: '24/7', start: '08:00', end: '17:00' };
 
-    return NextResponse.json({ workers, categories, teams, teamsData, systemTeams, qrSettings });
+    return NextResponse.json({ workers, categories, teams, teamsData, systemTeams, qrSettings, tenantName: tenant.name });
   }
 
   if (action === 'getOpenTasks') {
