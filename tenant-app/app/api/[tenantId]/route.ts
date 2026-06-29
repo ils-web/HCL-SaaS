@@ -54,7 +54,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
     return NextResponse.json({ error: 'Tenant not found or inactive' }, { status: 404 });
   }
   
-  if (tenant.status !== 'ACTIVE') {
+  if (!['ACTIVE', 'TRIAL', 'UNPAID'].includes(tenant.status)) {
     return NextResponse.json({ error: `Tenant is ${tenant.status}` }, { status: 403 });
   }
 
@@ -88,7 +88,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
   
     const qrSettings = (tenant as any).qrSettings || { mode: '24/7', start: '08:00', end: '17:00' };
 
-    return NextResponse.json({ workers, categories, teams, teamsData, systemTeams, qrSettings, tenantName: tenant.name });
+    return NextResponse.json({ workers, categories, teams, teamsData, systemTeams, qrSettings, tenantName: tenant.name, tenantStatus: tenant.status });
   }
 
   if (action === 'getOpenTasks') {
@@ -253,12 +253,19 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     const { action } = body;
 
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-    if (!tenant || tenant.status !== 'ACTIVE') {
+    if (!tenant || !['ACTIVE', 'TRIAL', 'UNPAID'].includes(tenant.status)) {
       return NextResponse.json({ error: 'Invalid tenant' }, { status: 403 });
     }
 
   // Handle Inspector Room Defects (has items array, might not have explicit action)
   if (body.items && Array.isArray(body.items)) {
+    if (tenant.status === 'TRIAL') {
+      const taskCount = await prisma.task.count({ where: { tenantId } });
+      if (taskCount >= 5) {
+        return NextResponse.json({ error: 'TRIAL_LIMIT', message: 'Достигнут лимит в 5 проверок для TRIAL версии.' }, { status: 403 });
+      }
+    }
+
     const { inspector, department, room, items } = body;
     
     // Auto-create/find Department
@@ -391,6 +398,10 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   if (action === 'SAVE_TEAMS') {
     const teams = body.teams || [];
     
+    if (tenant.status === 'TRIAL' && teams.length > 2) {
+      return NextResponse.json({ error: 'TRIAL_LIMIT', message: 'У вас тестовая версия (TRIAL). Доступно только 2 бригады.' }, { status: 403 });
+    }
+    
     // Fetch all current teams
     const currentTeams = await prisma.team.findMany({ where: { tenantId } });
     const currentTeamNames = currentTeams.map(t => t.name);
@@ -415,6 +426,10 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
 
   if (action === 'SAVE_WORKERS') {
     const workersList: { id?: string, name: string, teamId?: string | null }[] = body.workers || [];
+    
+    if (tenant.status === 'TRIAL' && workersList.length > 1) {
+      return NextResponse.json({ error: 'TRIAL_LIMIT', message: 'У вас тестовая версия (TRIAL). Доступен только 1 сотрудник.' }, { status: 403 });
+    }
     
     // Find existing workers
     const currentWorkers = await prisma.user.findMany({ where: { tenantId, role: 'WORKER' }});
@@ -462,6 +477,10 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   if (action === 'SAVE_CATEGORIES') {
     const categories: Record<string, string[]> = body.categories || {};
     const systemTeams: Record<string, string> = body.systemTeams || {};
+
+    if (tenant.status === 'TRIAL' && Object.keys(categories).length > 1) {
+      return NextResponse.json({ error: 'TRIAL_LIMIT', message: 'У вас тестовая версия (TRIAL). Доступен только 1 отдел.' }, { status: 403 });
+    }
 
     // First, sync Areas (Categories) and Systems
     const activeAreaNames = Object.keys(categories);
@@ -573,6 +592,9 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
 
   if (action === 'MARK_PRINTED') {
+    if (tenant.status === 'UNPAID') {
+      return NextResponse.json({ error: 'UNPAID_LIMIT', message: 'Необходимо оплатить сервис для продолжения работы.' }, { status: 403 });
+    }
     const { tasks, worker } = body;
     let workerId = null;
     if (worker) {
@@ -594,6 +616,9 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
 
   if (action === 'TRANSLATE_TASKS') {
+    if (tenant.status === 'UNPAID') {
+      return NextResponse.json({ error: 'UNPAID_LIMIT', message: 'Необходимо оплатить сервис для продолжения работы.' }, { status: 403 });
+    }
     const { targetLang, tasks } = body;
     if (!targetLang || !tasks || !Array.isArray(tasks)) {
       return NextResponse.json({ status: 'error', message: 'Invalid payload' }, { status: 400 });
@@ -719,6 +744,9 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
 
   if (action === 'SEND_TO_APP') {
+    if (tenant.status === 'UNPAID') {
+      return NextResponse.json({ error: 'UNPAID_LIMIT', message: 'Необходимо оплатить сервис для продолжения работы.' }, { status: 403 });
+    }
     const { taskIds, workerName } = body;
     if (!taskIds || !Array.isArray(taskIds)) return NextResponse.json({ error: 'Missing taskIds' }, { status: 400 });
     

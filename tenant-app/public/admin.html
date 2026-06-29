@@ -338,6 +338,7 @@
                 </div>
             </div>
 
+            <div id="statusBanner" class="hidden mb-6 p-4 rounded-xl text-white font-bold text-center text-lg shadow"></div>
             <div class="bg-white p-6 rounded-2xl shadow-2xl border border-gray-200 mb-6">
                 <div class="flex flex-col lg:flex-row justify-between items-center gap-4 mb-6 border-b pb-4">
                     <h1 class="text-3xl font-black text-gray-800">לוח בקרה <span id="tenantNameDisplay" class="text-indigo-600">HCL</span></h1>
@@ -605,6 +606,18 @@
                 if (data.tenantName) {
                     document.getElementById('tenantNameDisplay').innerText = data.tenantName;
                     document.title = `${data.tenantName} Admin - לוח בקרה`;
+                }
+                const banner = document.getElementById('statusBanner');
+                if (data.tenantStatus === 'TRIAL') {
+                    banner.classList.remove('hidden');
+                    banner.classList.add('bg-blue-600');
+                    banner.innerText = 'У вас тестовая версия (TRIAL). Доступен 1 сотрудник, 2 бригады и до 5 проверок.';
+                } else if (data.tenantStatus === 'UNPAID') {
+                    banner.classList.remove('hidden');
+                    banner.classList.add('bg-red-600');
+                    banner.innerText = 'Ваш аккаунт не оплачен. Функции печати и отправки задач заблокированы.';
+                } else {
+                    banner.classList.add('hidden');
                 }
                 updateWorkersSelectUI();
                 renderDynamicTabs();
@@ -959,6 +972,7 @@
             try {
                 const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "SAVE_CATEGORIES", categories: categoriesConfig, systemTeams: systemTeams }) });
                 const out = await res.json();
+                if (res.status === 403) { showToast(out.message || "שגיאה", "error"); hideLoader(); return; }
                 if(out.status === "success") { 
                     closeConfigModal(); 
                     showToast("הגדרות נשמרו בהצלחה", "success"); 
@@ -1025,6 +1039,7 @@
             try {
                 const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "SAVE_TEAMS", teams: teamsList }) });
                 const out = await res.json();
+                if (res.status === 403) { showToast(out.message || "שגיאה", "error"); hideLoader(); return; }
                 if(out.status === "success") { 
                     closeTeamsModal(); 
                     showToast("צוותים נשמרו בהצלחה", "success"); 
@@ -1032,7 +1047,7 @@
                 } else {
                     showToast("שגיאה", "error");
                 }
-            } catch(e) { console.error(e); showToast("שגיאה", "error"); } 
+            } catch(e) { console.error(e); showToast("שגיאה", "error"); }
             hideLoader();
         }
 
@@ -1143,6 +1158,7 @@
             try {
                 const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "SAVE_WORKERS", workers: workersPool }) });
                 const out = await res.json();
+                if (res.status === 403) { showToast(out.message || "שגיאה", "error"); hideLoader(); return; }
                 if(out.status === "success") { updateWorkersSelectUI(); closeWorkersModal(); showToast("רשימת העובדים עודכנה", "success"); }
             } catch(e) { console.error(e); } hideLoader();
         }
@@ -1816,6 +1832,7 @@ function processOutput(mode) {
                 try {
                     const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "TRANSLATE_TASKS", targetLang: targetLang, tasks: translationPayload }) });
                     const transData = await res.json();
+                    if (res.status === 403) { alert(transData.message || 'Ошибка'); hideLoader(); return; }
                     if (transData.status === "success" && transData.translations) {
                         transData.translations.forEach(transItem => { let matchTask = tasksToPrint.find(t => t.id === transItem.id); if (matchTask) { matchTask.defect = transItem.defect; matchTask.comment = transItem.comment; matchTask.actT = transItem.actT; } });
                         printLabels = transData.translations[0].labels || printLabels; 
@@ -1824,7 +1841,15 @@ function processOutput(mode) {
                 } catch (e) { console.error(e); } hideLoader();
             }
 
-            if (tasksToUpdateOnServer.length > 0) { showLoader("מעדכן שרת..."); try { await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "MARK_PRINTED", tasks: tasksToUpdateOnServer, worker: chosenWorker }) }); } catch(e) {} hideLoader(); }
+            if (tasksToUpdateOnServer.length > 0) { 
+                showLoader("מעדכן שרת..."); 
+                try { 
+                    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "MARK_PRINTED", tasks: tasksToUpdateOnServer, worker: chosenWorker }) }); 
+                    const mData = await res.json();
+                    if (res.status === 403) { alert(mData.message || 'Ошибка'); hideLoader(); return; }
+                } catch(e) {} 
+                hideLoader(); 
+            }
 
             const printNow = new Date(); const printNowStr = printNow.toLocaleDateString('en-GB') + ' ' + printNow.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
             let groups = {}; tasksToPrint.forEach(task => { let key = `${task.dept}|${task.dDate}`; if(!groups[key]) groups[key] = []; groups[key].push(task); });
@@ -1936,6 +1961,11 @@ function processOutput(mode) {
                     body: JSON.stringify({ action: "SEND_TO_APP", taskIds, workerName })
                 });
                 const out = await res.json();
+                if (res.status === 403) {
+                    showToast(out.message || "שגיאה", "error");
+                    alert(out.message || 'Ошибка');
+                    return;
+                }
                 if(out.status === "success") {
                     showToast("המשימות נשלחו ל-WorkerApp בהצלחה!", "success");
                     setTimeout(loadTasks, 400); // refresh list from server
