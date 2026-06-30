@@ -141,6 +141,7 @@
                             <option value="ACTIVE">פעיל (ACTIVE)</option>
                             <option value="UNPAID">לא שולם (UNPAID)</option>
                             <option value="BLOCKED">חסום (BLOCKED)</option>
+                            <option value="TRIAL">תקופת ניסיון (TRIAL)</option>
                         </select>
                     </div>
                 </div>
@@ -329,6 +330,7 @@
                 let statusColor = "bg-green-100 text-green-700";
                 if(t.status === "BLOCKED") statusColor = "bg-red-100 text-red-700";
                 if(t.status === "UNPAID") statusColor = "bg-orange-100 text-orange-700";
+                if(t.status === "TRIAL") statusColor = "bg-purple-100 text-purple-700";
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-gray-50 transition-colors">
