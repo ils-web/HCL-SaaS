@@ -328,6 +328,12 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
 
   if (action === 'ADD_PERSONNEL_TASK') {
+    if (tenant.status === 'TRIAL') {
+      const taskCount = await prisma.task.count({ where: { tenantId } });
+      if (taskCount >= 5) {
+        return NextResponse.json({ error: 'TRIAL_LIMIT', message: 'Достигнут лимит в 5 проверок для TRIAL версии.' }, { status: 403 });
+      }
+    }
     const { reporterName, department, room, sheetName, defect, comment, photoBase64, language } = body;
     
     let translatedComment = comment || '';

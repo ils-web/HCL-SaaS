@@ -1720,9 +1720,28 @@ function processOutput(mode) {
         function openQrModal() { document.body.style.overflow = 'hidden';
             document.getElementById('qrModal').classList.remove('hidden');
             const sel = document.getElementById('qrDeptSelect');
-            sel.innerHTML = '<option value="כללי (General)">כללי (General)</option>';
-            const activeDepts = [...new Set(allTasks.map(t => t.dept))].filter(Boolean);
-            activeDepts.forEach(d => sel.innerHTML += `<option value="${d}">${d}</option>`);
+            sel.innerHTML = '';
+            if (state.tenantStatus === 'TRIAL') {
+                const trialDept = Object.keys(state.categories?.departments || {})[0] || 'Основной отдел';
+                sel.innerHTML = `<option value="${trialDept}">${trialDept}</option>`;
+            } else {
+                sel.innerHTML = '<option value="כללי (General)">כללי (General)</option>';
+                const activeDepts = [...new Set(allTasks.map(t => t.dept))].filter(Boolean);
+                activeDepts.forEach(d => sel.innerHTML += `<option value="${d}">${d}</option>`);
+            }
+            
+            const customInput = document.getElementById('qrCustomDept');
+            if (state.tenantStatus === 'TRIAL') {
+                customInput.value = '';
+                customInput.disabled = true;
+                customInput.placeholder = ' недоступно в TRIAL';
+                customInput.classList.add('opacity-50', 'bg-gray-200');
+            } else {
+                customInput.disabled = false;
+                customInput.placeholder = 'הזן שם מחלקה ידנית (אופציונלי)...';
+                customInput.classList.remove('opacity-50', 'bg-gray-200');
+            }
+
             document.getElementById('qrcodeBox').classList.add('hidden');
         }
         

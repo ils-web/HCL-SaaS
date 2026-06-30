@@ -438,7 +438,7 @@
                 const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ inspector: state.inspector, department: state.department, room: state.currentRoom, items: items }) });
                 const out = await res.json();
                 if (res.status === 403) {
-                    appAlert(out.message || (isHebrew ? "שגיאת הרשאה" : "Ошибка доступа"));
+                    appAlert(out.message || (isHebrew ? "שגיאת הרשאה" : "Ошибка доступа: " + JSON.stringify(out)));
                     return;
                 }
                 if (!res.ok) throw new Error('Server returned ' + res.status);
