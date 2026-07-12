@@ -11,7 +11,7 @@ async function uploadToImgBB(base64Str: string): Promise<string | null> {
     const b64Data = base64Str.includes(',') ? base64Str.split(',')[1] : base64Str;
     const formData = new FormData();
     formData.append('image', b64Data);
-    const res = await fetch('https://api.imgbb.com/1/upload?key=a1e675bb6065e233261327255af41c48&expiration=864000', {
+    const res = await fetch('https://api.imgbb.com/1/upload?key=a1e675bb6065e233261327255af41c48&expiration=1296000', {
       method: 'POST',
       body: formData
     });
