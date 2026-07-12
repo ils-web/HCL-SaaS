@@ -80,26 +80,19 @@
 <body class="text-gray-800">
 
     
-    <!-- Stats Banners -->
-    <div id="leftBanner" class="hidden xl:flex fixed left-4 top-8 w-64 bg-white/40 backdrop-blur-sm border border-white/40 shadow-sm rounded-3xl p-5 flex-col z-0 print:hidden">
-        <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
-            <h3 class="font-bold text-gray-800 text-lg">טוען...</h3>
-            <button class="text-blue-600 hover:text-blue-800 transition-colors" title="הדפס סטטיסטיקה"><i class="fas fa-print"></i></button>
+    <!-- App Wrapper for Banners and Main Content -->
+    <div class="flex justify-center items-start gap-6 px-4 md:px-6 w-full max-w-[1600px] mx-auto mt-4 print:p-0 print:block">
+        
+        <!-- Right Banner (RTL) -->
+        <div id="rightBanner" class="hidden 2xl:flex sticky top-8 w-64 bg-white/40 backdrop-blur-sm border border-white/40 shadow-sm rounded-3xl p-5 flex-col shrink-0 z-0 print:hidden">
+            <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
+                <button class="text-blue-600 hover:text-blue-800 transition-colors" title="הדפס סטטיסטיקה"><i class="fas fa-print"></i></button>
+                <h3 class="font-bold text-gray-800 text-lg">טוען...</h3>
+            </div>
+            <div id="rightBannerContent" class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <!-- Content will be injected here -->
+            </div>
         </div>
-        <div id="leftBannerContent" class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
-            <!-- Content will be injected here -->
-        </div>
-    </div>
-
-    <div id="rightBanner" class="hidden xl:flex fixed right-4 top-8 w-64 bg-white/40 backdrop-blur-sm border border-white/40 shadow-sm rounded-3xl p-5 flex-col z-0 print:hidden">
-        <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
-            <button class="text-blue-600 hover:text-blue-800 transition-colors" title="הדפס סטטיסטיקה"><i class="fas fa-print"></i></button>
-            <h3 class="font-bold text-gray-800 text-lg">טוען...</h3>
-        </div>
-        <div id="rightBannerContent" class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
-            <!-- Content will be injected here -->
-        </div>
-    </div>
 
 
     <div id="toastContainer" class="fixed bottom-5 left-5 z-[110] flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
@@ -323,7 +316,7 @@
         </div>
     </div>
 
-    <div id="mainApp" class="relative z-10 max-w-5xl xl:max-w-4xl 2xl:max-w-5xl mx-auto p-4 md:p-6 print:p-0 print:max-w-full">
+    <div id="mainApp" class="relative z-10 w-full max-w-5xl 2xl:max-w-5xl shrink-1 print:max-w-full">
         <div id="noPrintUI">
             
             <div id="unprintedAlertBanner" class="hidden mb-6">
@@ -1814,8 +1807,6 @@ function processOutput(mode) {
                 </div>
                 <script>setTimeout(()=>window.print(), 800);</`+`script>
                 
-
-
 </body></html>
             `);
         }
@@ -2282,5 +2273,17 @@ function processOutput(mode) {
             </div>
         </div>
     </div>
-</body>
-</html>
+        
+        <!-- Left Banner (RTL) -->
+        <div id="leftBanner" class="hidden 2xl:flex sticky top-8 w-64 bg-white/40 backdrop-blur-sm border border-white/40 shadow-sm rounded-3xl p-5 flex-col shrink-0 z-0 print:hidden">
+            <div class="flex justify-between items-center border-b border-gray-200 pb-3 mb-3">
+                <h3 class="font-bold text-gray-800 text-lg">טוען...</h3>
+                <button class="text-blue-600 hover:text-blue-800 transition-colors" title="הדפס סטטיסטיקה"><i class="fas fa-print"></i></button>
+            </div>
+            <div id="leftBannerContent" class="flex flex-col gap-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <!-- Content will be injected here -->
+            </div>
+        </div>
+    </div> <!-- End of App Wrapper -->
+
+</body></html>
