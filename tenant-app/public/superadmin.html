@@ -15,17 +15,6 @@
 </head>
 <body class="text-gray-800">
     
-    <!-- Login Screen -->
-    <div id="loginScreen" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center">
-            <i class="fas fa-user-shield text-indigo-600 text-5xl mb-4"></i>
-            <h2 class="text-2xl font-black mb-6">כניסת מנהל ראשי</h2>
-            <input type="password" id="adminPwd" placeholder="סיסמה" class="w-full p-4 mb-4 bg-gray-50 border rounded-xl text-center text-xl font-bold tracking-widest outline-none focus:ring-2 focus:ring-indigo-500" onkeyup="if(event.key === 'Enter') login()">
-            <button onclick="login()" class="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-indigo-700 transition">כניסה</button>
-            <p id="loginError" class="text-red-500 font-bold mt-2 hidden">סיסמה שגויה!</p>
-        </div>
-    </div>
-
     <!-- Main Dashboard -->
     <div id="mainApp" class="hidden min-h-screen flex flex-col">
         <header class="glass-header sticky top-0 z-40 border-b border-gray-200 shadow-sm">
@@ -184,7 +173,12 @@
             <div class="space-y-4 mb-4">
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">סיסמה חדשה</label>
-                    <input type="password" id="resetPwdNew" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
+                    <div class="relative">
+                        <input type="password" id="resetPwdNew" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500 pr-10" dir="ltr">
+                        <button type="button" onclick="const pwd = document.getElementById('resetPwdNew'); const icon = document.getElementById('resetEyeIcon'); if(pwd.type === 'password') { pwd.type = 'text'; icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); } else { pwd.type = 'password'; icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); }" class="absolute inset-y-0 right-0 pr-3 flex items-center text-indigo-400 hover:text-indigo-600 transition-colors">
+                            <i id="resetEyeIcon" class="fas fa-eye text-lg"></i>
+                        </button>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">אימות סיסמה</label>
@@ -242,32 +236,25 @@
 
 
     <script>
-        let token = "";
+        let token = localStorage.getItem("hcl_token") || "";
         let tenants = [];
         let leads = [];
         let currentInvTenant = null;
 
-        async function login() {
-            const pwd = document.getElementById('adminPwd').value;
-            try {
-                const res = await fetch(`/api/superadmin?action=AUTH&pwd=${pwd}`);
-                const data = await res.json();
-                if (data.success) {
-                    token = data.token;
-                    document.getElementById('loginScreen').classList.add('hidden');
-                    document.getElementById('mainApp').classList.remove('hidden');
-                    loadDashboard();
-                } else {
-                    document.getElementById('loginError').classList.remove('hidden');
-                }
-            } catch(e) { alert('Error logging in'); }
+        // Auth guard - Redirect if not superadmin
+        if (!token || localStorage.getItem("hcl_role") !== "SUPERADMIN") {
+            window.location.href = '/index.html';
+        } else {
+            document.addEventListener("DOMContentLoaded", () => {
+                document.getElementById('mainApp').classList.remove('hidden');
+                loadDashboard();
+            });
         }
 
         function logout() {
-            token = "";
-            document.getElementById('adminPwd').value = "";
-            document.getElementById('loginScreen').classList.remove('hidden');
-            document.getElementById('mainApp').classList.add('hidden');
+            localStorage.removeItem("hcl_token");
+            localStorage.removeItem("hcl_role");
+            window.location.href = '/index.html';
         }
 
         async function apiCall(action, method='GET', body=null) {

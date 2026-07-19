@@ -619,8 +619,13 @@
 
         function updateWorkersSelectUI() {
             const sel = document.getElementById('printWorker');
-            sel.innerHTML = '<option value="">בחר עובד... (Без мастера)</option>';
-            workersPool.forEach(w => { sel.innerHTML += `<option value="${w.name}">${w.name}</option>`; });
+            if(!sel) return;
+            sel.innerHTML = '<option value="">-- בחר עובד לשיוך --</option>';
+            workersPool.forEach(w => { 
+                const tName = teamsData.find(t => t.id === w.teamId)?.name || '';
+                const disp = tName ? `${w.name} (${tName})` : w.name;
+                sel.innerHTML += `<option value="${w.name}">${disp}</option>`; 
+            });
         }
 
         
@@ -1016,6 +1021,24 @@
             });
         }
 
+        async function saveTeamsToServer() {
+            showLoader("שומר צוותים...");
+            try {
+                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "SAVE_TEAMS", teams: teamsList }) });
+                const out = await res.json();
+                if (res.status === 403) { showToast(out.message || "שגיאה", "error"); hideLoader(); return; }
+                if(out.status === "success") { 
+                    await loadSettings();
+                    closeTeamsModal(); 
+                    showToast("צוותים נשמרו בהצלחה", "success"); 
+                    renderDynamicTabs();
+                } else {
+                    showToast("שגיאה בשמירת צוותים", "error");
+                }
+            } catch(e) { console.error(e); showToast("שגיאת תקשורת", "error"); }
+            hideLoader();
+        }
+
         function addTeam() {
             const val = document.getElementById('newTeamInput').value.trim();
             if(val && !teamsList.includes(val)) { 
@@ -1026,23 +1049,6 @@
         }
 
         function removeTeamFromList(teamName) { teamsList = teamsList.filter(t => t !== teamName); renderTeamsListUI(); }
-
-        async function saveTeamsToServer() {
-            showLoader("שומר צוותים...");
-            try {
-                const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "SAVE_TEAMS", teams: teamsList }) });
-                const out = await res.json();
-                if (res.status === 403) { showToast(out.message || "שגיאה", "error"); hideLoader(); return; }
-                if(out.status === "success") { 
-                    closeTeamsModal(); 
-                    showToast("צוותים נשמרו בהצלחה", "success"); 
-                    renderDynamicTabs();
-                } else {
-                    showToast("שגיאה", "error");
-                }
-            } catch(e) { console.error(e); showToast("שגיאה", "error"); }
-            hideLoader();
-        }
 
         function renderDynamicTabs() {
             const container = document.getElementById('dynamicTabsContainer');
@@ -1127,6 +1133,7 @@
                 </div>`;
             });
         }
+
         function updateWorkerName(idx, val) { 
             if(typeof workersPool[idx] === 'string') workersPool[idx] = { id: '', name: val.trim(), teamId: null };
             else workersPool[idx].name = val.trim(); 
@@ -1152,7 +1159,7 @@
                 const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: "SAVE_WORKERS", workers: workersPool }) });
                 const out = await res.json();
                 if (res.status === 403) { showToast(out.message || "שגיאה", "error"); hideLoader(); return; }
-                if(out.status === "success") { updateWorkersSelectUI(); closeWorkersModal(); showToast("רשימת העובדים עודכנה", "success"); }
+                if(out.status === "success") { await loadSettings(); updateWorkersSelectUI(); closeWorkersModal(); showToast("רשימת העובדים עודכנה", "success"); }
             } catch(e) { console.error(e); } hideLoader();
         }
 
@@ -2287,3 +2294,5 @@ function processOutput(mode) {
     </div> <!-- End of App Wrapper -->
 
 </body></html>
+
+

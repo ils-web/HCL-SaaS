@@ -1,0 +1,232 @@
+"use client"
+
+import * as React from "react"
+import { cn } from "@/lib/utils"
+import { Checkbox } from "./Checkbox"
+
+export interface Task {
+  id: number
+  sheet: string
+  dept: string
+  room: string
+  defect: string
+  comment: string | null
+  status: string
+  worker: string | null
+  inspector: string
+  photo: string | null
+  afterPhoto: string | null
+  actionType: number
+  dateStr: string
+  printedTime: string | null
+  isSentToApp: boolean
+}
+
+interface TaskCardProps {
+  task: Task
+  checked?: boolean
+  onToggleCheck?: (id: number) => void
+  onEditComment?: (id: number) => void
+  onApprove?: (id: number) => void
+  onReturnToOpen?: (id: number) => void
+  className?: string
+}
+
+export function TaskCard({
+  task,
+  checked = false,
+  onToggleCheck,
+  onEditComment,
+  onApprove,
+  onReturnToOpen,
+  className,
+}: TaskCardProps) {
+  const isPrinted = task.status === "בעבודה" || task.status === "מודפס"
+  const isCompleted = task.status === "הושלם"
+  const isClosed = task.status === "סגור"
+  
+  const isQr = task.defect.includes("דיווח מהמחלקה") || task.defect.includes("תקלה חדשה") || task.inspector.includes("צוות")
+  let reporterName = ""
+  if (isQr) {
+    if (task.inspector.startsWith("צוות: ")) {
+      reporterName = task.inspector.replace("צוות: ", "")
+    } else if (task.inspector.startsWith("צוות")) {
+      reporterName = "דיווח עובד"
+    }
+  }
+
+  // Calculate age classes for unprinted tasks
+  let ageClass = ""
+  if (!isPrinted && !isCompleted && !isClosed) {
+    if (!task.dateStr) return null
+    const p = task.dateStr.split(" ")[0]?.split("/")
+    const tm = task.dateStr.split(" ")[1] ? task.dateStr.split(" ")[1].split(":") : ["00", "00"]
+    if (p && p.length === 3) {
+      const taskDate = new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]), parseInt(tm[0]), parseInt(tm[1]))
+      const diffHours = (new Date().getTime() - taskDate.getTime()) / (1000 * 60 * 60)
+      if (diffHours >= 48) ageClass = "border-red-400 bg-red-50 ring-2 ring-red-200"
+      else if (diffHours >= 24) ageClass = "border-orange-400 bg-orange-50 ring-1 ring-orange-200"
+      else if (diffHours >= 12) ageClass = "border-yellow-400 bg-yellow-50"
+    }
+  }
+
+  const actT = task.actionType === 1 ? "החלפה" : "תיקון"
+  const cleanSheetName = task.sheet.replace(/_/g, " ")
+
+  // Image helpers
+  const getImgUrl = (url: string | null) => {
+    if (!url) return "https://placehold.co/100x100?text=No+Photo"
+    if (url.startsWith("http")) return url
+    return `/uploads/${url}`
+  }
+
+  const img = getImgUrl(task.photo)
+  const afterImg = task.afterPhoto ? getImgUrl(task.afterPhoto) : null
+  const hasRealPhoto = task.photo && !task.photo.includes("placehold")
+
+  return (
+    <div
+      className={cn(
+        "bg-white p-5 rounded-2xl shadow-sm border flex flex-col md:flex-row gap-5 relative transition-all duration-200 hover:shadow-md",
+        {
+          "border-green-400 bg-green-50 ring-2 ring-green-200": isCompleted,
+          "border-orange-300 bg-orange-50/50": isPrinted && !isCompleted,
+          "border-pink-400 bg-pink-50 ring-2 ring-pink-200": isQr && !isPrinted && !isCompleted,
+        },
+        (!isCompleted && !isPrinted && !isQr) ? ageClass : "",
+        className
+      )}
+      dir="rtl"
+    >
+      <div className="absolute top-4 left-4 md:static md:flex md:items-center">
+        <Checkbox
+          checked={checked}
+          onChange={() => onToggleCheck?.(task.id)}
+          className="w-7 h-7 rounded shadow-sm"
+        />
+      </div>
+
+      <div className="relative z-10 w-24 h-24 shrink-0">
+        <img
+          src={img}
+          className="w-full h-full object-cover rounded-xl border bg-white"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = "https://placehold.co/100x100?text=No+Photo"
+          }}
+          alt="Task Photo"
+        />
+        {hasRealPhoto && (
+          <div className="absolute -top-2 -right-2 group/img cursor-pointer">
+            <svg className="w-6 h-6 relative z-20 bg-white rounded-full p-1 text-gray-500 shadow border hover:text-indigo-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+            </svg>
+            <div className="hidden group-hover/img:block absolute top-full md:bottom-full md:top-auto -right-4 mb-2 z-[100] p-2 bg-white rounded-2xl shadow-2xl border w-[300px] h-[300px] origin-bottom-right">
+              <img src={img} className="w-full h-full object-contain rounded-xl" alt="Task Photo Zoom" />
+            </div>
+          </div>
+        )}
+
+        {isCompleted && afterImg && (
+          <div className="absolute -bottom-2 -left-2 w-12 h-12 rounded-lg border-2 border-green-500 shadow-md group/afterimg cursor-pointer bg-white">
+            <img src={afterImg} className="w-full h-full object-cover rounded-md" alt="After Photo" />
+            <div className="absolute -top-2 -right-2 z-20 bg-green-500 text-white rounded-full p-1 shadow">
+               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+               </svg>
+            </div>
+            <div className="hidden group-hover/afterimg:block absolute top-full md:bottom-full md:top-auto left-0 mb-2 z-[100] p-2 bg-white rounded-2xl shadow-2xl border w-[300px] h-[300px] origin-bottom-left">
+              <img src={afterImg} className="w-full h-full object-contain rounded-xl" alt="After Photo Zoom" />
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex-grow pr-10 md:pr-0">
+        <div className="flex flex-wrap gap-2 mb-2">
+          <div className="inline-flex items-center bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-black border border-blue-200 shadow-sm">
+            צוות משויך: {cleanSheetName}
+          </div>
+          {isQr && (
+            <div className="inline-flex items-center bg-pink-100 text-pink-700 px-3 py-1 rounded-lg text-xs font-black border border-pink-200 shadow-sm">
+              QR {reporterName && reporterName !== "לא ידוע" ? `| ${reporterName}` : ""}
+            </div>
+          )}
+          {task.isSentToApp && (
+            <div className="inline-flex items-center bg-indigo-100 text-indigo-700 px-3 py-1 rounded-lg text-xs font-black border border-indigo-200 shadow-sm">
+              WorkerApp
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <h3 className="text-xl font-bold text-gray-900">
+            {task.dept} | חדר: {task.room} <span className="text-sm font-normal px-2 bg-gray-100 rounded text-gray-700 ml-2">{actT}</span>
+          </h3>
+        </div>
+        <p className="font-bold mt-1 text-gray-800">{task.defect}</p>
+        <div className="flex items-center gap-2 mt-1">
+          <p className="text-gray-500 text-sm max-w-md truncate" title={task.comment || ""}>
+            {task.comment || "אין הערה"}
+          </p>
+          <button
+            onClick={() => onEditComment?.(task.id)}
+            className="text-gray-400 hover:text-indigo-600 transition-colors p-1"
+            title="ערוך תיאור"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+          </button>
+        </div>
+        <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {task.dateStr} | {task.inspector}
+        </p>
+      </div>
+
+      {isPrinted && !isCompleted && (
+        <div className="hidden md:flex flex-col justify-center border-r-2 border-orange-200 pr-5 w-40 shrink-0">
+          <span className="text-xs text-gray-400">נמסר לטיפול:</span>
+          <span className="font-bold text-gray-800">{task.worker || "לא צוין עובד"}</span>
+          <span className="text-[11px] text-gray-500 mt-1 flex items-center gap-1" dir="ltr">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+            </svg>
+            {task.printedTime || ""}
+          </span>
+        </div>
+      )}
+
+      {isCompleted && (
+        <div className="hidden md:flex flex-col justify-center border-r-2 border-green-300 bg-green-100 p-3 rounded-xl pr-5 w-40 shadow-sm shrink-0">
+          <span className="text-xs text-green-700 font-bold flex items-center gap-1">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+            </svg>
+            בוצע ע"י העובד:
+          </span>
+          <span className="font-black text-gray-900 mt-1">{task.worker || "לא ידוע"}</span>
+        </div>
+      )}
+
+      {isCompleted && (
+        <div className="hidden md:flex flex-col justify-center items-center gap-2 border-r border-gray-100 pr-5 pl-2 shrink-0">
+          <button
+            onClick={() => onApprove?.(task.id)}
+            className="w-full bg-green-500 text-white px-3 py-2 rounded-lg font-bold text-sm hover:bg-green-600 transition-colors shadow-sm flex justify-center items-center gap-2"
+          >
+            אישור סופי
+          </button>
+          <button
+            onClick={() => onReturnToOpen?.(task.id)}
+            className="w-full bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-red-100 transition-colors flex justify-center items-center gap-2"
+          >
+            החזר לפתוח
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}

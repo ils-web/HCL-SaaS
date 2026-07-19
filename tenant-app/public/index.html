@@ -259,6 +259,20 @@
             document.getElementById('loginModal').classList.add('hidden');
         }
 
+        function togglePasswordVisibility() {
+            const pwdInput = document.getElementById('loginPwd');
+            const eyeIcon = document.getElementById('eyeIcon');
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            } else {
+                pwdInput.type = 'password';
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            }
+        }
+
         async function submitLogin() {
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPwd').value;
@@ -329,11 +343,20 @@
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-indigo-200 mb-1">סיסמה</label>
-                    <input type="password" id="loginPwd" class="w-full p-3 input-glass rounded-xl font-bold dir-ltr" dir="ltr" placeholder="••••••••">
+                    <div class="relative">
+                        <input type="password" id="loginPwd" class="w-full p-3 input-glass rounded-xl font-bold dir-ltr pr-10" dir="ltr" placeholder="••••••••">
+                        <button type="button" onclick="togglePasswordVisibility()" class="absolute inset-y-0 right-0 pr-3 flex items-center text-indigo-300 hover:text-white transition-colors">
+                            <i id="eyeIcon" class="fas fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
                 
                 <div id="loginError" class="hidden bg-red-500/20 border border-red-500/50 text-red-200 text-sm p-3 rounded-lg text-center font-bold">
                     פרטי התחברות שגויים
+                </div>
+                
+                <div class="text-right mt-2">
+                    <a href="#" onclick="alert('לשחזור סיסמה אנא פנו למנהל המערכת (Superadmin).'); return false;" class="text-indigo-300 hover:text-white text-sm transition-colors">שכחת סיסמה?</a>
                 </div>
             </div>
 
