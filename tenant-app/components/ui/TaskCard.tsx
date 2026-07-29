@@ -29,6 +29,9 @@ interface TaskCardProps {
   onEditComment?: (id: number) => void
   onApprove?: (id: number) => void
   onReturnToOpen?: (id: number) => void
+  teams?: any[]
+  onChangeTeam?: (id: number, teamName: string) => void
+  onEditDefect?: (id: number) => void
   className?: string
 }
 
@@ -39,6 +42,9 @@ export function TaskCard({
   onEditComment,
   onApprove,
   onReturnToOpen,
+  teams,
+  onChangeTeam,
+  onEditDefect,
   className,
 }: TaskCardProps) {
   const isPrinted = task.status === "בעבודה" || task.status === "מודפס"
@@ -94,6 +100,7 @@ export function TaskCard({
           "border-pink-400 bg-pink-50 ring-2 ring-pink-200": isQr && !isPrinted && !isCompleted,
         },
         (!isCompleted && !isPrinted && !isQr) ? ageClass : "",
+        "hover:z-50",
         className
       )}
       dir="rtl"
@@ -141,7 +148,7 @@ export function TaskCard({
         )}
       </div>
 
-      <div className="flex-grow pr-10 md:pr-0">
+      <div className="flex-grow pr-10 md:pr-0 min-w-0 overflow-hidden break-words">
         <div className="flex flex-wrap gap-2 mb-2">
           <div className="inline-flex items-center bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-black border border-blue-200 shadow-sm">
             צוות משויך: {cleanSheetName}
@@ -163,22 +170,24 @@ export function TaskCard({
             {task.dept} | חדר: {task.room} <span className="text-sm font-normal px-2 bg-gray-100 rounded text-gray-700 ml-2">{actT}</span>
           </h3>
         </div>
-        <p className="font-bold mt-1 text-gray-800">{task.defect}</p>
         <div className="flex items-center gap-2 mt-1">
-          <p className="text-gray-500 text-sm max-w-md truncate" title={task.comment || ""}>
+          <p className="font-bold text-gray-800">{task.defect}</p>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <p className="text-gray-700 font-semibold text-sm max-w-md truncate" title={task.comment || ""}>
             {task.comment || "אין הערה"}
           </p>
           <button
-            onClick={() => onEditComment?.(task.id)}
+            onClick={() => onEditDefect?.(task.id)}
             className="text-gray-400 hover:text-indigo-600 transition-colors p-1"
-            title="ערוך תיאור"
+            title="ערוך בעיה"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           </button>
         </div>
-        <p className="text-xs text-gray-400 mt-2 flex items-center gap-1">
+        <p className="text-xs text-gray-600 font-semibold mt-2 flex items-center gap-1">
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
@@ -188,14 +197,55 @@ export function TaskCard({
 
       {isPrinted && !isCompleted && (
         <div className="hidden md:flex flex-col justify-center border-r-2 border-orange-200 pr-5 w-40 shrink-0">
-          <span className="text-xs text-gray-400">נמסר לטיפול:</span>
-          <span className="font-bold text-gray-800">{task.worker || "לא צוין עובד"}</span>
-          <span className="text-[11px] text-gray-500 mt-1 flex items-center gap-1" dir="ltr">
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-            </svg>
-            {task.printedTime || ""}
+          <span className="text-xs text-orange-800 font-bold">נמסר לטיפול:</span>
+          <span className="font-black text-lg text-indigo-950">{task.worker || "לא צוות עובד"}</span>
+          <span className="text-[11px] text-orange-900 font-bold mt-1 flex items-center gap-1" dir="ltr">
+            {task.isSentToApp ? (
+              <div className="bg-blue-100 p-1.5 rounded-md border border-blue-200 shadow-sm" title="נשלח לאפליקציה">
+                <svg className="w-4 h-4 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+              </div>
+            ) : (
+              <div className="bg-orange-100 p-1.5 rounded-md border border-orange-200 shadow-sm" title="הודפס">
+                <svg className="w-4 h-4 text-orange-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                </svg>
+              </div>
+            )}
+            <span className="ml-1">{task.printedTime || ""}</span>
           </span>
+          <div className="mt-3">
+            <button
+              onClick={() => onApprove?.(task.id)}
+              className="w-full bg-green-50 text-green-600 border border-green-500 px-2 py-1.5 rounded-lg font-bold text-xs hover:bg-green-100 transition-colors flex justify-center items-center gap-2"
+            >
+              <i className="fas fa-check"></i> סגור משימה
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!isPrinted && !isCompleted && teams && (
+        <div className="hidden md:flex flex-col justify-center gap-2 border-r-2 border-gray-100 pr-5 w-40 shrink-0">
+          <div>
+            <span className="text-xs text-gray-400 mb-1 block">שיוך צוות:</span>
+            <select 
+              className="w-full bg-gray-50 border border-gray-300 text-gray-700 py-1.5 px-2 rounded-lg font-bold text-xs outline-none cursor-pointer"
+              value={task.sheet}
+              onChange={(e) => onChangeTeam?.(task.id, e.target.value)}
+            >
+              {teams.map((t: any) => (
+                <option key={t.id} value={t.name}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={() => onApprove?.(task.id)}
+            className="w-full bg-green-50 text-green-600 border border-green-500 px-2 py-1.5 rounded-lg font-bold text-xs hover:bg-green-100 transition-colors flex justify-center items-center gap-2"
+          >
+            <i className="fas fa-check"></i> סגור משימה
+          </button>
         </div>
       )}
 

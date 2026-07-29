@@ -34,6 +34,9 @@ model Tenant {
   invoices    Invoice[]
   qrSettings  Json?    // Stores schedule mode, start, and end time
   telegramChatId String? // ID for telegram notifications
+  telegramBotToken String? // Bot token for telegram
+  whatsappInstance String? // Green-API instance
+  whatsappToken    String? // Green-API token
 
   logoUrl            String?
   plan               String   @default("FREE")
@@ -177,6 +180,7 @@ model Task {
   
   status        TaskStatus @default(NEW) // סטוס
   isSentToApp   Boolean    @default(false)
+  lastWarnedAt  DateTime?  // 48h rule warning timestamp
   
   teamId        String?  // Назначенная команда (берется из system.autoAssignTeamId при создании)
   team          Team?    @relation(fields: [teamId], references: [id])

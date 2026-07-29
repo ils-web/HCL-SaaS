@@ -62,7 +62,7 @@ export function Toaster() {
   }, [])
 
   return (
-    <div className="fixed bottom-5 left-5 z-[110] flex flex-col gap-2 max-w-sm w-full pointer-events-none" dir="rtl">
+    <div className="fixed bottom-5 left-5 z-[110] flex flex-col gap-2 max-w-sm w-full pointer-events-none print:hidden" dir="rtl">
       {toasts.map((t) => (
         <div
           key={t.id}

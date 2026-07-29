@@ -20,10 +20,12 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
     if (isOpen) {
       document.addEventListener("keydown", handleEsc)
       document.body.style.overflow = "hidden" // Prevent background scroll
+      document.documentElement.style.overflow = "hidden" 
     }
     return () => {
       document.removeEventListener("keydown", handleEsc)
-      document.body.style.overflow = "auto"
+      document.body.style.overflow = ""
+      document.documentElement.style.overflow = ""
     }
   }, [isOpen, onClose])
 
@@ -50,9 +52,7 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
             </svg>
           </button>
         </div>
-        <div className="max-h-[70vh] overflow-y-auto custom-scrollbar">
-          {children}
-        </div>
+        {children}
       </div>
     </div>
   )

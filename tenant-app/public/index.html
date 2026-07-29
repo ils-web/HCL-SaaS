@@ -307,7 +307,7 @@
                         window.location.href = '/superadmin.html';
                     } else {
                         localStorage.setItem('hcl_tenantId', data.tenantId);
-                        window.location.href = '/admin.html'; // Or whatever the tenant dashboard is
+                        window.location.href = '/admin-react';
                     }
                 } else {
                     errorDiv.innerText = data.error || 'פרטי התחברות שגויים';

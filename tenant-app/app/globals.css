@@ -5,11 +5,8 @@
   --foreground: #0f172a;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b131e;
-    --foreground: #f8fafc;
-  }
+html {
+  overflow-y: scroll;
 }
 
 body {

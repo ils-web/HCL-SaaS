@@ -59,20 +59,18 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
   }
 
   if (action === 'getSettings') {
-    // get workers
-    const workersDb = await prisma.user.findMany({ where: { tenantId, role: 'WORKER' } });
-    const workers = workersDb.map(w => ({ id: w.id, name: w.name, teamId: w.teamId }));
+    const [workersDb, teamsDb, areas] = await Promise.all([
+      prisma.user.findMany({ where: { tenantId, role: 'WORKER' } }),
+      prisma.team.findMany({ where: { tenantId }, orderBy: { createdAt: 'asc' } }),
+      prisma.area.findMany({
+        where: { tenantId },
+        include: { systems: { include: { autoAssignTeam: true } } }
+      })
+    ]);
 
-    // get teams
-    const teamsDb = await prisma.team.findMany({ where: { tenantId }, orderBy: { createdAt: 'asc' } });
+    const workers = workersDb.map(w => ({ id: w.id, name: w.name, teamId: w.teamId }));
     const teams = teamsDb.map(t => t.name);
     const teamsData = teamsDb.map(t => ({ id: t.id, name: t.name }));
-
-    // get categories & systemTeams
-    const areas = await prisma.area.findMany({
-      where: { tenantId },
-      include: { systems: { include: { autoAssignTeam: true } } }
-    });
     
     const categories: Record<string, string[]> = {};
     const systemTeams: Record<string, string> = {};
@@ -88,7 +86,14 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
   
     const qrSettings = (tenant as any).qrSettings || { mode: '24/7', start: '08:00', end: '17:00' };
 
-    return NextResponse.json({ workers, categories, teams, teamsData, systemTeams, qrSettings, tenantName: tenant.name, tenantStatus: tenant.status });
+    return NextResponse.json({ 
+      workers, categories, teams, teamsData, systemTeams, qrSettings, 
+      tenantName: tenant.name, tenantStatus: tenant.status,
+      telegramChatId: tenant.telegramChatId || "",
+      telegramBotToken: tenant.telegramBotToken || "",
+      whatsappInstance: tenant.whatsappInstance || "",
+      whatsappToken: tenant.whatsappToken || ""
+    });
   }
 
   if (action === 'getOpenTasks') {
@@ -123,7 +128,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
       photo: t.photoUrl || '',
       afterPhoto: t.afterPhotoUrl || '',
       isSentToApp: t.isSentToApp || false,
-      status: t.status === 'COMPLETED' ? 'הושלם' : (t.status === 'IN_PROGRESS' ? 'בעבודה' : 'פתוח'),
+      status: t.status === 'COMPLETED' ? 'הושלם' : (t.status === 'IN_PROGRESS' ? 'בעבודה' : (t.status === 'CLOSED' ? 'סגור' : 'פתוח')),
       worker: t.worker?.name || '',
       team: t.team?.name || '',
       timestamp: t.createdAt.getTime(),
@@ -131,7 +136,8 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
     };
     });
 
-    return NextResponse.json({ tasks });
+    const filteredTasks = tasks.filter(t => !t.defect.includes('הכל תקין'));
+    return NextResponse.json({ tasks: filteredTasks });
   }
 
   if (action === 'getReports') {
@@ -195,7 +201,8 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
       };
     });
 
-    return NextResponse.json({ tasks });
+    const filteredTasks = tasks.filter(t => !t.defect.includes('הכל תקין'));
+    return NextResponse.json({ tasks: filteredTasks });
   }
 
   if (action === 'getMonthlyStats') {
@@ -548,11 +555,16 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       return NextResponse.json({ status: 'success' });
     }
 
-  if (action === 'SAVE_TELEGRAM_ID') {
-    const { telegramChatId } = body;
+  if (action === 'SAVE_INTEGRATIONS') {
+    const { telegramBotToken, telegramChatId, whatsappInstance, whatsappToken } = body;
     await prisma.tenant.update({
       where: { id: tenantId },
-      data: { telegramChatId: telegramChatId || null }
+      data: { 
+        telegramBotToken: telegramBotToken || null,
+        telegramChatId: telegramChatId || null,
+        whatsappInstance: whatsappInstance || null,
+        whatsappToken: whatsappToken || null,
+      }
     });
     return NextResponse.json({ status: 'success' });
   }
@@ -566,15 +578,60 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       if (dbTask) {
         await prisma.task.update({
           where: { id: dbTask.id },
-          data: { status: 'NEW', workerId: null }
+          data: { status: 'NEW', workerId: null, isSentToApp: false }
         });
       }
     }
     return NextResponse.json({ status: 'success' });
   }
 
+  if (action === 'MOVE_TASK') {
+    const { taskId, teamName } = body;
+    const dbTask = await prisma.task.findFirst({ where: { tenantId, id: taskId } });
+    if (dbTask) {
+      let teamId = null;
+      if (teamName !== 'QR' && teamName !== 'כללי') {
+         let team = await prisma.team.findFirst({ where: { tenantId, name: teamName } });
+         if (!team) team = await prisma.team.create({ data: { tenantId, name: teamName } });
+         teamId = team.id;
+      } else if (teamName === 'QR') {
+         let team = await prisma.team.findFirst({ where: { tenantId, name: 'QR' } });
+         if (!team) team = await prisma.team.create({ data: { tenantId, name: 'QR' } });
+         teamId = team.id;
+      }
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { teamId }
+      });
+    }
+    return NextResponse.json({ status: 'success' });
+  }
+
+  if (action === 'EDIT_DEFECT') {
+    const { taskId, newDefect } = body;
+    const dbTask = await prisma.task.findFirst({ where: { tenantId, id: taskId } });
+    if (dbTask) {
+      await prisma.task.update({
+        where: { id: taskId },
+        data: { notes: newDefect }
+      });
+    }
+    return NextResponse.json({ status: 'success' });
+  }
+
   if (action === 'CLOSE_TASK') {
-    const { id, room } = body;
+    const { id, room, tasks } = body;
+    
+    if (tasks && Array.isArray(tasks)) {
+      for (const t of tasks) {
+        await prisma.task.updateMany({
+          where: { tenantId, id: t.id },
+          data: { status: 'CLOSED', photoUrl: null, afterPhotoUrl: null }
+        });
+      }
+      return NextResponse.json({ status: 'success' });
+    }
+
     let dbTask = null;
     if (id) {
       dbTask = await prisma.task.findUnique({ where: { id } });
@@ -639,12 +696,12 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         if (trDefect) {
             const r1 = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=he&tl=${targetLang}&dt=t&q=${encodeURIComponent(trDefect)}`);
             const d1 = await r1.json();
-            trDefect = d1[0].map((item) => item[0]).join('');
+            trDefect = d1[0].map((item: any) => item[0]).join('');
         }
         if (trComment) {
             const r2 = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=he&tl=${targetLang}&dt=t&q=${encodeURIComponent(trComment)}`);
             const d2 = await r2.json();
-            trComment = d2[0].map((item) => item[0]).join('');
+            trComment = d2[0].map((item: any) => item[0]).join('');
         }
       } catch(e) {
         console.error('Translation error', e);
@@ -658,14 +715,15 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       });
     }
     
-    const labels = {
+    const labelsMap: Record<string, any> = {
         'ru': { room: 'Комната: ', name: 'Имя: ', date: 'Дата: ', sign: 'Подпись: ' },
         'en': { room: 'Room: ', name: 'Name: ', date: 'Date: ', sign: 'Signature: ' },
         'ar': { room: 'غرفة: ', name: 'الاسم: ', date: 'تاريخ: ', sign: 'توقيع: ' }
-    }[targetLang] || { room: 'חדר: ', name: 'שם: ', date: 'תאריך: ', sign: 'חתימה: ' };
+    };
+    const labels = labelsMap[targetLang] || { room: 'חדר: ', name: 'שם: ', date: 'תאריך: ', sign: 'חתימה: ' };
     
     if (translations.length > 0) {
-        translations[0].labels = labels;
+        (translations[0] as any).labels = labels;
     }
     
     return NextResponse.json({ status: 'success', translations });
