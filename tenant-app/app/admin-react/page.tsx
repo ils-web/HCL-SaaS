@@ -543,11 +543,10 @@ export default function AdminReactPage() {
       {/* Top Header */}
       <header className="flex flex-col xl:flex-row justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 gap-4">
         <div className="flex flex-col sm:flex-row items-center gap-4">
-          <div className="flex items-center gap-4">
-            <img src="/logo.png" alt="Logo" className="h-10 object-contain" onError={(e) => (e.target as HTMLImageElement).style.display = 'none'} />
-            <h1 className="text-2xl font-black text-gray-800">פאנל ניהול (React)</h1>
-          </div>
-          <span className="text-xl font-bold text-blue-600 sm:mr-4">{tenantName}</span>
+          <h1 className="text-xl sm:text-2xl font-black text-blue-700 bg-blue-50/50 px-4 py-2 rounded-xl border border-blue-100 shadow-sm flex items-center gap-3">
+            <i className="fas fa-building text-blue-500 opacity-80"></i>
+            {tenantName}
+          </h1>
         </div>
         <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap justify-center xl:justify-end">
           {/* QR Buttons moved to header */}
