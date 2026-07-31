@@ -982,12 +982,20 @@ export default function AdminReactPage() {
 
           <div className="flex gap-3 pt-4 border-t border-gray-200">
             <Button className="w-full" onClick={async () => {
+              const inp = document.getElementById("newWorkerName") as HTMLInputElement;
+              const val = inp?.value.trim();
+              let finalWorkers = [...workers];
+              if(val) {
+                if(!finalWorkers.find(wx => wx.name === val)) {
+                  finalWorkers.push({ id: "", name: val });
+                }
+              }
               setLoading(true);
               try {
                 const res = await fetch(`/api/${tenantId}`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ action: "SAVE_WORKERS", workers })
+                  body: JSON.stringify({ action: "SAVE_WORKERS", workers: finalWorkers })
                 });
                 const out = await res.json();
                 if(out.status === "success") {
@@ -1054,12 +1062,20 @@ export default function AdminReactPage() {
 
           <div className="flex gap-3 pt-4 border-t border-gray-200">
             <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" onClick={async () => {
+              const inp = document.getElementById("newTeamName") as HTMLInputElement;
+              const val = inp?.value.trim();
+              let finalTeams = [...teams];
+              if(val) {
+                if(!finalTeams.find(tx => tx.name === val)) {
+                  finalTeams.push({ id: "t_"+Date.now(), name: val });
+                }
+              }
               setLoading(true);
               try {
                 const res = await fetch(`/api/${tenantId}`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ action: "SAVE_TEAMS", teams: teams.map(t => t.name) })
+                  body: JSON.stringify({ action: "SAVE_TEAMS", teams: finalTeams.map(t => t.name) })
                 });
                 const out = await res.json();
                 if(out.status === "success" || !out.error) {
