@@ -59,14 +59,12 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
   }
 
   if (action === 'getSettings') {
-    const [workersDb, teamsDb, areas] = await Promise.all([
-      prisma.user.findMany({ where: { tenantId, role: 'WORKER' } }),
-      prisma.team.findMany({ where: { tenantId }, orderBy: { createdAt: 'asc' } }),
-      prisma.area.findMany({
-        where: { tenantId },
-        include: { systems: { include: { autoAssignTeam: true } } }
-      })
-    ]);
+    const workersDb = await prisma.user.findMany({ where: { tenantId, role: 'WORKER' } });
+    const teamsDb = await prisma.team.findMany({ where: { tenantId }, orderBy: { createdAt: 'asc' } });
+    const areas = await prisma.area.findMany({
+      where: { tenantId },
+      include: { systems: { include: { autoAssignTeam: true } } }
+    });
 
     const workers = workersDb.map(w => ({ id: w.id, name: w.name, teamId: w.teamId }));
     const teams = teamsDb.map(t => t.name);

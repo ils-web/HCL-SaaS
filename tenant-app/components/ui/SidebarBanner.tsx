@@ -15,7 +15,7 @@ export function SidebarBanner({ title, items = [], icon, onPrint, className }: S
   return (
     <div
       className={cn(
-        "hidden 2xl:flex sticky top-8 w-64 bg-white/40 backdrop-blur-sm border border-white/40 shadow-sm rounded-3xl p-5 flex-col shrink-0 z-0",
+        "hidden 2xl:flex sticky top-8 w-64 backdrop-blur-sm shadow-sm rounded-3xl p-5 flex-col shrink-0 z-0",
         className
       )}
       dir="rtl"

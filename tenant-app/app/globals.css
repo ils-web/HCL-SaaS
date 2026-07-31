@@ -1,12 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
+  --background: #858d9c;
   --foreground: #0f172a;
 }
 
-html {
-  overflow-y: scroll;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b131e;
+    --foreground: #f8fafc;
+  }
 }
 
 body {

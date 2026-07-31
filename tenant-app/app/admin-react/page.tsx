@@ -115,6 +115,11 @@ export default function AdminReactPage() {
   // Selection
   const [selectedTasks, setSelectedTasks] = React.useState<Set<number>>(new Set())
 
+  // Clear selections when any filter changes
+  React.useEffect(() => {
+    setSelectedTasks(new Set())
+  }, [currentTab, filterDept, filterDate, searchQuery])
+
   const workerStats = React.useMemo(() => {
     const stats: Record<string, { total: number, done: number }> = {}
     tasks.forEach(t => {
@@ -203,12 +208,9 @@ export default function AdminReactPage() {
     setLoading(true)
 
     try {
-      const [res, settingsRes] = await Promise.all([
-        fetch(`/api/${tId}?action=getOpenTasks`),
-        fetch(`/api/${tId}?action=getSettings`)
-      ])
-      
+      const res = await fetch(`/api/${tId}?action=getOpenTasks`)
       const data = await res.json()
+      
       if (data.tasks) {
         setTasks(data.tasks)
       } else {
@@ -217,6 +219,7 @@ export default function AdminReactPage() {
       }
 
       // Also load settings
+      const settingsRes = await fetch(`/api/${tId}?action=getSettings`)
       const settingsData = await settingsRes.json()
       if (settingsData.workers) {
         setWorkers(settingsData.workers)
@@ -316,11 +319,18 @@ export default function AdminReactPage() {
   }
 
   const handleSelectAll = () => {
-    if (selectedTasks.size === filtered.length) {
-      setSelectedTasks(new Set())
+    const allFilteredIds = filtered.map(t => t.id);
+    const allSelected = allFilteredIds.length > 0 && allFilteredIds.every(id => selectedTasks.has(id));
+    
+    const newSet = new Set(selectedTasks);
+    if (allSelected) {
+      // Deselect all visible
+      allFilteredIds.forEach(id => newSet.delete(id));
     } else {
-      setSelectedTasks(new Set(filtered.map(t => t.id)))
+      // Select all visible
+      allFilteredIds.forEach(id => newSet.add(id));
     }
+    setSelectedTasks(newSet);
   }
 
   const handleAction = async (id: number, actionType: string, bodyData: any = {}) => {
@@ -529,7 +539,7 @@ export default function AdminReactPage() {
 
   return (
     <>
-    <div className="min-h-screen bg-gray-50/50 p-4 lg:p-8 print:hidden" dir="rtl">
+    <div className="min-h-screen bg-[#858d9c] p-4 lg:p-8 print:hidden" dir="rtl">
       {/* Top Header */}
       <header className="flex flex-col xl:flex-row justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 gap-4">
         <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -581,7 +591,7 @@ export default function AdminReactPage() {
           <SidebarBanner 
             title="התראות וחריגים"
             items={warningStats}
-            className="bg-rose-50/50 border-rose-100/50"
+            className="bg-[#d2cbd0] border-transparent"
             icon={
               <svg className="w-5 h-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -592,6 +602,7 @@ export default function AdminReactPage() {
           <SidebarBanner 
             title="סטטוס משימות"
             items={workerStats}
+            className="bg-[#b0b4be] border-transparent"
             icon={
               <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -1445,7 +1456,7 @@ export default function AdminReactPage() {
         </table>
       </div>
     )}
-    {/* Card Print Container */}
+
     {printCardsData && (
       <div id="printCardsContainer" dir={printLang === "ru" || printLang === "en" ? "ltr" : "rtl"} className="hidden print:block w-full bg-white text-black m-0 p-0">
         <style dangerouslySetInnerHTML={{__html: `
