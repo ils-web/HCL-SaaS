@@ -1,21 +1,34 @@
-﻿"use client"
+"use client"
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
+import useSWR from "swr"
 import { toast } from "@/components/ui/Toast"
 import { format } from "date-fns"
 import { type Task } from "@/components/ui/TaskCard"
 
+const fetcher = (url: string) => fetch(url).then(res => res.json())
+
 export function useAdminState() {
   const router = useRouter()
+  const [tenantId, setTenantId] = React.useState<string | null>(null)
+  const { data: tasksData, mutate: mutateTasks, isLoading: tasksLoading } = useSWR(tenantId ? `/api/${tenantId}?action=getOpenTasks` : null, fetcher, { refreshInterval: 30000 })
   
-const [tasks, setTasks] = React.useState<Task[]>([])
+  const tasks: Task[] = tasksData?.tasks || []
+  const setTasks = (newTasks: Task[] | ((prev: Task[]) => Task[])) => {
+    if (typeof newTasks === 'function') {
+      mutateTasks((currentData: any) => ({ ...currentData, tasks: newTasks(currentData?.tasks || []) }), false);
+    } else {
+      mutateTasks({ tasks: newTasks }, false);
+    }
+  }
+
   const [workers, setWorkers] = React.useState<{id:string, name:string, teamId?:string}[]>([])
   const [categories, setCategories] = React.useState<any>(null)
   const [systemTeams, setSystemTeams] = React.useState<Record<string, string>>({})
   const [teams, setTeams] = React.useState<any[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [tenantId, setTenantId] = React.useState<string | null>(null)
+  const [loadingLocal, setLoadingLocal] = React.useState(true)
+  const loading = loadingLocal || tasksLoading
   
   // Modals & Print
   const [printModalOpen, setPrintModalOpen] = React.useState(false)
@@ -31,10 +44,17 @@ const [tasks, setTasks] = React.useState<Task[]>([])
   const [confirmModalData, setConfirmModalData] = React.useState<{isOpen: boolean, title: string, onConfirm: () => void}>({isOpen: false, title: "", onConfirm: () => {}});
   const [promptModalData, setPromptModalData] = React.useState<{isOpen: boolean, title: string, value: string, onConfirm: (val: string) => void}>({isOpen: false, title: "", value: "", onConfirm: () => {}});
   const [reportsModalOpen, setReportsModalOpen] = React.useState(false);
-  const [reportsData, setReportsData] = React.useState<any[]>([]);
   const [reportsStart, setReportsStart] = React.useState("");
   const [reportsEnd, setReportsEnd] = React.useState("");
-  const [isReportsLoading, setIsReportsLoading] = React.useState(false);
+
+  const { data: reportsSwrData, mutate: mutateReports, isLoading: isReportsLoading } = useSWR(
+    (reportsModalOpen && reportsStart && reportsEnd && tenantId) 
+      ? `/api/${tenantId}?action=getReports&startDate=${reportsStart}&endDate=${reportsEnd}` 
+      : null, 
+    fetcher
+  );
+  const reportsData = reportsSwrData?.tasks || [];
+  const setReportsData = (d: any) => {};
 
   const confirmAction = (title: string, onConfirm: () => void) => {
     setConfirmModalData({ isOpen: true, title, onConfirm });
@@ -46,16 +66,7 @@ const [tasks, setTasks] = React.useState<Task[]>([])
 
   const loadReports = async () => {
     if (!reportsStart || !reportsEnd) return toast("יש לבחור תאריכים", "error");
-    setIsReportsLoading(true);
-    try {
-      const res = await fetch(`/api/${tenantId}?action=getReports&startDate=${reportsStart}&endDate=${reportsEnd}`);
-      const data = await res.json();
-      setReportsData(data.tasks || []);
-    } catch(e) {
-      toast("שגיאה בטעינת דוחות", "error");
-    } finally {
-      setIsReportsLoading(false);
-    }
+    mutateReports();
   };
 
   const handlePrintReports = () => {
@@ -186,25 +197,15 @@ const [tasks, setTasks] = React.useState<Task[]>([])
     }
 
     if (!tId) {
-      setLoading(false)
+      setLoadingLocal(false)
       setTenantId(null) // Make sure tenantId is null so we can show the prompt
       return
     }
     setTenantId(tId)
-    setLoading(true)
+    setLoadingLocal(true)
 
     try {
-      const res = await fetch(`/api/${tId}?action=getOpenTasks`)
-      const data = await res.json()
-      
-      if (data.tasks) {
-        setTasks(data.tasks)
-      } else {
-        toast("שגיאה בטעינת נתונים", "error")
-        setTasks([])
-      }
-
-      // Also load settings
+      // Load settings
       const settingsRes = await fetch(`/api/${tId}?action=getSettings`)
       const settingsData = await settingsRes.json()
       if (settingsData.workers) {
@@ -225,9 +226,8 @@ const [tasks, setTasks] = React.useState<Task[]>([])
     } catch (e) {
       console.error(e)
       toast("שגיאת תקשורת", "error")
-      setTasks([])
     } finally {
-      setLoading(false)
+      setLoadingLocal(false)
     }
   }, [])
 
@@ -320,6 +320,20 @@ const [tasks, setTasks] = React.useState<Task[]>([])
   const handleAction = async (id: number, actionType: string, bodyData: any = {}) => {
     const tId = tenantId || localStorage.getItem("hcl_tenantId") || new URLSearchParams(window.location.search).get("tenantId")
     if (!tId) return
+
+    // Optimistic Update
+    if (actionType === "CLOSE_TASK") {
+       const ids = bodyData.tasks ? bodyData.tasks.map((t:any)=>t.id) : [id];
+       setTasks(tasks.map((t:any) => ids.includes(t.id) ? { ...t, status: "בוצע" } : t));
+    } else if (actionType === "UNMARK_PRINTED") {
+       const ids = bodyData.tasks ? bodyData.tasks.map((t:any)=>t.id) : [id];
+       setTasks(tasks.map((t:any) => ids.includes(t.id) ? { ...t, status: "פתוח" } : t));
+    } else if (actionType === "MOVE_TASK") {
+       setTasks(tasks.map((t:any) => t.id === id ? { ...t, worker: bodyData.teamName } : t));
+    } else if (actionType === "EDIT_DEFECT") {
+       setTasks(tasks.map((t:any) => t.id === id ? { ...t, defect: bodyData.newDefect } : t));
+    }
+
     try {
       const res = await fetch(`/api/${tId}`, {
         method: "POST",
@@ -331,12 +345,14 @@ const [tasks, setTasks] = React.useState<Task[]>([])
       if (data.status === "success") {
         setTeams(data.teams || [])
         setTasks(data.tasks || [])
-        loadTasks()
+        mutateTasks()
       } else {
         toast(data.message || "שגיאה", "error")
+        mutateTasks() // Rollback optimistic update
       }
     } catch (e) {
       console.error(e)
+      mutateTasks() // Rollback optimistic update
     }
   }
 
