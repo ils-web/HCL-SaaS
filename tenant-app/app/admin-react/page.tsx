@@ -629,61 +629,61 @@ export default function AdminReactPage() {
       </div>
 
       <AdminModals 
-        tenantId={$tenantId}
-        tenantName={$tenantName}
-        tasks={$tasks}
-        teams={$teams}
-        setTeams={$setTeams}
-        workers={$workers}
-        setWorkers={$setWorkers}
-        categories={$categories}
-        setCategories={$setCategories}
-        systemTeams={$systemTeams}
-        setSystemTeams={$setSystemTeams}
-        loadTasks={$loadTasks}
-        loading={$loading}
-        setLoading={$setLoading}
-        printModalOpen={$printModalOpen}
-        setPrintModalOpen={$setPrintModalOpen}
-        printLang={$printLang}
-        setPrintLang={$setPrintLang}
-        printWorker={$printWorker}
-        setPrintWorker={$setPrintWorker}
-        executeOutputSequence={$executeOutputSequence}
-        workerQrModalOpen={$workerQrModalOpen}
-        setWorkerQrModalOpen={$setWorkerQrModalOpen}
-        qrModalOpen={$qrModalOpen}
-        setQrModalOpen={$setQrModalOpen}
-        workersModalOpen={$workersModalOpen}
-        setWorkersModalOpen={$setWorkersModalOpen}
-        teamsModalOpen={$teamsModalOpen}
-        setTeamsModalOpen={$setTeamsModalOpen}
-        configModalOpen={$configModalOpen}
-        setConfigModalOpen={$setConfigModalOpen}
-        integrationsModalOpen={$integrationsModalOpen}
-        setIntegrationsModalOpen={$setIntegrationsModalOpen}
-        promptModalData={$promptModalData}
-        setPromptModalData={$setPromptModalData}
-        confirmModalData={$confirmModalData}
-        setConfirmModalData={$setConfirmModalData}
-        reportsModalOpen={$reportsModalOpen}
-        setReportsModalOpen={$setReportsModalOpen}
-        reportsStart={$reportsStart}
-        setReportsStart={$setReportsStart}
-        reportsEnd={$reportsEnd}
-        setReportsEnd={$setReportsEnd}
-        isReportsLoading={$isReportsLoading}
-        loadReports={$loadReports}
-        reportsData={$reportsData}
-        handlePrintReports={$handlePrintReports}
-        telegramBotToken={$telegramBotToken}
-        setTelegramBotToken={$setTelegramBotToken}
-        telegramChatId={$telegramChatId}
-        setTelegramChatId={$setTelegramChatId}
-        whatsappInstance={$whatsappInstance}
-        setWhatsappInstance={$setWhatsappInstance}
-        whatsappToken={$whatsappToken}
-        setWhatsappToken={$setWhatsappToken}
+        tenantId={tenantId}
+        tenantName={tenantName}
+        tasks={tasks}
+        teams={teams}
+        setTeams={setTeams}
+        workers={workers}
+        setWorkers={setWorkers}
+        categories={categories}
+        setCategories={setCategories}
+        systemTeams={systemTeams}
+        setSystemTeams={setSystemTeams}
+        loadTasks={loadTasks}
+        loading={loading}
+        setLoading={setLoading}
+        printModalOpen={printModalOpen}
+        setPrintModalOpen={setPrintModalOpen}
+        printLang={printLang}
+        setPrintLang={setPrintLang}
+        printWorker={printWorker}
+        setPrintWorker={setPrintWorker}
+        executeOutputSequence={executeOutputSequence}
+        workerQrModalOpen={workerQrModalOpen}
+        setWorkerQrModalOpen={setWorkerQrModalOpen}
+        qrModalOpen={qrModalOpen}
+        setQrModalOpen={setQrModalOpen}
+        workersModalOpen={workersModalOpen}
+        setWorkersModalOpen={setWorkersModalOpen}
+        teamsModalOpen={teamsModalOpen}
+        setTeamsModalOpen={setTeamsModalOpen}
+        configModalOpen={configModalOpen}
+        setConfigModalOpen={setConfigModalOpen}
+        integrationsModalOpen={integrationsModalOpen}
+        setIntegrationsModalOpen={setIntegrationsModalOpen}
+        promptModalData={promptModalData}
+        setPromptModalData={setPromptModalData}
+        confirmModalData={confirmModalData}
+        setConfirmModalData={setConfirmModalData}
+        reportsModalOpen={reportsModalOpen}
+        setReportsModalOpen={setReportsModalOpen}
+        reportsStart={reportsStart}
+        setReportsStart={setReportsStart}
+        reportsEnd={reportsEnd}
+        setReportsEnd={setReportsEnd}
+        isReportsLoading={isReportsLoading}
+        loadReports={loadReports}
+        reportsData={reportsData}
+        handlePrintReports={handlePrintReports}
+        telegramBotToken={telegramBotToken}
+        setTelegramBotToken={setTelegramBotToken}
+        telegramChatId={telegramChatId}
+        setTelegramChatId={setTelegramChatId}
+        whatsappInstance={whatsappInstance}
+        setWhatsappInstance={setWhatsappInstance}
+        whatsappToken={whatsappToken}
+        setWhatsappToken={setWhatsappToken}
       />
       {/* Scroll to Top Button */}
       <button 
@@ -696,5 +696,6 @@ export default function AdminReactPage() {
     </>
   )
 }
+
 
 
