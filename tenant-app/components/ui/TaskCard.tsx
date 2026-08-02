@@ -79,6 +79,16 @@ export function TaskCard({
   const actT = task.actionType === 1 ? "החלפה" : "תיקון"
   const cleanSheetName = task.sheet.replace(/_/g, " ")
 
+  // For QR tasks, the original department is sometimes prepended to the room string (e.g. "G 1 / 100")
+  // and the task.dept is hardcoded to "QR". Let's extract it for proper display.
+  let displayDept = task.dept;
+  let displayRoom = task.room;
+  if (task.dept === "QR" && task.room.includes(" / ")) {
+    const parts = task.room.split(" / ");
+    displayDept = parts[0];
+    displayRoom = parts.slice(1).join(" / ");
+  }
+
   // Image helpers
   const getImgUrl = (url: string | null) => {
     if (!url) return "https://placehold.co/100x100?text=No+Photo"
@@ -167,7 +177,7 @@ export function TaskCard({
 
         <div className="flex items-center gap-3">
           <h3 className="text-xl font-bold text-gray-900">
-            {task.dept} | חדר: {task.room} <span className="text-sm font-normal px-2 bg-gray-100 rounded text-gray-700 ml-2">{actT}</span>
+            {displayDept} | חדר: {displayRoom} <span className="text-sm font-normal px-2 bg-gray-100 rounded text-gray-700 ml-2">{actT}</span>
           </h3>
         </div>
         <div className="flex items-center gap-2 mt-1">
@@ -191,7 +201,7 @@ export function TaskCard({
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          {task.dateStr} | {task.inspector}
+          {task.dateStr} | {isQr && reporterName ? `מדווח: ${reporterName}` : task.inspector}
         </p>
       </div>
 

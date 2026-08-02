@@ -1575,10 +1575,18 @@ export default function AdminReactPage() {
                  const workerVal = printWorker ? printWorker : "_________"
                  const labels = t.translatedLabels || { room: 'חדר: ', name: 'שם: ', date: 'תאריך: ', sign: 'חתימה: ' };
                  
+                 let displayDept = t.dept || t.department;
+                 let displayRoom = t.room;
+                 if ((displayDept === "QR" || displayDept === "כללי") && displayRoom && displayRoom.includes(" / ")) {
+                   const parts = displayRoom.split(" / ");
+                   displayDept = parts[0];
+                   displayRoom = parts.slice(1).join(" / ");
+                 }
+                 
                  return (
                   <div key={t.id} className="print-card">
                     <div className="print-card-top">
-                      <span style={{fontWeight: 900, fontSize: '20px'}}>{labels.room}{t.room}</span>
+                      <span style={{fontWeight: 900, fontSize: '20px'}}>{displayDept} | {labels.room}{displayRoom}</span>
                       <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                         {isQr && <span style={{background:'#fbcfe8', color:'#be185d', padding:'2px 8px', borderRadius:'6px', fontSize:'14px', fontWeight:900}}>QR</span>}
                         <span style={{border: '1px solid #ccc', padding: '2px 8px', borderRadius: '4px', fontSize: '14px', fontWeight: 'bold'}}>{actT}</span>
