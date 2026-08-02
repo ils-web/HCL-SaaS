@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import * as React from "react"
 import { Modal } from "@/components/ui/Modal"
@@ -172,10 +172,25 @@ export function AdminModals({
                   const win = window.open('', '_blank');
                   if(!win) return;
                   win.document.write(`
-                    <html dir="rtl"><head><title>Print QR</title></head>
-                    <body style="text-align:center; padding:50px; font-family:sans-serif;">
-                      <h2>דיווח תקלות - ${tenantName}${deptText}</h2>
-                      <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(workerQrGeneratedUrl)}" />
+                    <html dir="rtl"><head><title>Print QR</title>
+                    <style>
+                      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
+                      .card { border: 4px solid #4f46e5; border-radius: 20px; display: inline-block; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                      h1 { font-size: 36px; margin-bottom: 10px; color: #4f46e5; font-weight: 900; }
+                      p { font-size: 24px; color: #4b5563; font-weight: bold; margin-bottom: 30px; }
+                      .dept-badge { display: inline-block; background: #e0e7ff; color: #4338ca; padding: 10px 20px; border-radius: 12px; font-size: 28px; font-weight: 900; margin-bottom: 30px; border: 2px dashed #818cf8; }
+                      .qr-container { padding: 20px; border: 3px solid #e5e7eb; border-radius: 16px; display: inline-block; background: #fff; }
+                    </style>
+                    </head>
+                    <body>
+                      <div class="card">
+                          <h1>דיווח על תקלה - סרוק אותי!</h1>
+                          <p>נתקלת בתקלה? סרוק את הברקוד ודווח בקלות.</p>
+                          <div class="dept-badge">מחלקה: ${deptToUse || 'כללי'}</div><br>
+                          <div class="qr-container">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(workerQrGeneratedUrl)}" />
+                          </div>
+                      </div>
                       <br><br><button onclick="window.print(); window.close();" style="padding:15px 30px; font-size:18px; cursor:pointer; background:#2563eb; color:white; border:none; border-radius:8px;">הדפס</button>
                     </body></html>
                   `);
@@ -209,10 +224,23 @@ export function AdminModals({
                   const win = window.open('', '_blank');
                   if(!win) return;
                   win.document.write(`
-                    <html dir="rtl"><head><title>Print QR</title></head>
-                    <body style="text-align:center; padding:50px; font-family:sans-serif;">
-                      <h2>אפליקציית מפקח - כללי</h2>
-                      <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrGeneratedUrl)}" />
+                    <html dir="rtl"><head><title>Print QR</title>
+                    <style>
+                      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
+                      .card { border: 4px solid #059669; border-radius: 20px; display: inline-block; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                      h1 { font-size: 36px; margin-bottom: 10px; color: #059669; font-weight: 900; }
+                      p { font-size: 24px; color: #4b5563; font-weight: bold; margin-bottom: 30px; }
+                      .qr-container { padding: 20px; border: 3px solid #e5e7eb; border-radius: 16px; display: inline-block; background: #fff; }
+                    </style>
+                    </head>
+                    <body>
+                      <div class="card">
+                          <h1>אפליקציית מפקח</h1>
+                          <p>סרוק כדי להתחבר לממשק המפקח (כללי לארגון)</p>
+                          <div class="qr-container">
+                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrGeneratedUrl)}" />
+                          </div>
+                      </div>
                       <br><br><button onclick="window.print(); window.close();" style="padding:15px 30px; font-size:18px; cursor:pointer; background:#2563eb; color:white; border:none; border-radius:8px;">הדפס</button>
                     </body></html>
                   `);
@@ -267,10 +295,25 @@ export function AdminModals({
                     const win = window.open('', '_blank');
                     if(!win) return;
                     win.document.write(`
-                      <html dir="rtl"><head><title>Print Worker QR</title></head>
-                      <body style="text-align:center; padding:50px; font-family:sans-serif;">
-                        <h2>אפליקציית עובד - ${w.name}</h2>
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}" />
+                      <html dir="rtl"><head><title>Print Worker QR</title>
+                      <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
+                        .card { border: 4px solid #db2777; border-radius: 20px; display: inline-block; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                        h1 { font-size: 36px; margin-bottom: 10px; color: #db2777; font-weight: 900; }
+                        p { font-size: 24px; color: #4b5563; font-weight: bold; margin-bottom: 30px; }
+                        .name-badge { display: inline-block; background: #fce7f3; color: #be185d; padding: 10px 20px; border-radius: 12px; font-size: 28px; font-weight: 900; margin-bottom: 30px; border: 2px dashed #f472b6; }
+                        .qr-container { padding: 20px; border: 3px solid #e5e7eb; border-radius: 16px; display: inline-block; background: #fff; }
+                      </style>
+                      </head>
+                      <body>
+                        <div class="card">
+                            <h1>אפליקציית עובד</h1>
+                            <p>סרוק כדי להתחבר למשימות שלך</p>
+                            <div class="name-badge">עובד: ${w.name}</div><br>
+                            <div class="qr-container">
+                              <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}" />
+                            </div>
+                        </div>
                         <br><br><button onclick="window.print(); window.close();" style="padding:15px 30px; font-size:18px; cursor:pointer; background:#2563eb; color:white; border:none; border-radius:8px;">הדפס</button>
                       </body></html>
                     `);
