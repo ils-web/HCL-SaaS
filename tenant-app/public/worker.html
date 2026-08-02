@@ -362,6 +362,60 @@
             }
         }
 
+        // PWA and Service Worker Logic
+        let deferredPrompt;
+        
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(reg => {
+                    console.log('SW registered!', reg);
+                }).catch(err => console.log('SW registration failed', err));
+            });
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent the mini-infobar from appearing on mobile
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            // Update UI notify the user they can install the PWA
+            showInstallPromotion();
+        });
+
+        function showInstallPromotion() {
+            const banner = document.createElement('div');
+            banner.id = 'pwa-install-banner';
+            banner.className = 'fixed bottom-0 left-0 w-full bg-indigo-600 text-white p-4 flex justify-between items-center z-50 animate-bounce shadow-2xl rounded-t-xl';
+            banner.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-download text-2xl"></i>
+                    <div>
+                        <div class="font-bold">התקן אפליקציה</div>
+                        <div class="text-xs opacity-80">לגישה מהירה גם ללא אינטרנט</div>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button id="pwa-install-btn" class="bg-white text-indigo-600 px-4 py-2 rounded-full font-bold text-sm shadow-md">התקן</button>
+                    <button id="pwa-dismiss-btn" class="text-indigo-200 p-2"><i class="fas fa-times"></i></button>
+                </div>
+            `;
+            document.body.appendChild(banner);
+
+            document.getElementById('pwa-install-btn').addEventListener('click', async () => {
+                banner.remove();
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    console.log(`User response to the install prompt: ${outcome}`);
+                    deferredPrompt = null;
+                }
+            });
+
+            document.getElementById('pwa-dismiss-btn').addEventListener('click', () => {
+                banner.remove();
+            });
+        }
+
         init();
     </script>
 </body>
