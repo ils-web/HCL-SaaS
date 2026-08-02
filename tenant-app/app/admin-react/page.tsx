@@ -86,6 +86,8 @@ export default function AdminReactPage() {
   };
 
   const [qrModalOpen, setQrModalOpen] = React.useState(false)
+  const [workerQrModalOpen, setWorkerQrModalOpen] = React.useState(false)
+  const [workerQrGeneratedUrl, setWorkerQrGeneratedUrl] = React.useState("")
   const [configModalOpen, setConfigModalOpen] = React.useState(false)
   const [teamsModalOpen, setTeamsModalOpen] = React.useState(false)
   const [workersModalOpen, setWorkersModalOpen] = React.useState(false)
@@ -550,7 +552,7 @@ export default function AdminReactPage() {
         </div>
         <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap justify-center xl:justify-end">
           {/* QR Buttons moved to header */}
-          <Button variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50 font-bold px-4 h-10" onClick={() => setWorkersModalOpen(true)}>
+          <Button variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50 font-bold px-4 h-10" onClick={() => setWorkerQrModalOpen(true)}>
             <i className="fas fa-qrcode ml-2"></i>Worker QR
           </Button>
           <Button variant="outline" className="text-purple-600 border-purple-600 hover:bg-purple-50 font-bold px-4 h-10" onClick={() => setQrModalOpen(true)}>
@@ -850,6 +852,43 @@ export default function AdminReactPage() {
             <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold" onClick={executeOutputSequence}>אישור</Button>
             <Button variant="outline" className="w-full" onClick={() => setPrintModalOpen(false)}>ביטול</Button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Worker QR Modal */}
+      <Modal isOpen={workerQrModalOpen} onClose={() => setWorkerQrModalOpen(false)} title="אפליקציית דיווח (QR)">
+        <div className="space-y-4 text-center">
+          <p className="text-gray-600 mb-4 font-medium">יצירת קוד QR לדיווח תקלות כללי (עבור עובדים ואורחים)</p>
+          
+          <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-12" onClick={() => {
+            setWorkerQrGeneratedUrl(window.location.origin + "/report.html?tenantId=" + tenantId);
+          }}>
+            <i className="fas fa-qrcode ml-2"></i> הכן קוד QR לדיווח
+          </Button>
+
+          {workerQrGeneratedUrl && (
+            <div className="flex flex-col items-center p-4 bg-gray-50 rounded-xl border mt-4">
+              <p className="text-gray-700 font-bold mb-2">סרוק את הקוד מטה:</p>
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(workerQrGeneratedUrl)}`} alt="QR Code" className="w-48 h-48 border bg-white p-2 rounded shadow-sm" />
+              <a href={workerQrGeneratedUrl} target="_blank" className="mt-3 text-sm font-medium text-blue-600 hover:underline break-all text-center px-4">{workerQrGeneratedUrl}</a>
+              <div className="mt-4 flex gap-2 w-full">
+                <Button variant="outline" className="flex-1 font-bold border-blue-600 text-blue-600" onClick={() => window.open(workerQrGeneratedUrl, "_blank")}>פתח קישור</Button>
+                <Button variant="outline" className="flex-1 font-bold border-orange-500 text-orange-600" onClick={() => {
+                  const win = window.open('', '_blank');
+                  if(!win) return;
+                  win.document.write(`
+                    <html dir="rtl"><head><title>Print QR</title></head>
+                    <body style="text-align:center; padding:50px; font-family:sans-serif;">
+                      <h2>דיווח תקלות - ${tenantName}</h2>
+                      <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(workerQrGeneratedUrl)}" />
+                      <br><br><button onclick="window.print(); window.close();" style="padding:15px 30px; font-size:18px; cursor:pointer; background:#2563eb; color:white; border:none; border-radius:8px;">הדפס</button>
+                    </body></html>
+                  `);
+                  win.document.close();
+                }}>הדפס</Button>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
 
