@@ -9,6 +9,34 @@ import { DatePicker } from "@/components/ui/DatePicker"
 import { toast } from "@/components/ui/Toast"
 import { format } from "date-fns"
 
+const printHtmlInIframe = (htmlContent: string) => {
+  let iframe = document.getElementById('print-iframe') as HTMLIFrameElement;
+  if (!iframe) {
+    iframe = document.createElement('iframe');
+    iframe.id = 'print-iframe';
+    iframe.style.position = 'absolute';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    document.body.appendChild(iframe);
+  }
+  
+  const doc = iframe.contentWindow?.document;
+  if (doc) {
+    doc.open();
+    doc.write(htmlContent + `
+      <script>
+        window.onload = function() {
+          setTimeout(function() {
+            window.print();
+          }, 200);
+        };
+      </script>
+    `);
+    doc.close();
+  }
+};
+
 interface AdminModalsProps {
   tenantId: string | null
   tenantName: string
@@ -169,9 +197,7 @@ export function AdminModals({
                 <Button variant="outline" className="flex-1 font-bold border-orange-500 text-orange-600" onClick={() => {
                   const deptToUse = qrDept === 'custom' ? qrCustomDept : qrDept;
                   const deptText = deptToUse ? ` - ${deptToUse}` : '';
-                  const win = window.open('', '_blank');
-                  if(!win) return;
-                  win.document.write(`
+                  printHtmlInIframe(`
                     <html dir="rtl"><head><title>Print QR</title>
                     <style>
                       body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
@@ -180,6 +206,7 @@ export function AdminModals({
                       p { font-size: 24px; color: #4b5563; font-weight: bold; margin-bottom: 30px; }
                       .dept-badge { display: inline-block; background: #e0e7ff; color: #4338ca; padding: 10px 20px; border-radius: 12px; font-size: 28px; font-weight: 900; margin-bottom: 30px; border: 2px dashed #818cf8; }
                       .qr-container { padding: 20px; border: 3px solid #e5e7eb; border-radius: 16px; display: inline-block; background: #fff; }
+                      .print-btn { display: none; }
                     </style>
                     </head>
                     <body>
@@ -191,10 +218,8 @@ export function AdminModals({
                             <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(workerQrGeneratedUrl)}" />
                           </div>
                       </div>
-                      <br><br><button onclick="window.print(); window.close();" style="padding:15px 30px; font-size:18px; cursor:pointer; background:#2563eb; color:white; border:none; border-radius:8px;">הדפס</button>
                     </body></html>
                   `);
-                  win.document.close();
                 }}>הדפס</Button>
               </div>
             </div>
@@ -221,9 +246,7 @@ export function AdminModals({
               <div className="mt-4 flex gap-2 w-full">
                 <Button variant="outline" className="flex-1 font-bold border-blue-600 text-blue-600" onClick={() => window.open(qrGeneratedUrl, "_blank")}>פתח קישור</Button>
                 <Button variant="outline" className="flex-1 font-bold border-orange-500 text-orange-600" onClick={() => {
-                  const win = window.open('', '_blank');
-                  if(!win) return;
-                  win.document.write(`
+                  printHtmlInIframe(`
                     <html dir="rtl"><head><title>Print QR</title>
                     <style>
                       body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
@@ -241,10 +264,8 @@ export function AdminModals({
                             <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrGeneratedUrl)}" />
                           </div>
                       </div>
-                      <br><br><button onclick="window.print(); window.close();" style="padding:15px 30px; font-size:18px; cursor:pointer; background:#2563eb; color:white; border:none; border-radius:8px;">הדפס</button>
                     </body></html>
                   `);
-                  win.document.close();
                 }}>הדפס</Button>
               </div>
             </div>
@@ -292,9 +313,7 @@ export function AdminModals({
                 <div className="flex gap-2 justify-end pt-2 border-t border-gray-200 mt-1">
                   <Button variant="outline" className="text-blue-600 hover:text-blue-800 p-2 font-bold bg-blue-50 border-blue-200 h-auto" title="הדפס QR לאפליקציית עובד" onClick={() => {
                     const url = window.location.origin + "/worker.html?tenantId=" + tenantId + "&workerId=" + w.id;
-                    const win = window.open('', '_blank');
-                    if(!win) return;
-                    win.document.write(`
+                    printHtmlInIframe(`
                       <html dir="rtl"><head><title>Print Worker QR</title>
                       <style>
                         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
@@ -314,10 +333,8 @@ export function AdminModals({
                               <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}" />
                             </div>
                         </div>
-                        <br><br><button onclick="window.print(); window.close();" style="padding:15px 30px; font-size:18px; cursor:pointer; background:#2563eb; color:white; border:none; border-radius:8px;">הדפס</button>
                       </body></html>
                     `);
-                    win.document.close();
                   }}><i className="fas fa-qrcode ml-2"></i>QR עובד</Button>
                   <Button variant="danger" className="p-2 h-auto" onClick={() => {
                     const newW = [...workers];
