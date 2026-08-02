@@ -860,8 +860,35 @@ export default function AdminReactPage() {
         <div className="space-y-4 text-center">
           <p className="text-gray-600 mb-4 font-medium">יצירת קוד QR לדיווח תקלות כללי (עבור עובדים ואורחים)</p>
           
+          <div className="flex flex-col gap-2 mb-4 text-right" dir="rtl">
+            <label className="font-bold text-gray-700">בחר מחלקה לדיווח (אופציונלי):</label>
+            <div className="flex gap-2">
+              <select 
+                className="flex-grow p-3 bg-gray-50 border rounded-xl font-bold outline-none"
+                value={qrDept}
+                onChange={(e) => setQrDept(e.target.value)}
+              >
+                <option value="">-- כללי (ללא מחלקה) --</option>
+                {categories?.departments && Object.keys(categories.departments).map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+                <option value="custom">-- אחר (הזן ידנית) --</option>
+              </select>
+            </div>
+            {qrDept === 'custom' && (
+              <Input 
+                placeholder="הכנס שם מחלקה..." 
+                value={qrCustomDept} 
+                onChange={(e) => setQrCustomDept(e.target.value)} 
+                className="mt-2 text-right"
+              />
+            )}
+          </div>
+
           <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-12" onClick={() => {
-            setWorkerQrGeneratedUrl(window.location.origin + "/report.html?tenantId=" + tenantId);
+            const deptToUse = qrDept === 'custom' ? qrCustomDept : qrDept;
+            const url = window.location.origin + "/report.html?tenantId=" + tenantId + (deptToUse ? "&dept=" + encodeURIComponent(deptToUse) : "");
+            setWorkerQrGeneratedUrl(url);
           }}>
             <i className="fas fa-qrcode ml-2"></i> הכן קוד QR לדיווח
           </Button>
@@ -874,12 +901,14 @@ export default function AdminReactPage() {
               <div className="mt-4 flex gap-2 w-full">
                 <Button variant="outline" className="flex-1 font-bold border-blue-600 text-blue-600" onClick={() => window.open(workerQrGeneratedUrl, "_blank")}>פתח קישור</Button>
                 <Button variant="outline" className="flex-1 font-bold border-orange-500 text-orange-600" onClick={() => {
+                  const deptToUse = qrDept === 'custom' ? qrCustomDept : qrDept;
+                  const deptText = deptToUse ? ` - ${deptToUse}` : '';
                   const win = window.open('', '_blank');
                   if(!win) return;
                   win.document.write(`
                     <html dir="rtl"><head><title>Print QR</title></head>
                     <body style="text-align:center; padding:50px; font-family:sans-serif;">
-                      <h2>דיווח תקלות - ${tenantName}</h2>
+                      <h2>דיווח תקלות - ${tenantName}${deptText}</h2>
                       <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(workerQrGeneratedUrl)}" />
                       <br><br><button onclick="window.print(); window.close();" style="padding:15px 30px; font-size:18px; cursor:pointer; background:#2563eb; color:white; border:none; border-radius:8px;">הדפס</button>
                     </body></html>
