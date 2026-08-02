@@ -1,0 +1,776 @@
+﻿"use client"
+
+import * as React from "react"
+import { Modal } from "@/components/ui/Modal"
+import { Select } from "@/components/ui/Select"
+import { Button } from "@/components/ui/Button"
+import { Input } from "@/components/ui/Input"
+import { DatePicker } from "@/components/ui/DatePicker"
+import { toast } from "@/components/ui/Toast"
+import { format } from "date-fns"
+
+interface AdminModalsProps {
+  tenantId: string | null
+  tenantName: string
+  tasks: any[]
+  teams: any[]
+  setTeams: (val: any[]) => void
+  workers: any[]
+  setWorkers: (val: any[]) => void
+  categories: any
+  setCategories: (val: any) => void
+  systemTeams: any
+  setSystemTeams: (val: any) => void
+  loadTasks: () => void
+  loading: boolean
+  setLoading: (val: boolean) => void
+
+  printModalOpen: boolean
+  setPrintModalOpen: (val: boolean) => void
+  printLang: string
+  setPrintLang: (val: string) => void
+  printWorker: string
+  setPrintWorker: (val: string) => void
+  executeOutputSequence: () => void
+
+  workerQrModalOpen: boolean
+  setWorkerQrModalOpen: (val: boolean) => void
+  qrModalOpen: boolean
+  setQrModalOpen: (val: boolean) => void
+  workersModalOpen: boolean
+  setWorkersModalOpen: (val: boolean) => void
+  teamsModalOpen: boolean
+  setTeamsModalOpen: (val: boolean) => void
+  configModalOpen: boolean
+  setConfigModalOpen: (val: boolean) => void
+  integrationsModalOpen: boolean
+  setIntegrationsModalOpen: (val: boolean) => void
+  
+  promptModalData: any
+  setPromptModalData: (val: any) => void
+  confirmModalData: any
+  setConfirmModalData: (val: any) => void
+  
+  reportsModalOpen: boolean
+  setReportsModalOpen: (val: boolean) => void
+  reportsStart: string
+  setReportsStart: (val: string) => void
+  reportsEnd: string
+  setReportsEnd: (val: string) => void
+  isReportsLoading: boolean
+  loadReports: () => void
+  reportsData: any[]
+  handlePrintReports: () => void
+  
+  telegramBotToken: string
+  setTelegramBotToken: (val: string) => void
+  telegramChatId: string
+  setTelegramChatId: (val: string) => void
+  whatsappInstance: string
+  setWhatsappInstance: (val: string) => void
+  whatsappToken: string
+  setWhatsappToken: (val: string) => void
+}
+
+export function AdminModals({
+  tenantId, tenantName, tasks, teams, setTeams, workers, setWorkers,
+  categories, setCategories, systemTeams, setSystemTeams, loadTasks,
+  loading, setLoading,
+  printModalOpen, setPrintModalOpen, printLang, setPrintLang, printWorker, setPrintWorker, executeOutputSequence,
+  workerQrModalOpen, setWorkerQrModalOpen, qrModalOpen, setQrModalOpen,
+  workersModalOpen, setWorkersModalOpen, teamsModalOpen, setTeamsModalOpen,
+  configModalOpen, setConfigModalOpen, integrationsModalOpen, setIntegrationsModalOpen,
+  promptModalData, setPromptModalData, confirmModalData, setConfirmModalData,
+  reportsModalOpen, setReportsModalOpen, reportsStart, setReportsStart,
+  reportsEnd, setReportsEnd, isReportsLoading, loadReports, reportsData, handlePrintReports,
+  telegramBotToken, setTelegramBotToken, telegramChatId, setTelegramChatId,
+  whatsappInstance, setWhatsappInstance, whatsappToken, setWhatsappToken
+}: AdminModalsProps) {
+  const [qrDept, setQrDept] = React.useState("")
+  const [qrCustomDept, setQrCustomDept] = React.useState("")
+  const [workerQrGeneratedUrl, setWorkerQrGeneratedUrl] = React.useState("")
+  const [qrGeneratedUrl, setQrGeneratedUrl] = React.useState("")
+  const [activeConfigArea, setActiveConfigArea] = React.useState<string | null>(null)
+
+  return (
+    <>
+      <Modal isOpen={printModalOpen} onClose={() => setPrintModalOpen(false)} title="הגדרות הדפסה">
+        <div className="space-y-4">
+          <div className="mb-4">
+            <label className="block text-sm font-bold text-gray-700 mb-1">שפת הדפסה</label>
+            <Select value={printLang} onChange={e => setPrintLang(e.target.value)} className="w-full">
+              <option value="he">עברית</option>
+              <option value="ru">Русский</option>
+              <option value="en">English</option>
+              <option value="ar">العربية</option>
+            </Select>
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-gray-700 mb-1">שיוך לעובד (אופציונלי)</label>
+            <Select value={printWorker} onChange={e => setPrintWorker(e.target.value)} className="w-full">
+              <option value="">-- ללא שיוך מיוחד --</option>
+              {workers.map(w => (
+                <option key={w.id} value={w.name}>{w.name}</option>
+              ))}
+            </Select>
+          </div>
+          <div className="pt-4 flex gap-3">
+            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold" onClick={executeOutputSequence}>אישור</Button>
+            <Button variant="outline" className="w-full" onClick={() => setPrintModalOpen(false)}>ביטול</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Worker QR Modal */}
+      <Modal isOpen={workerQrModalOpen} onClose={() => setWorkerQrModalOpen(false)} title="אפליקציית דיווח (QR)">
+        <div className="space-y-4 text-center">
+          <p className="text-gray-600 mb-4 font-medium">יצירת קוד QR לדיווח תקלות כללי (עבור עובדים ואורחים)</p>
+          
+          <div className="flex flex-col gap-2 mb-4 text-right" dir="rtl">
+            <label className="font-bold text-gray-700">בחר מחלקה לדיווח (אופציונלי):</label>
+            <div className="flex gap-2">
+              <select 
+                className="flex-grow p-3 bg-gray-50 border rounded-xl font-bold outline-none"
+                value={qrDept}
+                onChange={(e) => setQrDept(e.target.value)}
+              >
+                <option value="">-- כללי (ללא מחלקה) --</option>
+                {Array.from(new Set(tasks.map(t => t.dept).filter(Boolean))).map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+                <option value="custom">-- אחר (הזן ידנית) --</option>
+              </select>
+            </div>
+            {qrDept === 'custom' && (
+              <Input 
+                placeholder="הכנס שם מחלקה..." 
+                value={qrCustomDept} 
+                onChange={(e) => setQrCustomDept(e.target.value)} 
+                className="mt-2 text-right"
+              />
+            )}
+          </div>
+
+          <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-12" onClick={() => {
+            const deptToUse = qrDept === 'custom' ? qrCustomDept : qrDept;
+            const url = window.location.origin + "/report.html?tenantId=" + tenantId + (deptToUse ? "&dept=" + encodeURIComponent(deptToUse) : "");
+            setWorkerQrGeneratedUrl(url);
+          }}>
+            <i className="fas fa-qrcode ml-2"></i> הכן קוד QR לדיווח
+          </Button>
+
+          {workerQrGeneratedUrl && (
+            <div className="flex flex-col items-center p-4 bg-gray-50 rounded-xl border mt-4">
+              <p className="text-gray-700 font-bold mb-2">סרוק את הקוד מטה:</p>
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(workerQrGeneratedUrl)}`} alt="QR Code" className="w-48 h-48 border bg-white p-2 rounded shadow-sm" />
+              <a href={workerQrGeneratedUrl} target="_blank" className="mt-3 text-sm font-medium text-blue-600 hover:underline break-all text-center px-4">{workerQrGeneratedUrl}</a>
+              <div className="mt-4 flex gap-2 w-full">
+                <Button variant="outline" className="flex-1 font-bold border-blue-600 text-blue-600" onClick={() => window.open(workerQrGeneratedUrl, "_blank")}>פתח קישור</Button>
+                <Button variant="outline" className="flex-1 font-bold border-orange-500 text-orange-600" onClick={() => {
+                  const deptToUse = qrDept === 'custom' ? qrCustomDept : qrDept;
+                  const deptText = deptToUse ? ` - ${deptToUse}` : '';
+                  const win = window.open('', '_blank');
+                  if(!win) return;
+                  win.document.write(`
+                    <html dir="rtl"><head><title>Print QR</title></head>
+                    <body style="text-align:center; padding:50px; font-family:sans-serif;">
+                      <h2>דיווח תקלות - ${tenantName}${deptText}</h2>
+                      <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(workerQrGeneratedUrl)}" />
+                      <br><br><button onclick="window.print(); window.close();" style="padding:15px 30px; font-size:18px; cursor:pointer; background:#2563eb; color:white; border:none; border-radius:8px;">הדפס</button>
+                    </body></html>
+                  `);
+                  win.document.close();
+                }}>הדפס</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Inspector QR Modal */}
+      <Modal isOpen={qrModalOpen} onClose={() => setQrModalOpen(false)} title="אפליקציית מפקח (QR)">
+        <div className="space-y-4 text-center">
+          <p className="text-gray-600 mb-4 font-medium">יצירת קוד QR מהיר לאפליקציית מפקח (כללי לארגון)</p>
+          
+          <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-12" onClick={() => {
+            setQrGeneratedUrl(window.location.origin + "/inspector.html?tenantId=" + tenantId);
+          }}>
+            <i className="fas fa-qrcode ml-2"></i> הכן קוד QR למפקח
+          </Button>
+
+          {qrGeneratedUrl && (
+            <div className="flex flex-col items-center p-4 bg-gray-50 rounded-xl border mt-4">
+              <p className="text-gray-700 font-bold mb-2">סרוק את הקוד מטה:</p>
+              <img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrGeneratedUrl)}`} alt="QR Code" className="w-48 h-48 border bg-white p-2 rounded shadow-sm" />
+              <a href={qrGeneratedUrl} target="_blank" className="mt-3 text-sm font-medium text-blue-600 hover:underline break-all text-center px-4">{qrGeneratedUrl}</a>
+              <div className="mt-4 flex gap-2 w-full">
+                <Button variant="outline" className="flex-1 font-bold border-blue-600 text-blue-600" onClick={() => window.open(qrGeneratedUrl, "_blank")}>פתח קישור</Button>
+                <Button variant="outline" className="flex-1 font-bold border-orange-500 text-orange-600" onClick={() => {
+                  const win = window.open('', '_blank');
+                  if(!win) return;
+                  win.document.write(`
+                    <html dir="rtl"><head><title>Print QR</title></head>
+                    <body style="text-align:center; padding:50px; font-family:sans-serif;">
+                      <h2>אפליקציית מפקח - כללי</h2>
+                      <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrGeneratedUrl)}" />
+                      <br><br><button onclick="window.print(); window.close();" style="padding:15px 30px; font-size:18px; cursor:pointer; background:#2563eb; color:white; border:none; border-radius:8px;">הדפס</button>
+                    </body></html>
+                  `);
+                  win.document.close();
+                }}>הדפס</Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {/* Workers Management Modal */}
+      <Modal isOpen={workersModalOpen} onClose={() => setWorkersModalOpen(false)} title="ניהול עובדים">
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar p-1">
+          {workers.length === 0 ? (
+            <div className="text-center text-gray-400 p-4">אין עובדים ברשימה</div>
+          ) : (
+            workers.map((w, idx) => (
+              <div key={idx} className="flex flex-col bg-gray-50 p-4 rounded-xl border border-gray-200 gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-bold text-gray-600 w-16">שם:</label>
+                  <Input 
+                    className="flex-1 border-gray-300 rounded shadow-sm px-2 py-1 font-bold text-gray-700" 
+                    value={w.name} 
+                    onChange={e => {
+                      const newW = [...workers];
+                      newW[idx] = { ...newW[idx], name: e.target.value };
+                      setWorkers(newW);
+                    }} 
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-bold text-gray-600 w-16">צוות:</label>
+                  <Select 
+                    className="flex-1 border-gray-300 rounded shadow-sm px-2 py-1 text-sm font-bold" 
+                    value={w.teamId || ""}
+                    onChange={e => {
+                      const newW = [...workers];
+                      newW[idx] = { ...newW[idx], teamId: e.target.value };
+                      setWorkers(newW);
+                    }}
+                  >
+                    <option value="" className="text-gray-400">-- בחר צוות --</option>
+                    {teams.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </Select>
+                </div>
+                <div className="flex gap-2 justify-end pt-2 border-t border-gray-200 mt-1">
+                  <Button variant="outline" className="text-blue-600 hover:text-blue-800 p-2 font-bold bg-blue-50 border-blue-200 h-auto" title="הדפס QR לאפליקציית עובד" onClick={() => {
+                    const url = window.location.origin + "/worker.html?tenantId=" + tenantId + "&workerId=" + w.id;
+                    const win = window.open('', '_blank');
+                    if(!win) return;
+                    win.document.write(`
+                      <html dir="rtl"><head><title>Print Worker QR</title></head>
+                      <body style="text-align:center; padding:50px; font-family:sans-serif;">
+                        <h2>אפליקציית עובד - ${w.name}</h2>
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}" />
+                        <br><br><button onclick="window.print(); window.close();" style="padding:15px 30px; font-size:18px; cursor:pointer; background:#2563eb; color:white; border:none; border-radius:8px;">הדפס</button>
+                      </body></html>
+                    `);
+                    win.document.close();
+                  }}><i className="fas fa-qrcode ml-2"></i>QR עובד</Button>
+                  <Button variant="danger" className="p-2 h-auto" onClick={() => {
+                    const newW = [...workers];
+                    newW.splice(idx, 1);
+                    setWorkers(newW);
+                  }}><i className="fas fa-trash-alt"></i></Button>
+                </div>
+              </div>
+            ))
+          )}
+          
+          <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200">
+            <Input 
+              id="newWorkerName"
+              placeholder="שם העובד החדש..." 
+              className="flex-grow"
+              onKeyDown={e => {
+                if(e.key === "Enter") {
+                  const val = (e.target as HTMLInputElement).value.trim();
+                  if(val) {
+                    if(workers.find(wx => wx.name === val)) return toast("שם עובד כבר קיים", "error");
+                    setWorkers([...workers, { id: "", name: val }]);
+                    (e.target as HTMLInputElement).value = "";
+                  }
+                }
+              }}
+            />
+            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => {
+              const inp = document.getElementById("newWorkerName") as HTMLInputElement;
+              const val = inp.value.trim();
+              if(val) {
+                if(workers.find(wx => wx.name === val)) return toast("שם עובד כבר קיים", "error");
+                setWorkers([...workers, { id: "", name: val }]);
+                inp.value = "";
+              }
+            }}><i className="fas fa-plus"></i></Button>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <Button className="w-full" onClick={async () => {
+              const inp = document.getElementById("newWorkerName") as HTMLInputElement;
+              const val = inp?.value.trim();
+              let finalWorkers = [...workers];
+              if(val) {
+                if(!finalWorkers.find(wx => wx.name === val)) {
+                  finalWorkers.push({ id: "", name: val });
+                }
+              }
+              setLoading(true);
+              try {
+                const res = await fetch(`/api/${tenantId}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: "SAVE_WORKERS", workers: finalWorkers })
+                });
+                const out = await res.json();
+                if(out.status === "success") {
+                  toast("רשימת העובדים נשמרה", "success");
+                  setWorkersModalOpen(false);
+                  loadTasks();
+                } else {
+                  toast(out.message || "שגיאה בשמירה", "error");
+                }
+              } catch(e) { toast("שגיאת תקשורת", "error"); }
+              setLoading(false);
+            }}>שמור שינויים</Button>
+            <Button variant="outline" className="w-full" onClick={() => { setWorkersModalOpen(false); loadTasks(); }}>ביטול</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Teams Management Modal */}
+      <Modal isOpen={teamsModalOpen} onClose={() => setTeamsModalOpen(false)} title="ניהול צוותים">
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar p-1">
+          {teams.length === 0 ? (
+            <div className="text-center text-gray-400 p-4">אין צוותים מוגדרים</div>
+          ) : (
+            teams.map((t, idx) => (
+              <div key={idx} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-200 gap-2">
+                <span className="font-bold text-gray-800">{t.name}</span>
+                {t.name !== 'QR' && t.name !== 'כללי' && (
+                  <Button variant="danger" className="p-2 h-auto" onClick={() => {
+                    const newT = [...teams];
+                    newT.splice(idx, 1);
+                    setTeams(newT);
+                  }}><i className="fas fa-trash-alt"></i></Button>
+                )}
+              </div>
+            ))
+          )}
+          
+          <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200">
+            <Input 
+              id="newTeamName"
+              placeholder="שם צוות חדש..." 
+              className="flex-grow"
+              onKeyDown={e => {
+                if(e.key === "Enter") {
+                  const val = (e.target as HTMLInputElement).value.trim();
+                  if(val) {
+                    if(teams.find(tx => tx.name === val)) return toast("צוות כבר קיים", "error");
+                    setTeams([...teams, { id: "t_"+Date.now(), name: val }]);
+                    (e.target as HTMLInputElement).value = "";
+                  }
+                }
+              }}
+            />
+            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => {
+              const inp = document.getElementById("newTeamName") as HTMLInputElement;
+              const val = inp.value.trim();
+              if(val) {
+                if(teams.find(tx => tx.name === val)) return toast("צוות כבר קיים", "error");
+                setTeams([...teams, { id: "t_"+Date.now(), name: val }]);
+                inp.value = "";
+              }
+            }}><i className="fas fa-plus"></i></Button>
+          </div>
+
+          <div className="flex gap-3 pt-4 border-t border-gray-200">
+            <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white" onClick={async () => {
+              const inp = document.getElementById("newTeamName") as HTMLInputElement;
+              const val = inp?.value.trim();
+              let finalTeams = [...teams];
+              if(val) {
+                if(!finalTeams.find(tx => tx.name === val)) {
+                  finalTeams.push({ id: "t_"+Date.now(), name: val });
+                }
+              }
+              setLoading(true);
+              try {
+                const res = await fetch(`/api/${tenantId}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: "SAVE_TEAMS", teams: finalTeams.map(t => t.name) })
+                });
+                const out = await res.json();
+                if(out.status === "success" || !out.error) {
+                  toast("רשימת הצוותים נשמרה", "success");
+                  setTeamsModalOpen(false);
+                  loadTasks();
+                } else {
+                  toast(out.message || "שגיאה בשמירה", "error");
+                }
+              } catch(e) { toast("שגיאת תקשורת", "error"); }
+              setLoading(false);
+            }}>שמור שינויים</Button>
+            <Button variant="outline" className="w-full" onClick={() => { setTeamsModalOpen(false); loadTasks(); }}>ביטול</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Config Modal (Categories & Systems) */}
+      <Modal isOpen={configModalOpen} onClose={() => setConfigModalOpen(false)} title="ניהול מערכות נבדקות">
+        <div className="space-y-4 max-h-[70vh] flex flex-col md:flex-row gap-4 p-1">
+          {/* Areas List (Right in RTL) */}
+          <div className="w-full md:w-1/2 flex flex-col gap-2 border-l pl-4 overflow-y-auto bg-gray-50/50 p-2 rounded-xl border border-gray-100">
+            <h3 className="font-bold text-gray-800 mb-2 border-b pb-2 text-center">אזורי בדיקה (כמו אמבטיה, חדר)</h3>
+            
+            <div className="flex gap-2 mb-4">
+              <Input 
+                id="newAreaName"
+                placeholder="הוסף אזור..." 
+                className="flex-grow text-sm"
+                onKeyDown={e => {
+                  if(e.key === "Enter") {
+                    const val = (e.target as HTMLInputElement).value.trim();
+                    if(val && (!categories || !categories[val])) {
+                      setCategories({ ...(categories || {}), [val]: [] });
+                      (e.target as HTMLInputElement).value = "";
+                      setActiveConfigArea(val);
+                    }
+                  }
+                }}
+              />
+              <Button className="bg-indigo-600 hover:bg-indigo-700 px-3" onClick={() => {
+                const inp = document.getElementById("newAreaName") as HTMLInputElement;
+                const val = inp.value.trim();
+                if(val && (!categories || !categories[val])) {
+                  setCategories({ ...(categories || {}), [val]: [] });
+                  inp.value = "";
+                  setActiveConfigArea(val);
+                }
+              }}><i className="fas fa-plus"></i></Button>
+            </div>
+
+            {categories && Object.keys(categories).map(area => (
+              <div 
+                key={area} 
+                className={`flex justify-between items-center p-3 rounded-lg cursor-pointer border transition-colors ${activeConfigArea === area ? 'bg-indigo-100 border-indigo-300 shadow-inner' : 'bg-white border-gray-200 hover:bg-gray-50 shadow-sm'}`}
+                onClick={() => setActiveConfigArea(area)}
+              >
+                {area !== 'כללי' ? (
+                  <button className="text-red-500 hover:text-red-700 p-1" onClick={(e) => {
+                    e.stopPropagation();
+                    const newC = {...categories};
+                    delete newC[area];
+                    setCategories(newC);
+                    if(activeConfigArea === area) setActiveConfigArea(null);
+                  }}>
+                    <i className="fas fa-trash-alt"></i>
+                  </button>
+                ) : <div className="w-6"></div>}
+                <span className="font-bold text-gray-800 ml-auto mr-4">{area}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Systems List (Left in RTL) */}
+          <div className="w-full md:w-1/2 flex flex-col gap-2 overflow-y-auto pr-4">
+            <h3 className="font-bold text-gray-800 mb-2 border-b pb-2 text-center bg-gray-100 rounded py-1">מערכות ב: {activeConfigArea || '...'}</h3>
+            {!activeConfigArea ? (
+              <div className="text-gray-400 text-center py-4">בחר אזור מימין</div>
+            ) : (
+              <>
+                <div className="flex gap-2 mb-4">
+                  <Input 
+                    id="newSystemName"
+                    placeholder="הוסף מערכת (כמו דוש, שקע)..." 
+                    className="flex-grow text-sm"
+                    onKeyDown={e => {
+                      if(e.key === "Enter") {
+                        const val = (e.target as HTMLInputElement).value.trim();
+                        if(val && !(categories[activeConfigArea] || []).includes(val)) {
+                          const newC = {...categories};
+                          if(!newC[activeConfigArea]) newC[activeConfigArea] = [];
+                          newC[activeConfigArea].push(val);
+                          setCategories(newC);
+                          (e.target as HTMLInputElement).value = "";
+                        }
+                      }
+                    }}
+                  />
+                  <Button className="bg-indigo-600 hover:bg-indigo-700 px-3" onClick={() => {
+                    const inp = document.getElementById("newSystemName") as HTMLInputElement;
+                    const val = inp.value.trim();
+                    if(val && !(categories[activeConfigArea] || []).includes(val)) {
+                      const newC = {...categories};
+                      if(!newC[activeConfigArea]) newC[activeConfigArea] = [];
+                      newC[activeConfigArea].push(val);
+                      setCategories(newC);
+                      inp.value = "";
+                    }
+                  }}><i className="fas fa-plus"></i></Button>
+                </div>
+
+                {(categories[activeConfigArea] || []).length === 0 ? (
+                  <div className="text-center text-gray-400 p-4">אין מערכות מוגדרות</div>
+                ) : (
+                  (categories[activeConfigArea] || []).map((sys: string, idx: number) => (
+                    <div key={idx} className="flex flex-col bg-white p-3 rounded-lg border border-gray-200 shadow-sm gap-3">
+                      <div className="flex justify-between items-start w-full">
+                        <button className="text-red-500 hover:text-red-700" onClick={() => {
+                          const newC = {...categories};
+                          newC[activeConfigArea] = newC[activeConfigArea].filter((s: string) => s !== sys);
+                          setCategories(newC);
+                        }}>
+                          <i className="fas fa-times"></i>
+                        </button>
+                        <span className="font-bold text-gray-800 text-sm ml-auto" dir="ltr">{sys}</span>
+                      </div>
+                      <div className="flex justify-between items-center w-full">
+                        <Select 
+                          className="w-40 h-8 text-xs py-0 pl-2 pr-6 rounded-md border-gray-300"
+                          value={systemTeams[sys] || ""}
+                          onChange={(e) => {
+                            setSystemTeams({...systemTeams, [sys]: e.target.value})
+                          }}
+                          dir="rtl"
+                        >
+                          <option value="">-- ללא משויך --</option>
+                          {teams.map(t => (
+                            <option key={t.id} value={t.name}>{t.name}</option>
+                          ))}
+                        </Select>
+                        <span className="text-xs text-gray-500">צוות מטפל:</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex gap-3 pt-4 mt-4 border-t border-gray-200">
+          <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-12 text-lg" onClick={async () => {
+            setLoading(true);
+            try {
+              const res = await fetch(`/api/${tenantId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: "SAVE_CATEGORIES", categories, systemTeams })
+              });
+              const out = await res.json();
+              if(out.status === "success" || !out.error) {
+                toast("הגדרות נשמרו בהצלחה", "success");
+                setConfigModalOpen(false);
+                loadTasks();
+              } else {
+                toast(out.message || "שגיאה בשמירה", "error");
+              }
+            } catch(e) { toast("שגיאת תקשורת", "error"); }
+            setLoading(false);
+          }}>שמור שינויים</Button>
+          <Button variant="outline" className="w-full" onClick={() => { setConfigModalOpen(false); loadTasks(); }}>סגור</Button>
+        </div>
+      </Modal>
+
+      {/* Integrations Modal */}
+      <Modal isOpen={integrationsModalOpen} onClose={() => setIntegrationsModalOpen(false)} title="אינטגרציות (Telegram / WhatsApp)">
+        <div className="space-y-6 max-h-[75vh] overflow-y-auto p-1 custom-scrollbar" dir="rtl">
+          {/* Telegram Block */}
+          <div className="bg-blue-50/50 border border-blue-100 p-4 rounded-2xl">
+            <div className="flex items-center gap-2 mb-4">
+              <i className="fab fa-telegram text-2xl text-blue-500"></i>
+              <h3 className="font-bold text-gray-800 text-lg">Telegram Bot</h3>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Bot API Token</label>
+                <Input value={telegramBotToken} onChange={e => setTelegramBotToken(e.target.value)} placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" className="font-mono text-sm text-left" dir="ltr" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Chat ID (קבוצה)</label>
+                <Input value={telegramChatId} onChange={e => setTelegramChatId(e.target.value)} placeholder="-1001234567890" className="font-mono text-sm text-left" dir="ltr" />
+              </div>
+            </div>
+
+            <details className="mt-4 text-sm text-gray-600 bg-white p-3 rounded-xl border border-blue-50 cursor-pointer">
+              <summary className="font-bold text-blue-600 flex items-center gap-2"><i className="fas fa-info-circle"></i> הוראות הגדרת Telegram</summary>
+              <ol className="list-decimal pl-5 pr-5 mt-2 space-y-1">
+                <li>מצאו בטלגרם את הבוט <b>@BotFather</b>.</li>
+                <li>שלחו את הפקודה <code>/newbot</code>, בחרו שם ו-username.</li>
+                <li>העתיקו את ה-<b>HTTP API Token</b> שקיבלתם לשדה למעלה.</li>
+                <li>צרפו את הבוט שיצרתם לקבוצת העבודה שלכם.</li>
+                <li>העבירו הודעה מהקבוצה לבוט <b>@RawDataBot</b> כדי לגלות את ה-<b>Chat ID</b> של הקבוצה (מתחיל במינוס).</li>
+                <li>הדביקו את ה-<b>Chat ID</b> ושמרו.</li>
+              </ol>
+            </details>
+          </div>
+
+          {/* WhatsApp Block */}
+          <div className="bg-green-50/50 border border-green-100 p-4 rounded-2xl">
+            <div className="flex items-center gap-2 mb-4">
+              <i className="fab fa-whatsapp text-2xl text-green-500"></i>
+              <h3 className="font-bold text-gray-800 text-lg">WhatsApp (Green-API)</h3>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Instance ID</label>
+                <Input value={whatsappInstance} onChange={e => setWhatsappInstance(e.target.value)} placeholder="7103123456" className="font-mono text-sm text-left" dir="ltr" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">API Token</label>
+                <Input value={whatsappToken} onChange={e => setWhatsappToken(e.target.value)} placeholder="a1b2c3d4..." className="font-mono text-sm text-left" dir="ltr" />
+              </div>
+            </div>
+
+            <details className="mt-4 text-sm text-gray-600 bg-white p-3 rounded-xl border border-green-50 cursor-pointer">
+              <summary className="font-bold text-green-600 flex items-center gap-2"><i className="fas fa-info-circle"></i> הוראות הגדרת WhatsApp</summary>
+              <ol className="list-decimal pl-5 pr-5 mt-2 space-y-1">
+                <li>הירשמו לשירות <a href="https://green-api.com" target="_blank" className="text-blue-500 underline">Green-API</a>.</li>
+                <li>צרו Instance חדש באזור האישי.</li>
+                <li>סרקו את קוד ה-QR כדי לחבר את מספר הווטסאפ שלכם.</li>
+                <li>העתיקו את <b>Instance ID</b> ואת <b>API Token Instance</b> והדביקו כאן.</li>
+              </ol>
+            </details>
+          </div>
+
+          <Button onClick={async () => {
+            setLoading(true);
+            try {
+              const res = await fetch(`/api/${tenantId}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: "SAVE_INTEGRATIONS", telegramBotToken, telegramChatId, whatsappInstance, whatsappToken })
+              });
+              const out = await res.json();
+              if(out.status === "success") {
+                toast("אינטגרציות נשמרו בהצלחה", "success");
+                setIntegrationsModalOpen(false);
+                loadTasks();
+              } else {
+                toast(out.message || "שגיאה בשמירת אינטגרציות", "error");
+              }
+            } catch(e) { toast("שגיאת רשת", "error"); }
+            setLoading(false);
+          }} disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-bold text-lg">שמור אינטגרציות</Button>
+        </div>
+      </Modal>
+
+      {/* Prompt Modal */}
+      <Modal isOpen={promptModalData.isOpen} onClose={() => setPromptModalData({...promptModalData, isOpen: false})} title="עריכה">
+        <div className="space-y-6 pt-4">
+          <p className="text-lg font-medium text-gray-800">{promptModalData.title}</p>
+          <Input 
+            autoFocus
+            value={promptModalData.value} 
+            onChange={(e) => setPromptModalData({...promptModalData, value: e.target.value})} 
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                promptModalData.onConfirm(promptModalData.value);
+                setPromptModalData({...promptModalData, isOpen: false});
+              }
+            }}
+          />
+          <div className="flex gap-4">
+            <Button className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800" onClick={() => setPromptModalData({...promptModalData, isOpen: false})}>ביטול</Button>
+            <Button className="flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={() => {
+              promptModalData.onConfirm(promptModalData.value);
+              setPromptModalData({...promptModalData, isOpen: false});
+            }}>שמור</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Confirm Modal */}
+      <Modal isOpen={confirmModalData.isOpen} onClose={() => setConfirmModalData({...confirmModalData, isOpen: false})} title="אישור פעולה">
+        <div className="space-y-6 pt-4">
+          <p className="text-lg text-center font-medium text-gray-800">{confirmModalData.title}</p>
+          <div className="flex gap-4">
+            <Button className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800" onClick={() => setConfirmModalData({...confirmModalData, isOpen: false})}>ביטול</Button>
+            <Button className="flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={() => {
+              confirmModalData.onConfirm();
+              setConfirmModalData({...confirmModalData, isOpen: false});
+            }}>אישור</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Reports Modal */}
+      <Modal isOpen={reportsModalOpen} onClose={() => setReportsModalOpen(false)} title="דוחות פחת / חריגים" className="max-w-6xl w-full">
+        <div className="flex flex-col md:min-w-[900px] h-[80vh] max-h-full">
+           <div className="flex flex-wrap items-end gap-6 mb-6">
+             <div className="flex-1 min-w-[200px]">
+               <label className="block text-sm text-gray-500 mb-2 font-bold">מתאריך</label>
+               <DatePicker value={reportsStart ? new Date(reportsStart) : undefined} onChange={d => setReportsStart(d ? format(d, "yyyy-MM-dd") : "")} />
+             </div>
+             <div className="flex-1 min-w-[200px]">
+               <label className="block text-sm text-gray-500 mb-2 font-bold">עד תאריך</label>
+               <DatePicker value={reportsEnd ? new Date(reportsEnd) : undefined} onChange={d => setReportsEnd(d ? format(d, "yyyy-MM-dd") : "")} />
+             </div>
+             <Button className="bg-indigo-600 text-white hover:bg-indigo-700 shadow px-8 h-12 text-lg font-bold" onClick={loadReports}>
+               {isReportsLoading ? "טוען..." : "חפש"}
+             </Button>
+           </div>
+           
+           <div className="flex-grow overflow-auto border border-gray-200 rounded-xl mb-4 bg-white shadow-inner custom-scrollbar relative">
+             <table className="w-full text-sm text-right border-collapse">
+               <thead className="bg-gray-100 sticky top-0 z-10 shadow-sm">
+                 <tr>
+                   <th className="p-4 font-bold text-gray-700 border-b border-gray-200">תאריך</th>
+                   <th className="p-4 font-bold text-gray-700 border-b border-gray-200">מחלקה</th>
+                   <th className="p-4 font-bold text-gray-700 border-b border-gray-200">חדר</th>
+                   <th className="p-4 font-bold text-gray-700 border-b border-gray-200">מערכת / תקלה</th>
+                   <th className="p-4 font-bold text-gray-700 border-b border-gray-200">הערות</th>
+                   <th className="p-4 font-bold text-gray-700 border-b border-gray-200">סטטוס</th>
+                   <th className="p-4 font-bold text-gray-700 border-b border-gray-200">משויך ל</th>
+                   <th className="p-4 font-bold text-gray-700 border-b border-gray-200">מפקח</th>
+                 </tr>
+               </thead>
+               <tbody className="divide-y divide-gray-100">
+                 {reportsData.length === 0 ? (
+                   <tr><td colSpan={8} className="p-12 text-center text-gray-500 text-lg font-bold bg-gray-50/50">אין נתונים לתאריכים אלו</td></tr>
+                 ) : (
+                   reportsData.map(t => (
+                     <tr key={t.id} className="hover:bg-blue-50/30 transition-colors group">
+                       <td className="p-4 whitespace-nowrap text-gray-600">{t.dateStr}</td>
+                       <td className="p-4 font-medium text-gray-800">{t.department}</td>
+                       <td className="p-4 text-gray-700">{t.room}</td>
+                       <td className="p-4 font-bold text-indigo-700">{t.defect}</td>
+                       <td className="p-4 text-gray-600 max-w-xs truncate" title={t.comment}>{t.comment}</td>
+                       <td className="p-4 whitespace-nowrap">
+                         <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${t.status === 'הושלם' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-orange-100 text-orange-800 border border-orange-200'}`}>
+                           {t.status}
+                         </span>
+                       </td>
+                       <td className="p-4 whitespace-nowrap text-gray-700 font-medium">{t.worker}</td>
+                       <td className="p-4 text-gray-600">{t.inspector}</td>
+                     </tr>
+                   ))
+                 )}
+               </tbody>
+             </table>
+           </div>
+           <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-200">
+             <div className="font-bold text-gray-700 text-lg">סה"כ משימות: {reportsData.length}</div>
+             <Button className="bg-gray-800 text-white hover:bg-gray-700 font-bold" onClick={handlePrintReports}>
+               <i className="fas fa-print ml-2"></i>הדפסת דוח
+             </Button>
+           </div>
+        </div>
+      </Modal>
+
+
+    </>
+  )
+}
