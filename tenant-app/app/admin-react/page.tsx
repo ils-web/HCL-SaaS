@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import * as React from "react"
 import { useAdminState } from "@/hooks/useAdminState"
@@ -18,6 +18,7 @@ import { AdminHeader } from "@/components/admin/AdminHeader"
 import { AdminFilters } from "@/components/admin/AdminFilters"
 import { AdminTaskTable } from "@/components/admin/AdminTaskTable"
 import { AdminModals } from "@/components/admin/AdminModals"
+import { AdminPrintLayouts } from "@/components/admin/AdminPrintLayouts"
 
 export default function AdminReactPage() {
 
@@ -37,7 +38,7 @@ export default function AdminReactPage() {
     filterDept, setFilterDept, activeDepts, filterDate, setFilterDate, taskDates, handleSelectAll,
     selectedTasks, filtered, viewMode, setViewMode, handlePrintSelected, handleSendToApp, handleCloseMass,
     handleReturnToOpenMass, activeTabs, currentTab, setCurrentTab, handleToggleCheck, handleApprove,
-    handleReturnToOpen, handleTeamChange, handleEditDefect
+    handleReturnToOpen, handleTeamChange, handleEditDefect, printDocumentData, printCardsData
   } = adminState
 if (!tenantId && !loading) {
     return (
@@ -218,6 +219,12 @@ if (!tenantId && !loading) {
         setWhatsappInstance={setWhatsappInstance}
         whatsappToken={whatsappToken}
         setWhatsappToken={setWhatsappToken}
+      />
+      <AdminPrintLayouts 
+        printDocumentData={printDocumentData}
+        printCardsData={printCardsData}
+        printLang={printLang}
+        printWorker={printWorker}
       />
       {/* Scroll to Top Button */}
       <button 
