@@ -173,16 +173,26 @@ export function useAdminState() {
   const loadTasks = React.useCallback(async (overrideTenantId?: string) => {
     const role = localStorage.getItem("hcl_role")
     const paramTenantId = new URLSearchParams(window.location.search).get("tenantId")
-    const localTenantId = localStorage.getItem("hcl_tenantId")
+    let localTenantId = localStorage.getItem("hcl_tenantId")
     
-    let tId = overrideTenantId || localTenantId
-    if (!overrideTenantId && role === "SUPERADMIN" && paramTenantId) {
-      tId = paramTenantId
+    if (!localTenantId && role === "SUPERADMIN" && paramTenantId) {
+       localTenantId = paramTenantId;
     }
 
+    let tId = overrideTenantId || localTenantId
+    
     if (!tId) {
-      // Dev mode auto-fallback
-      try {
+      if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+        window.location.href = '/login';
+        return;
+      }
+    }
+
+    setTenantId(tId)
+    if (!tId) return;
+
+    // Dev mode auto-fallback
+    try {
         const devRes = await fetch("/api/dev/default-tenant")
         if (devRes.ok) {
           const devData = await devRes.json()

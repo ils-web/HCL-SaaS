@@ -40,31 +40,10 @@ export default function AdminReactPage() {
     handleReturnToOpenMass, activeTabs, currentTab, setCurrentTab, handleToggleCheck, handleApprove,
     handleReturnToOpen, handleTeamChange, handleEditDefect, printDocumentData, printCardsData
   } = adminState
-if (!tenantId && !loading) {
+  if (!tenantId && !loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100 max-w-sm w-full text-center">
-          <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
-            <i className="fas fa-key"></i>
-          </div>
-          <h2 className="text-xl font-bold mb-2">חסר זיהוי לקוח</h2>
-          <p className="text-gray-500 mb-6 text-sm">הזן את ה-Tenant ID שלך כדי להמשיך (למשל: test-tenant)</p>
-          <input 
-            type="text" 
-            id="manualTenantInput"
-            className="w-full border border-gray-300 rounded-xl p-3 mb-4 text-center font-mono" 
-            placeholder="Tenant ID..." 
-          />
-          <Button className="w-full" onClick={() => {
-            const val = (document.getElementById('manualTenantInput') as HTMLInputElement).value;
-            if (val) {
-              localStorage.setItem("hcl_tenantId", val);
-              loadTasks(val);
-            }
-          }}>
-            המשך
-          </Button>
-        </div>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-[#858d9c]">
+        <div className="text-white text-xl animate-pulse">טוען נתונים...</div>
       </div>
     )
   }

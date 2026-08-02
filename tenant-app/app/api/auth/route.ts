@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { SignJWT } from 'jose';
 
 const prisma = new PrismaClient();
-const SUPERADMIN_PASSWORD = "super123"; // TODO: Move to env variable later
+const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD || "super123";
+
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET || 'fallback-secret-key-for-development-only-change-me-in-production';
+  return new TextEncoder().encode(secret);
+};
 
 export async function POST(req: Request) {
   try {
@@ -12,31 +18,49 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
-    // Check for Superadmin login
+    let userRole = '';
+    let userTenantId = '';
+    let userId = '';
+
     if (email === 'superadmin' && password === SUPERADMIN_PASSWORD) {
-      return NextResponse.json({
-        success: true,
-        role: 'SUPERADMIN',
-        token: SUPERADMIN_PASSWORD // Using password as token for MVP
-      });
+      userRole = 'SUPERADMIN';
+      userId = 'superadmin-id';
+      userTenantId = 'all';
+    } else {
+      const user = await prisma.user.findUnique({ where: { email } });
+
+      if (!user || user.password !== password) {
+        return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+      }
+
+      if (user.role !== 'ADMIN' && user.role !== 'SUPERADMIN') {
+        return NextResponse.json({ error: 'Access denied. Admin role required.' }, { status: 403 });
+      }
+
+      userRole = user.role;
+      userTenantId = user.tenantId;
+      userId = user.id;
     }
 
-    // Check for Client/Tenant login
-    const user = await prisma.user.findUnique({
-      where: { email }
+    const token = await new SignJWT({ id: userId, role: userRole, tenantId: userTenantId })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('24h')
+      .sign(getJwtSecret());
+
+    const response = NextResponse.json({ success: true, role: userRole, tenantId: userTenantId });
+
+    response.cookies.set({
+      name: 'auth_token',
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 24
     });
 
-    if (!user || user.password !== password) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
-    }
-
-    // Success! Return user details
-    return NextResponse.json({
-      success: true,
-      role: user.role,
-      tenantId: user.tenantId,
-      token: user.id // Using user ID as a simple token for MVP
-    });
+    return response;
 
   } catch (error) {
     console.error('Auth API Error:', error);

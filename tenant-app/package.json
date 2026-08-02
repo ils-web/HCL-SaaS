@@ -14,6 +14,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "flatpickr": "^4.6.13",
+    "jose": "^5.2.0",
     "lucide-react": "^1.24.0",
     "next": "16.2.9",
     "prisma": "^6.19.3",
@@ -21,6 +22,7 @@
     "react-day-picker": "^10.0.1",
     "react-dom": "19.2.4",
     "react-flatpickr": "^4.0.11",
+    "swr": "^2.2.5",
     "tailwind-merge": "^3.6.0",
     "zustand": "^4.5.2"
   },
