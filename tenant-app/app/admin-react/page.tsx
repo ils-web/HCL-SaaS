@@ -236,10 +236,8 @@ export default function AdminReactPage() {
       if (settingsData.whatsappInstance) setWhatsappInstance(settingsData.whatsappInstance)
       if (settingsData.whatsappToken) setWhatsappToken(settingsData.whatsappToken)
       
-      // Auto select first dept for QR if available
-      if (settingsData.categories && Object.keys(settingsData.categories).length > 0) {
-        setQrDept(Object.keys(settingsData.categories)[0])
-      }
+      // We no longer auto-select from settings categories. 
+      // The worker QR modal will use active tasks to find existing departments.
     } catch (e) {
       console.error(e)
       toast("שגיאת תקשורת", "error")
@@ -869,7 +867,7 @@ export default function AdminReactPage() {
                 onChange={(e) => setQrDept(e.target.value)}
               >
                 <option value="">-- כללי (ללא מחלקה) --</option>
-                {categories && Object.keys(categories).map(d => (
+                {Array.from(new Set(tasks.map(t => t.dept).filter(Boolean))).map(d => (
                   <option key={d} value={d}>{d}</option>
                 ))}
                 <option value="custom">-- אחר (הזן ידנית) --</option>
