@@ -245,6 +245,9 @@ export function TaskCard({
               value={task.sheet}
               onChange={(e) => onChangeTeam?.(task.id, e.target.value)}
             >
+              {!teams.some((t: any) => t.name === task.sheet) && (
+                <option value={task.sheet}>{task.sheet}</option>
+              )}
               {teams.map((t: any) => (
                 <option key={t.id} value={t.name}>{t.name}</option>
               ))}
