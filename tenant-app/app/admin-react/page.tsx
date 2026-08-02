@@ -237,8 +237,8 @@ export default function AdminReactPage() {
       if (settingsData.whatsappToken) setWhatsappToken(settingsData.whatsappToken)
       
       // Auto select first dept for QR if available
-      if (settingsData.categories?.departments && Object.keys(settingsData.categories.departments).length > 0) {
-        setQrDept(Object.keys(settingsData.categories.departments)[0])
+      if (settingsData.categories && Object.keys(settingsData.categories).length > 0) {
+        setQrDept(Object.keys(settingsData.categories)[0])
       }
     } catch (e) {
       console.error(e)
@@ -869,7 +869,7 @@ export default function AdminReactPage() {
                 onChange={(e) => setQrDept(e.target.value)}
               >
                 <option value="">-- כללי (ללא מחלקה) --</option>
-                {categories?.departments && Object.keys(categories.departments).map(d => (
+                {categories && Object.keys(categories).map(d => (
                   <option key={d} value={d}>{d}</option>
                 ))}
                 <option value="custom">-- אחר (הזן ידנית) --</option>
