@@ -94,6 +94,8 @@ export default function AdminReactPage() {
   
   const [qrDept, setQrDept] = React.useState("")
   const [qrCustomDept, setQrCustomDept] = React.useState("")
+  const [qrSettings, setQrSettings] = React.useState({ mode: '24/7', start: '08:00', end: '17:00' })
+  const [isSavingQr, setIsSavingQr] = React.useState(false)
   const [qrGeneratedUrl, setQrGeneratedUrl] = React.useState("")
   const [tenantName, setTenantName] = React.useState("מוסד לבדיקה")
   
@@ -242,6 +244,7 @@ export default function AdminReactPage() {
       if (settingsData.telegramChatId) setTelegramChatId(settingsData.telegramChatId)
       if (settingsData.whatsappInstance) setWhatsappInstance(settingsData.whatsappInstance)
       if (settingsData.whatsappToken) setWhatsappToken(settingsData.whatsappToken)
+      if (settingsData.qrSettings) setQrSettings(settingsData.qrSettings)
       
       // We no longer auto-select from settings categories. 
       // The worker QR modal will use active tasks to find existing departments.
@@ -403,7 +406,30 @@ export default function AdminReactPage() {
     setPrintModalOpen(true)
   }
 
+  const saveQrSettings = async (newSettings: any) => {
+    setIsSavingQr(true);
+    try {
+      const res = await fetch(`/api/${tenantId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "SAVE_QR_SETTINGS", qrSettings: newSettings })
+      });
+      const out = await res.json();
+      if (out.status === "success") {
+        setQrSettings(newSettings);
+        toast("הגדרות זמני דיווח נשמרו", "success");
+      } else {
+        toast("שגיאה בשמירת הגדרות", "error");
+      }
+    } catch(e) {
+      toast("שגיאת תקשורת", "error");
+    } finally {
+      setIsSavingQr(false);
+    }
+  };
+
   const executeOutputSequence = async (eOrSkip?: React.MouseEvent | boolean) => {
+
     const skipConfirmation = typeof eOrSkip === "boolean" ? eOrSkip : false;
     if (!tenantId) return
     const allSelectedList = tasks.filter(t => selectedTasks.has(t.id))
@@ -888,6 +914,33 @@ export default function AdminReactPage() {
                 className="mt-2 text-right"
               />
             )}
+          </div>
+
+          <div className="flex flex-col gap-2 mb-6 text-right border rounded-xl p-4 bg-gray-50" dir="rtl">
+            <label className="font-bold text-gray-700 border-b pb-2 mb-2">זמני פעילות מערכת דיווח:</label>
+            <div className="flex items-center gap-2 mb-2">
+              <input type="radio" id="qr247" name="qrMode" checked={qrSettings.mode === '24/7'} onChange={() => setQrSettings({...qrSettings, mode: '24/7'})} className="w-4 h-4 cursor-pointer" />
+              <label htmlFor="qr247" className="font-bold text-gray-700 cursor-pointer">פעיל תמיד (24/7)</label>
+            </div>
+            <div className="flex items-center gap-2 mb-2">
+              <input type="radio" id="qrSched" name="qrMode" checked={qrSettings.mode === 'SCHEDULED'} onChange={() => setQrSettings({...qrSettings, mode: 'SCHEDULED'})} className="w-4 h-4 cursor-pointer" />
+              <label htmlFor="qrSched" className="font-bold text-gray-700 cursor-pointer">לפי שעות פעילות</label>
+            </div>
+            {qrSettings.mode === 'SCHEDULED' && (
+              <div className="flex items-center gap-4 mt-2 pr-6">
+                <div className="flex flex-col flex-1">
+                  <label className="text-xs font-bold text-gray-500 mb-1">שעת התחלה</label>
+                  <input type="time" value={qrSettings.start} onChange={(e) => setQrSettings({...qrSettings, start: e.target.value})} className="p-2 border rounded-lg text-left" dir="ltr" />
+                </div>
+                <div className="flex flex-col flex-1">
+                  <label className="text-xs font-bold text-gray-500 mb-1">שעת סיום</label>
+                  <input type="time" value={qrSettings.end} onChange={(e) => setQrSettings({...qrSettings, end: e.target.value})} className="p-2 border rounded-lg text-left" dir="ltr" />
+                </div>
+              </div>
+            )}
+            <Button variant="outline" className="mt-3 bg-white w-full font-bold text-blue-600 border-blue-600" onClick={() => saveQrSettings(qrSettings)} disabled={isSavingQr}>
+              {isSavingQr ? 'שומר...' : 'שמור זמני פעילות'}
+            </Button>
           </div>
 
           <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-12" onClick={() => {
