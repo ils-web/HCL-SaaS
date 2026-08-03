@@ -210,13 +210,20 @@ export default function AdminReactPage() {
     setLoading(true)
 
     try {
-      const res = await fetch(`/api/${tId}?action=getOpenTasks`)
-      const data = await res.json()
+      let data = null;
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const res = await fetch(`/api/${tId}?action=getOpenTasks`);
+        if (res.ok) {
+          data = await res.json();
+          if (data.tasks) break;
+        }
+        if (attempt < 3) await new Promise(resolve => setTimeout(resolve, 2000));
+      }
       
-      if (data.tasks) {
+      if (data && data.tasks) {
         setTasks(data.tasks)
       } else {
-        toast("שגיאה בטעינת נתונים", "error")
+        toast("שגיאה בטעינת נתונים (ייתכן שהמסד נתונים מתעורר, נסה לרענן)", "error")
         setTasks([])
       }
 
