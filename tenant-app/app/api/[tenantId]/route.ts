@@ -7,8 +7,10 @@ const prisma = new PrismaClient();
 
 async function uploadToImgBB(base64Str: string): Promise<string | null> {
   if (!base64Str || base64Str.startsWith('http')) return base64Str || null;
+  const b64Data = base64Str.includes(',') ? base64Str.split(',')[1] : base64Str;
+  
+  // Try ImgBB first
   try {
-    const b64Data = base64Str.includes(',') ? base64Str.split(',')[1] : base64Str;
     const formData = new FormData();
     formData.append('image', b64Data);
     const res = await fetch('https://api.imgbb.com/1/upload?key=a1e675bb6065e233261327255af41c48&expiration=1296000', {
@@ -16,11 +18,27 @@ async function uploadToImgBB(base64Str: string): Promise<string | null> {
       body: formData
     });
     const result = await res.json();
-    return result?.data?.url || null;
+    if (result?.data?.url) return result.data.url;
   } catch (e) {
     console.error('ImgBB upload error:', e);
-    return null;
   }
+
+  // Fallback to Imgur
+  try {
+    const imgurForm = new URLSearchParams();
+    imgurForm.append('image', b64Data);
+    const res = await fetch('https://api.imgur.com/3/image', {
+      method: 'POST',
+      headers: { 'Authorization': 'Client-ID 546c25a59c58ad7' },
+      body: imgurForm
+    });
+    const result = await res.json();
+    if (result?.data?.link) return result.data.link;
+  } catch (e) {
+    console.error('Imgur upload error:', e);
+  }
+  
+  return null;
 }
 
 async function sendTelegram(text: string, customChatId?: string | null) {
