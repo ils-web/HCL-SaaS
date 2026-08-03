@@ -558,7 +558,7 @@ export default function AdminReactPage() {
         <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap justify-center xl:justify-end">
           {/* QR Buttons moved to header */}
           <Button variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50 font-bold px-4 h-10" onClick={() => setWorkerQrModalOpen(true)}>
-            <i className="fas fa-qrcode ml-2"></i>Worker QR
+            <i className="fas fa-qrcode ml-2"></i>Report QR
           </Button>
           <Button variant="outline" className="text-purple-600 border-purple-600 hover:bg-purple-50 font-bold px-4 h-10" onClick={() => setQrModalOpen(true)}>
             <i className="fas fa-mobile-alt ml-2"></i>Inspektor QR
