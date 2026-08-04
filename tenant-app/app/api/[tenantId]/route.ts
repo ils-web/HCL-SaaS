@@ -310,6 +310,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
           status: 'COMPLETED', // Closed automatically so it doesn't appear in Open Tasks
           notes: '',
           photoUrl: null,
+          inspectorName: inspector,
           teamId: null // No specific team
         }
       });
@@ -341,6 +342,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
             status: 'NEW',
             notes: comment || '',
             photoUrl: finalPhotoUrl,
+            inspectorName: inspector,
             teamId: teamId
           }
         });
@@ -872,7 +874,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     if (comment) {
       const task = await prisma.task.findUnique({ where: { id: taskId } });
       if (task) {
-        updateData.notes = task.notes ? task.notes + '\n[Рабочий]: ' + comment : '[Рабочий]: ' + comment;
+        updateData.notes = task.notes ? task.notes + '\n[עובד]: ' + comment : '[עובד]: ' + comment;
       }
     }
 
