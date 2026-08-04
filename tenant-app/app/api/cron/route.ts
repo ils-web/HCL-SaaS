@@ -6,6 +6,16 @@ const prisma = new PrismaClient();
 export async function GET(req: Request) {
   try {
     const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
+    
+    // Auto-clean tasks older than 180 days to prevent DB bloat
+    const deletedOldTasks = await prisma.task.deleteMany({
+      where: {
+        createdAt: {
+          lt: sixMonthsAgo
+        }
+      }
+    });
     
     // Find all tasks that are IN_PROGRESS, older than 48h, and haven't been warned yet
     const overdueTasks = await prisma.task.findMany({
@@ -69,7 +79,11 @@ export async function GET(req: Request) {
       });
     }
 
-    return NextResponse.json({ status: 'success', warnedCount: warnedTaskIds.length });
+    return NextResponse.json({ 
+      status: 'success', 
+      warnedCount: warnedTaskIds.length,
+      deletedOldCount: deletedOldTasks.count 
+    });
   } catch(error: any) {
     console.error("Cron error", error);
     return NextResponse.json({ status: 'error', message: error.message }, { status: 500 });

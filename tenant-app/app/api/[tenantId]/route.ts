@@ -414,6 +414,20 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     return NextResponse.json({ status: 'success' });
   }
 
+  if (action === 'DELETE_TASK') {
+    const { taskId } = body;
+    if (!taskId) return NextResponse.json({ error: 'Missing taskId' }, { status: 400 });
+    
+    // Verify task belongs to tenant
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task || task.tenantId !== tenantId) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+    
+    await prisma.task.delete({ where: { id: taskId } });
+    return NextResponse.json({ status: 'success' });
+  }
+
   if (action === 'FINISH_DEPT') {
     const { reportText } = body;
     if (reportText) {

@@ -387,8 +387,7 @@ export default function AdminReactPage() {
       }
     });
   }
-  const handleApprove = (id: number) => handleAction(id, "CLOSE_TASK", { id })
-  const handleReturnToOpen = (id: number) => handleAction(id, "UNMARK_PRINTED", { tasks: [{id}] })
+
   const handleReturnToOpenMass = () => {
     if (selectedTasks.size === 0) return toast("לא נבחרו משימות", "error")
     confirmAction("להחזיר את כל המשימות הנבחרות לסטטוס פתוח?", () => {
@@ -396,6 +395,13 @@ export default function AdminReactPage() {
       setSelectedTasks(new Set())
     });
   }
+
+  const handleDeleteTask = (id: number) => {
+    confirmAction("האם אתה בטוח שברצונך למחוק משימה זו לחלוטין? פעולה זו בלתי הפיכה ולא ניתן יהיה לשחזר את המידע.", () => {
+      handleAction(id, "DELETE_TASK", { taskId: id })
+    });
+  }
+
   const handleCloseMass = () => {
     if (selectedTasks.size === 0) return toast("לא נבחרו משימות", "error")
     confirmAction("האם לסגור את המשימות הנבחרות?", () => {
@@ -835,11 +841,14 @@ export default function AdminReactPage() {
                         </td>
                         <td className="p-3 font-bold text-xs text-orange-900">{task.worker || ''}</td>
                         <td className="p-3 text-center">
-                          {isCompleted ? (
-                             <button onClick={() => handleApprove(task.id)} className="bg-green-50 text-green-600 border border-green-500 px-3 py-1 rounded-lg font-bold text-xs hover:bg-green-100"><i className="fas fa-check"></i> אושר</button>
-                          ) : (
-                             <button onClick={() => handleApprove(task.id)} className="bg-blue-50 text-blue-600 border border-blue-500 px-3 py-1 rounded-lg font-bold text-xs hover:bg-blue-100"><i className="fas fa-check"></i> סגור</button>
-                          )}
+                          <div className="flex items-center justify-center gap-2">
+                            {isCompleted ? (
+                               <button onClick={() => handleApprove(task.id)} className="bg-green-50 text-green-600 border border-green-500 px-3 py-1 rounded-lg font-bold text-xs hover:bg-green-100"><i className="fas fa-check"></i> אושר</button>
+                            ) : (
+                               <button onClick={() => handleApprove(task.id)} className="bg-blue-50 text-blue-600 border border-blue-500 px-3 py-1 rounded-lg font-bold text-xs hover:bg-blue-100"><i className="fas fa-check"></i> סגור</button>
+                            )}
+                            <button onClick={() => handleDeleteTask(task.id)} className="text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 border border-red-200 rounded-lg text-xs" title="מחק משימה לצמיתות"><i className="fas fa-trash-alt"></i></button>
+                          </div>
                         </td>
                       </tr>
                     )
@@ -857,6 +866,7 @@ export default function AdminReactPage() {
                   onToggleCheck={handleToggleCheck}
                   onApprove={handleApprove}
                   onReturnToOpen={handleReturnToOpen}
+                  onDelete={handleDeleteTask}
                   teams={teams}
                   onChangeTeam={handleTeamChange}
                   onEditDefect={handleEditDefect}
@@ -1543,12 +1553,17 @@ export default function AdminReactPage() {
                  {reportsData.length === 0 ? (
                    <tr><td colSpan={8} className="p-12 text-center text-gray-500 text-lg font-bold bg-gray-50/50">אין נתונים לתאריכים אלו</td></tr>
                  ) : (
-                   reportsData.map(t => (
+                   reportsData.map(t => {
+                     const isQr = t.defect?.includes("בקרת ניקיון") || t.defect?.includes("פח אשפה") || (t.inspector && t.inspector.includes("צוות")) || t.department === "QR" || t.dept === "QR";
+                     return (
                      <tr key={t.id} className="hover:bg-blue-50/30 transition-colors group">
                        <td className="p-4 whitespace-nowrap text-gray-600">{t.dateStr}</td>
                        <td className="p-4 font-medium text-gray-800">{t.department}</td>
                        <td className="p-4 text-gray-700">{t.room}</td>
-                       <td className="p-4 font-bold text-indigo-700">{t.defect}</td>
+                       <td className="p-4 font-bold text-indigo-700">
+                         {t.defect}
+                         {isQr && <span className="text-pink-600 ml-2 bg-pink-50 px-2 py-0.5 rounded border border-pink-200 text-xs font-black inline-flex items-center gap-1" title="QR"><i className="fas fa-qrcode"></i> QR</span>}
+                       </td>
                        <td className="p-4 text-gray-600 max-w-xs truncate" title={t.comment}>{t.comment}</td>
                        <td className="p-4 whitespace-nowrap">
                          <span className={`px-3 py-1.5 rounded-full text-xs font-bold ${t.status === 'הושלם' ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-orange-100 text-orange-800 border border-orange-200'}`}>
@@ -1558,7 +1573,7 @@ export default function AdminReactPage() {
                        <td className="p-4 whitespace-nowrap text-gray-700 font-medium">{t.worker}</td>
                        <td className="p-4 text-gray-600">{t.inspector}</td>
                      </tr>
-                   ))
+                   )})
                  )}
                </tbody>
              </table>
@@ -1587,7 +1602,7 @@ export default function AdminReactPage() {
               <th className="border border-gray-300 p-2 font-bold text-sm">הערות</th>
               <th className="border border-gray-300 p-2 font-bold text-sm">סטטוס</th>
               <th className="border border-gray-300 p-2 font-bold text-sm">{printDocumentData.type === 'manager' ? 'עובד' : 'משויך ל'}</th>
-              {printDocumentData.type === 'reports' && <th className="border border-gray-300 p-2 font-bold text-sm">מפקח</th>}
+              <th className="border border-gray-300 p-2 font-bold text-sm">מפקח</th>
             </tr>
           </thead>
           <tbody>
@@ -1600,7 +1615,7 @@ export default function AdminReactPage() {
                 <td className="border border-gray-300 p-2 text-sm">{t.comment}</td>
                 <td className="border border-gray-300 p-2 text-sm font-bold">{t.status}</td>
                 <td className="border border-gray-300 p-2 text-sm">{t.worker}</td>
-                {printDocumentData.type === 'reports' && <td className="border border-gray-300 p-2 text-sm">{t.inspector}</td>}
+                <td className="border border-gray-300 p-2 text-sm">{t.inspector}</td>
               </tr>
             ))}
           </tbody>
