@@ -41,8 +41,8 @@ async function uploadToImgBB(base64Str: string): Promise<string | null> {
   return null;
 }
 
-async function sendTelegram(text: string, customChatId?: string | null) {
-  const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+async function sendTelegram(text: string, customBotToken?: string | null, customChatId?: string | null) {
+  const TELEGRAM_BOT_TOKEN = customBotToken || process.env.TELEGRAM_BOT_TOKEN;
   const TELEGRAM_CHAT_ID = customChatId || process.env.TELEGRAM_CHAT_ID;
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
   try {
@@ -413,7 +413,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     message += `📋 *סיווג:* ${sheetName || "כללי"}\n`;
     message += `💬 *הערות:* ${translatedComment || "-"}\n`;
     if (finalPhotoUrl) message += `\n 📷 [תמונה מצורפת](<${finalPhotoUrl}>)`;
-    await sendTelegram(message, tenant.telegramChatId);
+    await sendTelegram(message, tenant.telegramBotToken, tenant.telegramChatId);
 
     return NextResponse.json({ status: 'success' });
   }
