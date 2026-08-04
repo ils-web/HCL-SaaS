@@ -387,6 +387,9 @@ export default function AdminReactPage() {
       }
     });
   }
+  
+  const handleApprove = (id: number) => handleAction(id, "CLOSE_TASK", { id })
+  const handleReturnToOpen = (id: number) => handleAction(id, "UNMARK_PRINTED", { tasks: [{id}] })
 
   const handleReturnToOpenMass = () => {
     if (selectedTasks.size === 0) return toast("לא נבחרו משימות", "error")
