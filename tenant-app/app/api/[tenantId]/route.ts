@@ -7,8 +7,10 @@ const prisma = new PrismaClient();
 
 async function uploadToImgBB(base64Str: string): Promise<string | null> {
   if (!base64Str || base64Str.startsWith('http')) return base64Str || null;
+  const b64Data = base64Str.includes(',') ? base64Str.split(',')[1] : base64Str;
+  
+  // Try ImgBB first
   try {
-    const b64Data = base64Str.includes(',') ? base64Str.split(',')[1] : base64Str;
     const formData = new FormData();
     formData.append('image', b64Data);
     const res = await fetch('https://api.imgbb.com/1/upload?key=a1e675bb6065e233261327255af41c48&expiration=3888000', {
@@ -16,15 +18,31 @@ async function uploadToImgBB(base64Str: string): Promise<string | null> {
       body: formData
     });
     const result = await res.json();
-    return result?.data?.url || null;
+    if (result?.data?.url) return result.data.url;
   } catch (e) {
     console.error('ImgBB upload error:', e);
-    return null;
   }
+
+  // Fallback to Imgur
+  try {
+    const imgurForm = new URLSearchParams();
+    imgurForm.append('image', b64Data);
+    const res = await fetch('https://api.imgur.com/3/image', {
+      method: 'POST',
+      headers: { 'Authorization': 'Client-ID 546c25a59c58ad7' },
+      body: imgurForm
+    });
+    const result = await res.json();
+    if (result?.data?.link) return result.data.link;
+  } catch (e) {
+    console.error('Imgur upload error:', e);
+  }
+  
+  return null;
 }
 
-async function sendTelegram(text: string, customChatId?: string | null) {
-  const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+async function sendTelegram(text: string, customBotToken?: string | null, customChatId?: string | null) {
+  const TELEGRAM_BOT_TOKEN = customBotToken || process.env.TELEGRAM_BOT_TOKEN;
   const TELEGRAM_CHAT_ID = customChatId || process.env.TELEGRAM_CHAT_ID;
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
   try {
@@ -292,6 +310,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
           status: 'COMPLETED', // Closed automatically so it doesn't appear in Open Tasks
           notes: '',
           photoUrl: null,
+          inspectorName: inspector,
           teamId: null // No specific team
         }
       });
@@ -323,6 +342,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
             status: 'NEW',
             notes: comment || '',
             photoUrl: finalPhotoUrl,
+            inspectorName: inspector,
             teamId: teamId
           }
         });
@@ -365,11 +385,6 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
 
     let sysName = defect || sheetName || 'אחר';
     let sys = await prisma.system.findFirst({ where: { tenantId, name: sysName } });
-    if (!sys) {
-      let area = await prisma.area.findFirst({ where: { tenantId, name: 'שונות' } });
-      if (!area) area = await prisma.area.create({ data: { tenantId, name: 'שונות' } });
-      sys = await prisma.system.create({ data: { tenantId, areaId: area.id, name: sysName } });
-    }
 
     const finalPhotoUrl = await uploadToImgBB(photoBase64);
 
@@ -377,7 +392,8 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       data: {
         tenantId,
         departmentId: dept.id,
-        systemId: sys.id,
+        systemId: sys ? sys.id : null,
+        customDefectName: sys ? null : sysName,
         room: newRoomString,
         actionType: 'REPAIR', 
         status: 'NEW',
@@ -395,14 +411,30 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     message += `📋 *סיווג:* ${sheetName || "כללי"}\n`;
     message += `💬 *הערות:* ${translatedComment || "-"}\n`;
     if (finalPhotoUrl) message += `\n 📷 [תמונה מצורפת](<${finalPhotoUrl}>)`;
-    await sendTelegram(message, tenant.telegramChatId);
+    await sendTelegram(message, tenant.telegramBotToken, tenant.telegramChatId);
 
     return NextResponse.json({ status: 'success' });
   }
 
+  if (action === 'DELETE_TASK') {
+    const { taskId } = body;
+    if (!taskId) return NextResponse.json({ error: 'Missing taskId' }, { status: 400 });
+    
+    // Verify task belongs to tenant
+    const task = await prisma.task.findUnique({ where: { id: taskId } });
+    if (!task || task.tenantId !== tenantId) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+    
+    await prisma.task.delete({ where: { id: taskId } });
+    return NextResponse.json({ status: 'success' });
+  }
+
   if (action === 'FINISH_DEPT') {
-    // const { reportText } = body;
-    // TODO: Send reportText to Telegram here
+    const { reportText } = body;
+    if (reportText) {
+      await sendTelegram(reportText, tenant.telegramBotToken, tenant.telegramChatId);
+    }
     return NextResponse.json({ status: 'success' });
   }
 
@@ -842,7 +874,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     if (comment) {
       const task = await prisma.task.findUnique({ where: { id: taskId } });
       if (task) {
-        updateData.notes = task.notes ? task.notes + '\n[Рабочий]: ' + comment : '[Рабочий]: ' + comment;
+        updateData.notes = task.notes ? task.notes + '\n[עובד]: ' + comment : '[עובד]: ' + comment;
       }
     }
 

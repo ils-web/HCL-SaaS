@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,198 +7,131 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum TenantStatus {
-  ACTIVE
-  UNPAID
-  BLOCKED
-  TRIAL
-}
-
-// Учреждения (Теннанты)
 model Tenant {
-  id          String   @id @default(uuid())
-  name        String   
-  status      TenantStatus @default(ACTIVE)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  users       User[]
-  teams       Team[]
-  departments Department[]
-  areas       Area[]
-  systems     System[]
-  tasks       Task[]
-  qrMappings  QrMapping[]
-  invoices    Invoice[]
-  qrSettings  Json?    // Stores schedule mode, start, and end time
-  telegramChatId String? // ID for telegram notifications
-  telegramBotToken String? // Bot token for telegram
-  whatsappInstance String? // Green-API instance
-  whatsappToken    String? // Green-API token
-
-  logoUrl            String?
-  plan               String   @default("FREE")
-  price              Float    @default(0.0)
-  subscriptionEndsAt DateTime?
+  id                 String       @id @default(uuid())
+  name               String
+  status             TenantStatus @default(ACTIVE)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  qrSettings         Json?
+  telegramChatId     String?
   contactEmail       String?
   contactPhone       String?
-  maxInspectors      Int      @default(1)
+  logoUrl            String?
+  maxInspectors      Int          @default(1)
+  plan               String       @default("FREE")
+  price              Float        @default(0.0)
+  subscriptionEndsAt DateTime?
+  telegramBotToken   String?
+  whatsappInstance   String?
+  whatsappToken      String?
+  areas              Area[]
+  departments        Department[]
+  invoices           Invoice[]
+  qrMappings         QrMapping[]
+  systems            System[]
+  tasks              Task[]
+  teams              Team[]
+  users              User[]
 }
 
-enum Role {
-  SUPERADMIN
-  ADMIN
-  WORKER
-  INSPECTOR
-}
-
-// Пользователи (Админы, Инспекторы, Рабочие)
 model User {
-  id        String   @id @default(uuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  
-  name      String
-  email     String?  @unique
-  phone     String?  @unique
-  password  String?  // Может быть пустым, если вход по пин-коду
-  
-  role      Role     @default(WORKER)
-  teamId    String?
-  team      Team?    @relation(fields: [teamId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tasksAssigned Task[] @relation("WorkerTasks")
+  id            String   @id @default(uuid())
+  tenantId      String
+  name          String
+  email         String?  @unique
+  phone         String?  @unique
+  password      String?
+  role          Role     @default(WORKER)
+  teamId        String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  tasksAssigned Task[]   @relation("WorkerTasks")
+  team          Team?    @relation(fields: [teamId], references: [id])
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
 }
 
-// Команды / Категории (ניהול צוותים - Электрика, Сантехника и т.д.)
 model Team {
-  id        String   @id @default(uuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  
-  name      String   // Название команды (например, "חשמל", "מיזוג_אוויר")
-  
-  users     User[]
-  systems   System[] // Системы, которые автоматически назначаются этой команде
-  tasks     Task[]   // Задачи, назначенные на эту команду
+  id         String      @id @default(uuid())
+  tenantId   String
+  name       String
+  createdAt  DateTime    @default(now())
   qrMappings QrMapping[]
-
-  createdAt DateTime @default(now())
+  systems    System[]
+  tasks      Task[]
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  users      User[]
 
   @@unique([tenantId, name])
 }
 
-// Отделения (מחלקה - для QR кодов)
 model Department {
   id        String   @id @default(uuid())
   tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  
-  name      String   // Название (например "ג 3", "test")
-  
-  tasks     Task[]
-
+  name      String
   createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  tasks     Task[]
 }
 
-// Зоны проверки (אזורי בדיקה - Ванная, Комната и т.д.)
 model Area {
   id        String   @id @default(uuid())
   tenantId  String
+  name      String
+  createdAt DateTime @default(now())
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  
-  name      String   // Название зоны (например, "אמבטיה")
-  
   systems   System[]
   tasks     Task[]
-
-  createdAt DateTime @default(now())
 }
 
-// Системы/Дефекты (מערכות נבדקות - Унитаз, Раковина)
 model System {
-  id        String   @id @default(uuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  
-  name      String   // Название системы (например, "כיור", "אסלה")
-  
-  areaId    String
-  area      Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
-
-  autoAssignTeamId String? // ID команды для автоматического назначения
-  autoAssignTeam   Team?   @relation(fields: [autoAssignTeamId], references: [id])
-
-  tasks     Task[]
-
-  createdAt DateTime @default(now())
+  id               String   @id @default(uuid())
+  tenantId         String
+  name             String
+  areaId           String
+  autoAssignTeamId String?
+  createdAt        DateTime @default(now())
+  area             Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  autoAssignTeam   Team?    @relation(fields: [autoAssignTeamId], references: [id])
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  tasks            Task[]
 }
 
-enum TaskStatus {
-  NEW          // חדש - Новая
-  IN_PROGRESS  // בטיפול - В работе
-  COMPLETED    // בוצע - Завершена рабочим
-  CLOSED       // סגור - Закрыта инспектором/админом
-}
-
-enum ActionType {
-  REPAIR  // 2 - Ремонт (Оранжевый)
-  REPLACE // 1 - Замена (Красный)
-}
-
-// Заявки (Таблица из Google Sheets)
 model Task {
-  id            String   @id @default(uuid())
-  tenantId      String
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  
-  inspectorName String?  // שם הבודק
-  
-  departmentId  String?  // מחלקה
-  department    Department? @relation(fields: [departmentId], references: [id])
-  
-  room          String   // חדר
-  
-  areaId        String?  // Зона (для удобства фильтрации)
-  area          Area?    @relation(fields: [areaId], references: [id])
-  
-  systemId      String?  // פריט נבדק
-  system        System?  @relation(fields: [systemId], references: [id])
-  customDefectName String? // If no system is matched
-  
-  actionType    ActionType? // ציון (1 - Замена, 2 - Ремонт)
-  
-  notes         String?  // הערות
-  
-  photoUrl      String?  // תמונה (до)
-  afterPhotoUrl String?  // תמונה (после)
-  
-  status        TaskStatus @default(NEW) // סטוס
-  isSentToApp   Boolean    @default(false)
-  lastWarnedAt  DateTime?  // 48h rule warning timestamp
-  
-  teamId        String?  // Назначенная команда (берется из system.autoAssignTeamId при создании)
-  team          Team?    @relation(fields: [teamId], references: [id])
-  
-  workerId      String?  // Назначенный работник
-  worker        User?    @relation("WorkerTasks", fields: [workerId], references: [id])
-
-  createdAt     DateTime @default(now()) // תאריך ושעה
-  updatedAt     DateTime @updatedAt
+  id               String      @id @default(uuid())
+  tenantId         String
+  inspectorName    String?
+  departmentId     String?
+  room             String
+  areaId           String?
+  systemId         String?
+  customDefectName String?
+  actionType       ActionType?
+  notes            String?
+  photoUrl         String?
+  afterPhotoUrl    String?
+  status           TaskStatus  @default(NEW)
+  teamId           String?
+  workerId         String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  isSentToApp      Boolean     @default(false)
+  lastWarnedAt     DateTime?
+  area             Area?       @relation(fields: [areaId], references: [id])
+  department       Department? @relation(fields: [departmentId], references: [id])
+  system           System?     @relation(fields: [systemId], references: [id])
+  team             Team?       @relation(fields: [teamId], references: [id])
+  tenant           Tenant      @relation(fields: [tenantId], references: [id])
+  worker           User?       @relation("WorkerTasks", fields: [workerId], references: [id])
 }
 
-// Связь фиксированных категорий QR отчета с бригадами
 model QrMapping {
-  id        String   @id @default(uuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
-  category  String   // "חשמל", "מיזוג_אוויר", etc.
-  teamId    String?
-  team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  id       String  @id @default(uuid())
+  tenantId String
+  category String
+  teamId   String?
+  team     Team?   @relation(fields: [teamId], references: [id])
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, category])
 }
@@ -211,17 +142,43 @@ model Lead {
   phone     String?
   email     String?
   company   String?
-  status    String   @default("NEW") // NEW, CONTACTED, CLOSED
+  status    String   @default("NEW")
   createdAt DateTime @default(now())
 }
 
 model Invoice {
-  id        String   @id @default(uuid())
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  type      String   @default("INVOICE") // INVOICE, OFFER
-  amount    Float
-  extraInspectors Int @default(0)
-  status    String   @default("PENDING") // PENDING, PAID, CANCELLED
-  createdAt DateTime @default(now())
+  id              String   @id @default(uuid())
+  tenantId        String
+  type            String   @default("INVOICE")
+  amount          Float
+  extraInspectors Int      @default(0)
+  status          String   @default("PENDING")
+  createdAt       DateTime @default(now())
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+enum TenantStatus {
+  ACTIVE
+  UNPAID
+  BLOCKED
+  TRIAL
+}
+
+enum Role {
+  SUPERADMIN
+  ADMIN
+  WORKER
+  INSPECTOR
+}
+
+enum TaskStatus {
+  NEW
+  IN_PROGRESS
+  COMPLETED
+  CLOSED
+}
+
+enum ActionType {
+  REPAIR
+  REPLACE
 }

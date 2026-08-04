@@ -29,6 +29,7 @@ interface TaskCardProps {
   onEditComment?: (id: number) => void
   onApprove?: (id: number) => void
   onReturnToOpen?: (id: number) => void
+  onDelete?: (id: number) => void
   teams?: any[]
   onChangeTeam?: (id: number, teamName: string) => void
   onEditDefect?: (id: number) => void
@@ -42,6 +43,7 @@ export function TaskCard({
   onEditComment,
   onApprove,
   onReturnToOpen,
+  onDelete,
   teams,
   onChangeTeam,
   onEditDefect,
@@ -225,12 +227,19 @@ export function TaskCard({
             )}
             <span className="ml-1">{task.printedTime || ""}</span>
           </span>
-          <div className="mt-3">
+          <div className="mt-3 flex gap-2 w-full">
             <button
               onClick={() => onApprove?.(task.id)}
-              className="w-full bg-green-50 text-green-600 border border-green-500 px-2 py-1.5 rounded-lg font-bold text-xs hover:bg-green-100 transition-colors flex justify-center items-center gap-2"
+              className="flex-grow bg-green-50 text-green-600 border border-green-500 px-2 py-1.5 rounded-lg font-bold text-xs hover:bg-green-100 transition-colors flex justify-center items-center gap-2"
             >
               <i className="fas fa-check"></i> סגור משימה
+            </button>
+            <button
+              onClick={() => onDelete?.(task.id)}
+              className="bg-red-50 text-red-600 border border-red-200 w-8 flex justify-center items-center rounded-lg font-bold hover:bg-red-100 transition-colors"
+              title="מחק משימה לצמיתות"
+            >
+              <i className="fas fa-trash-alt"></i>
             </button>
           </div>
         </div>
@@ -253,12 +262,21 @@ export function TaskCard({
               ))}
             </select>
           </div>
-          <button
-            onClick={() => onApprove?.(task.id)}
-            className="w-full bg-green-50 text-green-600 border border-green-500 px-2 py-1.5 rounded-lg font-bold text-xs hover:bg-green-100 transition-colors flex justify-center items-center gap-2"
-          >
-            <i className="fas fa-check"></i> סגור משימה
-          </button>
+          <div className="flex gap-2 w-full mt-1">
+            <button
+              onClick={() => onApprove?.(task.id)}
+              className="flex-grow bg-green-50 text-green-600 border border-green-500 px-2 py-1.5 rounded-lg font-bold text-xs hover:bg-green-100 transition-colors flex justify-center items-center gap-2"
+            >
+              <i className="fas fa-check"></i> סגור משימה
+            </button>
+            <button
+              onClick={() => onDelete?.(task.id)}
+              className="bg-red-50 text-red-600 border border-red-200 w-8 flex justify-center items-center rounded-lg font-bold hover:bg-red-100 transition-colors"
+              title="מחק משימה לצמיתות"
+            >
+              <i className="fas fa-trash-alt"></i>
+            </button>
+          </div>
         </div>
       )}
 
@@ -284,12 +302,29 @@ export function TaskCard({
           </button>
           <button
             onClick={() => onReturnToOpen?.(task.id)}
-            className="w-full bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-red-100 transition-colors flex justify-center items-center gap-2"
+            className="w-full bg-orange-50 text-orange-600 border border-orange-200 px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-orange-100 transition-colors flex justify-center items-center gap-2"
           >
             החזר לפתוח
           </button>
+          <button
+            onClick={() => onDelete?.(task.id)}
+            className="w-full mt-1 bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-red-100 transition-colors flex justify-center items-center gap-2"
+          >
+            <i className="fas fa-trash-alt"></i> מחק משימה
+          </button>
         </div>
       )}
+      
+      {/* Mobile delete button (only visible on small screens since desktop has the sidebar) */}
+      <div className="md:hidden absolute bottom-4 left-4 z-20">
+        <button
+          onClick={() => onDelete?.(task.id)}
+          className="bg-red-50 text-red-600 border border-red-200 w-9 h-9 flex justify-center items-center rounded-lg shadow-sm hover:bg-red-100 transition-colors"
+          title="מחק משימה לצמיתות"
+        >
+          <i className="fas fa-trash-alt"></i>
+        </button>
+      </div>
     </div>
   )
 }
