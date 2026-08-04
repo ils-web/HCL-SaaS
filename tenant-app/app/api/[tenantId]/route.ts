@@ -383,11 +383,6 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
 
     let sysName = defect || sheetName || 'אחר';
     let sys = await prisma.system.findFirst({ where: { tenantId, name: sysName } });
-    if (!sys) {
-      let area = await prisma.area.findFirst({ where: { tenantId, name: 'שונות' } });
-      if (!area) area = await prisma.area.create({ data: { tenantId, name: 'שונות' } });
-      sys = await prisma.system.create({ data: { tenantId, areaId: area.id, name: sysName } });
-    }
 
     const finalPhotoUrl = await uploadToImgBB(photoBase64);
 
@@ -395,7 +390,8 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       data: {
         tenantId,
         departmentId: dept.id,
-        systemId: sys.id,
+        systemId: sys ? sys.id : null,
+        customDefectName: sys ? null : sysName,
         room: newRoomString,
         actionType: 'REPAIR', 
         status: 'NEW',
