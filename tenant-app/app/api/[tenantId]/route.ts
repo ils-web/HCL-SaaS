@@ -415,8 +415,10 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
 
   if (action === 'FINISH_DEPT') {
-    // const { reportText } = body;
-    // TODO: Send reportText to Telegram here
+    const { reportText } = body;
+    if (reportText) {
+      await sendTelegram(reportText, tenant.telegramBotToken, tenant.telegramChatId);
+    }
     return NextResponse.json({ status: 'success' });
   }
 

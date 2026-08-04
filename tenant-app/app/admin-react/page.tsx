@@ -177,7 +177,7 @@ export default function AdminReactPage() {
   }, [tasks]);
 
   // Load data
-  const loadTasks = React.useCallback(async (overrideTenantId?: string) => {
+  const loadTasks = React.useCallback(async (overrideTenantId?: string, isSilent = false) => {
     const role = localStorage.getItem("hcl_role")
     const paramTenantId = new URLSearchParams(window.location.search).get("tenantId")
     const localTenantId = localStorage.getItem("hcl_tenantId")
@@ -204,12 +204,12 @@ export default function AdminReactPage() {
     }
 
     if (!tId) {
-      setLoading(false)
+      if (!isSilent) setLoading(false)
       setTenantId(null) // Make sure tenantId is null so we can show the prompt
       return
     }
     setTenantId(tId)
-    setLoading(true)
+    if (!isSilent) setLoading(true)
 
     try {
       let data = null;
@@ -250,17 +250,27 @@ export default function AdminReactPage() {
       // The worker QR modal will use active tasks to find existing departments.
     } catch (e) {
       console.error(e)
-      toast("שגיאת תקשורת", "error")
+      if (!isSilent) toast("שגיאת תקשורת", "error")
       setTasks([])
     } finally {
-      setLoading(false)
+      if (!isSilent) setLoading(false)
     }
   }, [])
 
   React.useEffect(() => {
     loadTasks()
+    
+    // Auto-refresh every 15 seconds
+    const interval = setInterval(() => {
+      if (localStorage.getItem("hcl_tenantId")) {
+        loadTasks(undefined, true);
+      }
+    }, 15000);
+
     // Trigger the 48-hour rule check
     fetch("/api/cron").catch(() => {})
+
+    return () => clearInterval(interval);
   }, [loadTasks])
 
   const activeTabs = Array.from(new Set([
