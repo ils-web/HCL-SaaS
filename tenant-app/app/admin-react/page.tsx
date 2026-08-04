@@ -930,11 +930,11 @@ export default function AdminReactPage() {
               <div className="flex items-center gap-4 mt-2 pr-6">
                 <div className="flex flex-col flex-1">
                   <label className="text-xs font-bold text-gray-500 mb-1">שעת התחלה</label>
-                  <input type="time" value={qrSettings.start} onChange={(e) => setQrSettings({...qrSettings, start: e.target.value})} className="p-2 border rounded-lg text-left" dir="ltr" />
+                  <input type="time" value={qrSettings.start} onChange={(e) => setQrSettings({...qrSettings, start: e.target.value})} className="p-2 border rounded-lg text-left text-gray-900 bg-white font-bold" dir="ltr" />
                 </div>
                 <div className="flex flex-col flex-1">
                   <label className="text-xs font-bold text-gray-500 mb-1">שעת סיום</label>
-                  <input type="time" value={qrSettings.end} onChange={(e) => setQrSettings({...qrSettings, end: e.target.value})} className="p-2 border rounded-lg text-left" dir="ltr" />
+                  <input type="time" value={qrSettings.end} onChange={(e) => setQrSettings({...qrSettings, end: e.target.value})} className="p-2 border rounded-lg text-left text-gray-900 bg-white font-bold" dir="ltr" />
                 </div>
               </div>
             )}
