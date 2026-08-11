@@ -353,8 +353,8 @@ export function useAdminState() {
       const data = await res.json()
       if (data.tenantId) setTenantId(data.tenantId)
       if (data.status === "success") {
-        setTeams(data.teams || [])
-        setTasks(data.tasks || [])
+        if (data.teams) setTeams(data.teams)
+        if (data.tasks) setTasks(data.tasks)
         mutateTasks()
       } else {
         toast(data.message || "שגיאה", "error")
