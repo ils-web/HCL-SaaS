@@ -79,6 +79,10 @@ interface AdminModalsProps {
   confirmModalData: any
   setConfirmModalData: (val: any) => void
   
+  qrSettings: any
+  setQrSettings: (val: any) => void
+  saveQrSettings: (val: any) => void
+  
   reportsModalOpen: boolean
   setReportsModalOpen: (val: boolean) => void
   reportsStart: string
@@ -112,10 +116,24 @@ export function AdminModals({
   reportsModalOpen, setReportsModalOpen, reportsStart, setReportsStart,
   reportsEnd, setReportsEnd, isReportsLoading, loadReports, reportsData, handlePrintReports,
   telegramBotToken, setTelegramBotToken, telegramChatId, setTelegramChatId,
-  whatsappInstance, setWhatsappInstance, whatsappToken, setWhatsappToken
+  whatsappInstance, setWhatsappInstance, whatsappToken, setWhatsappToken,
+  qrSettings, setQrSettings, saveQrSettings
 }: AdminModalsProps) {
   const [qrDept, setQrDept] = React.useState("")
   const [qrCustomDept, setQrCustomDept] = React.useState("")
+  
+  const [localQrMode, setLocalQrMode] = React.useState("24/7")
+  const [localQrStart, setLocalQrStart] = React.useState("08:00")
+  const [localQrEnd, setLocalQrEnd] = React.useState("17:00")
+
+  React.useEffect(() => {
+    if (workerQrModalOpen && qrSettings) {
+      setLocalQrMode(qrSettings.mode || "24/7")
+      setLocalQrStart(qrSettings.start || "08:00")
+      setLocalQrEnd(qrSettings.end || "17:00")
+    }
+  }, [workerQrModalOpen, qrSettings])
+
   const [workerQrGeneratedUrl, setWorkerQrGeneratedUrl] = React.useState("")
   const [qrGeneratedUrl, setQrGeneratedUrl] = React.useState("")
   const [activeConfigArea, setActiveConfigArea] = React.useState<string | null>(null)
@@ -196,34 +214,63 @@ export function AdminModals({
                 <Button variant="outline" className="flex-1 font-bold border-blue-600 text-blue-600" onClick={() => window.open(workerQrGeneratedUrl, "_blank")}>פתח קישור</Button>
                 <Button variant="outline" className="flex-1 font-bold border-orange-500 text-orange-600" onClick={() => {
                   const deptToUse = qrDept === 'custom' ? qrCustomDept : qrDept;
-                  const deptText = deptToUse ? ` - ${deptToUse}` : '';
                   printHtmlInIframe(`
                     <html dir="rtl"><head><title>Print QR</title>
                     <style>
-                      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
-                      .card { border: 4px solid #4f46e5; border-radius: 20px; display: inline-block; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-                      h1 { font-size: 36px; margin-bottom: 10px; color: #4f46e5; font-weight: 900; }
-                      p { font-size: 24px; color: #4b5563; font-weight: bold; margin-bottom: 30px; }
-                      .dept-badge { display: inline-block; background: #e0e7ff; color: #4338ca; padding: 10px 20px; border-radius: 12px; font-size: 28px; font-weight: 900; margin-bottom: 30px; border: 2px dashed #818cf8; }
-                      .qr-container { padding: 20px; border: 3px solid #e5e7eb; border-radius: 16px; display: inline-block; background: #fff; }
-                      .print-btn { display: none; }
-                    </style>
-                    </head>
+                      body { text-align:center; padding:50px; font-family:sans-serif; }
+                      h2 { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
+                      .dept-badge { display:inline-block; padding:8px 16px; background:#4f46e5; color:white; border-radius:20px; font-size:18px; font-weight:bold; }
+                      .qr-container { display:inline-block; padding:15px; border:2px dashed #ccc; border-radius:15px; margin-top:20px; }
+                    </style></head>
                     <body>
-                      <div class="card">
-                          <h1>דיווח על תקלה - סרוק אותי!</h1>
-                          <p>נתקלת בתקלה? סרוק את הברקוד ודווח בקלות.</p>
+                          <h2>דיווח תקלות - ${tenantName}</h2>
                           <div class="dept-badge">מחלקה: ${deptToUse || 'כללי'}</div><br>
                           <div class="qr-container">
                             <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(workerQrGeneratedUrl)}" />
                           </div>
-                      </div>
+                      <br><br><button onclick="window.print(); window.close();" style="padding:15px 30px; font-size:18px; cursor:pointer; background:#2563eb; color:white; border:none; border-radius:8px;">הדפס</button>
                     </body></html>
                   `);
                 }}>הדפס</Button>
               </div>
             </div>
           )}
+
+          <div className="mt-8 border-t pt-6 text-right" dir="rtl">
+            <h4 className="text-lg font-bold text-gray-800 mb-4">הגדרות שעות פעילות (לכל הדיווחים)</h4>
+            
+            <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2 border p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                    <input type="radio" id="qrMode247" name="qrMode" value="24/7" checked={localQrMode === '24/7'} onChange={() => setLocalQrMode('24/7')} className="w-5 h-5 text-indigo-600 cursor-pointer" />
+                    <label htmlFor="qrMode247" className="font-bold text-gray-700 cursor-pointer flex-1">פתוח תמיד (24/7)</label>
+                </div>
+                
+                <div className="flex flex-col gap-2 border p-3 rounded-xl bg-gray-50">
+                    <div className="flex items-center gap-2 mb-2">
+                        <input type="radio" id="qrModeSchedule" name="qrMode" value="SCHEDULED" checked={localQrMode === 'SCHEDULED'} onChange={() => setLocalQrMode('SCHEDULED')} className="w-5 h-5 text-indigo-600 cursor-pointer" />
+                        <label htmlFor="qrModeSchedule" className="font-bold text-gray-700 cursor-pointer flex-1">לפי שעות פעילות</label>
+                    </div>
+                    
+                    {localQrMode === 'SCHEDULED' && (
+                      <div className="flex items-center gap-4 pr-7">
+                          <div className="flex flex-col flex-1">
+                              <label className="text-xs font-bold text-gray-500 mb-1">שעת התחלה</label>
+                              <input type="time" value={localQrStart} onChange={e => setLocalQrStart(e.target.value)} className="px-3 py-2 border rounded-lg outline-none w-full font-bold bg-white" dir="ltr" />
+                          </div>
+                          <div className="flex flex-col flex-1">
+                              <label className="text-xs font-bold text-gray-500 mb-1">שעת סיום</label>
+                              <input type="time" value={localQrEnd} onChange={e => setLocalQrEnd(e.target.value)} className="px-3 py-2 border rounded-lg outline-none w-full font-bold bg-white" dir="ltr" />
+                          </div>
+                      </div>
+                    )}
+                </div>
+            </div>
+
+            <Button className="w-full mt-4 bg-gray-800 hover:bg-gray-900 text-white font-bold h-10" onClick={() => saveQrSettings({ mode: localQrMode, start: localQrStart, end: localQrEnd })}>
+              <i className="fas fa-save ml-2"></i> שמור הגדרות פעילות
+            </Button>
+          </div>
+
         </div>
       </Modal>
 

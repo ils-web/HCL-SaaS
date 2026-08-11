@@ -38,7 +38,8 @@ export default function AdminReactPage() {
     filterDept, setFilterDept, activeDepts, filterDate, setFilterDate, taskDates, handleSelectAll,
     selectedTasks, filtered, viewMode, setViewMode, handlePrintSelected, handleSendToApp, handleCloseMass,
     handleReturnToOpenMass, activeTabs, currentTab, setCurrentTab, handleToggleCheck, handleApprove,
-    handleReturnToOpen, handleTeamChange, handleEditDefect, printDocumentData, printCardsData
+    handleReturnToOpen, handleTeamChange, handleEditDefect, printDocumentData, printCardsData,
+    qrSettings, setQrSettings, saveQrSettings
   } = adminState
   if (!tenantId && !loading) {
     return (
@@ -198,6 +199,9 @@ export default function AdminReactPage() {
         setWhatsappInstance={setWhatsappInstance}
         whatsappToken={whatsappToken}
         setWhatsappToken={setWhatsappToken}
+        qrSettings={qrSettings}
+        setQrSettings={setQrSettings}
+        saveQrSettings={saveQrSettings}
       />
       {/* Scroll to Top Button */}
       <button 

@@ -28,6 +28,7 @@ export function useAdminState() {
   const [systemTeams, setSystemTeams] = React.useState<Record<string, string>>({})
   const [teams, setTeams] = React.useState<any[]>([])
   const [loadingLocal, setLoadingLocal] = React.useState(true)
+  const [qrSettings, setQrSettings] = React.useState<any>({ mode: '24/7', start: '08:00', end: '17:00' })
   const loading = loadingLocal || tasksLoading
   
   // Modals & Print
@@ -230,6 +231,7 @@ export function useAdminState() {
       if (settingsData.telegramChatId) setTelegramChatId(settingsData.telegramChatId)
       if (settingsData.whatsappInstance) setWhatsappInstance(settingsData.whatsappInstance)
       if (settingsData.whatsappToken) setWhatsappToken(settingsData.whatsappToken)
+      if (settingsData.qrSettings) setQrSettings(settingsData.qrSettings)
       
       // We no longer auto-select from settings categories. 
       // The worker QR modal will use active tasks to find existing departments.
@@ -394,6 +396,26 @@ export function useAdminState() {
     });
   }
   
+  const saveQrSettings = async (newSettings: any) => {
+    if (!tenantId) return
+    try {
+      const res = await fetch(`/api/${tenantId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "SAVE_QR_SETTINGS", qrSettings: newSettings })
+      })
+      const data = await res.json()
+      if (data.status === "success") {
+        toast("הגדרות פעילות QR נשמרו בהצלחה", "success")
+        setQrSettings(newSettings)
+      } else {
+        toast("שגיאה בשמירת הגדרות", "error")
+      }
+    } catch (e) {
+      toast("שגיאת תקשורת", "error")
+    }
+  }
+
   const handlePrintSelected = () => {
     if (selectedTasks.size === 0) return toast("לא נבחרו משימות", "error")
     setPrintMode("print")
@@ -485,9 +507,18 @@ export function useAdminState() {
         // Prepare print layout
         const printNowStr = new Date().toLocaleString('en-GB')
         
+        let targetBrigadeName = 'Unknown';
+        if (printWorker) {
+          const wObj = workers.find((w: any) => w.name === printWorker);
+          if (wObj && wObj.teamId) {
+            const tObj = teams.find((t: any) => t.id === wObj.teamId);
+            if (tObj) targetBrigadeName = tObj.name;
+          }
+        }
+        
         // Group by sheet (brigade) and department
         const groupedBySheetAndDept = finalSelectedList.reduce((acc: Record<string, any[]>, t) => {
-          const sheet = t.sheet || 'Unknown';
+          const sheet = targetBrigadeName !== 'Unknown' ? targetBrigadeName : (t.sheet || 'Unknown');
           const dept = (t as any).department || t.dept || 'Unknown';
           const key = `${sheet}___${dept}`;
           if (!acc[key]) acc[key] = [];
@@ -542,6 +573,7 @@ export function useAdminState() {
     confirmAction, promptAction, loadReports, handlePrintReports, handleManagerReportPrint, loadTasks,
     handleToggleCheck, handleSelectAll, handleAction, handleTeamChange, handleEditDefect,
     handleApprove, handleReturnToOpen, handleReturnToOpenMass, handleCloseMass,
-    handlePrintSelected, handleSendToApp, executeOutputSequence
+    handlePrintSelected, handleSendToApp, executeOutputSequence,
+    qrSettings, setQrSettings, saveQrSettings
   }
 }
