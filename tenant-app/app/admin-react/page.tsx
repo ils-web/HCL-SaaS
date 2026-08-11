@@ -199,12 +199,6 @@ export default function AdminReactPage() {
         whatsappToken={whatsappToken}
         setWhatsappToken={setWhatsappToken}
       />
-      <AdminPrintLayouts 
-        printDocumentData={printDocumentData}
-        printCardsData={printCardsData}
-        printLang={printLang}
-        printWorker={printWorker}
-      />
       {/* Scroll to Top Button */}
       <button 
         onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -214,6 +208,13 @@ export default function AdminReactPage() {
       </button>
       
       </div>
+    
+    <AdminPrintLayouts 
+      printDocumentData={printDocumentData}
+      printCardsData={printCardsData}
+      printLang={printLang}
+      printWorker={printWorker}
+    />
     </>
   )
 }
