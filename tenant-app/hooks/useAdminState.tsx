@@ -382,14 +382,14 @@ export function useAdminState() {
   const handleReturnToOpenMass = () => {
     if (selectedTasks.size === 0) return toast("לא נבחרו משימות", "error")
     confirmAction("להחזיר את כל המשימות הנבחרות לסטטוס פתוח?", () => {
-      handleAction(0, "UNMARK_PRINTED", { tasks: Array.from(selectedTasks).map(id => ({id})) })
+      handleAction("", "UNMARK_PRINTED", { tasks: Array.from(selectedTasks).map(id => ({id})) })
       setSelectedTasks(new Set())
     });
   }
   const handleCloseMass = () => {
     if (selectedTasks.size === 0) return toast("לא נבחרו משימות", "error")
     confirmAction("האם לסגור את המשימות הנבחרות?", () => {
-      handleAction(0, "CLOSE_TASK", { tasks: Array.from(selectedTasks).map(id => ({id})) })
+      handleAction("", "CLOSE_TASK", { tasks: Array.from(selectedTasks).map(id => ({id})) })
       setSelectedTasks(new Set())
     });
   }

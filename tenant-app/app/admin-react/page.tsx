@@ -109,7 +109,7 @@ export default function AdminReactPage() {
             activeDepts={activeDepts}
             filterDate={filterDate}
             setFilterDate={setFilterDate}
-            taskDates={Array.from(taskDates)}
+            taskDates={taskDates}
             handleSelectAll={handleSelectAll}
             selectedTasksSize={selectedTasks.size}
             filteredLength={filtered.length}
