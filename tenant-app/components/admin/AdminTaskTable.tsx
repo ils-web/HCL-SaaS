@@ -17,7 +17,7 @@ interface AdminTaskTableProps {
   handleReturnToOpen: (id: string) => void
   teams: any[]
   handleTeamChange: (taskId: string, teamId: string) => void
-  handleEditDefect: (id: string, def: string) => void
+  handleEditDefect: (id: string) => void
 }
 
 export function AdminTaskTable({

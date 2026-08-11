@@ -110,7 +110,7 @@ export function useAdminState() {
   const [viewMode, setViewMode] = React.useState<"cards" | "table">("cards")
   
   // Selection
-  const [selectedTasks, setSelectedTasks] = React.useState<Set<number>>(new Set())
+  const [selectedTasks, setSelectedTasks] = React.useState<Set<string>>(new Set())
 
   // Clear selections when any filter changes
   React.useEffect(() => {
@@ -192,7 +192,8 @@ export function useAdminState() {
     if (!tId) return;
 
     // Dev mode auto-fallback
-    try {
+    if (process.env.NODE_ENV === "development" && !tId) {
+      try {
         const devRes = await fetch("/api/dev/default-tenant")
         if (devRes.ok) {
           const devData = await devRes.json()
@@ -205,7 +206,6 @@ export function useAdminState() {
         console.warn("Could not fetch default dev tenant")
       }
     }
-
     if (!tId) {
       setLoadingLocal(false)
       setTenantId(null) // Make sure tenantId is null so we can show the prompt
@@ -305,7 +305,7 @@ export function useAdminState() {
   })
 
   // Handlers
-  const handleToggleCheck = (id: number) => {
+  const handleToggleCheck = (id: string) => {
     const newSet = new Set(selectedTasks)
     if (newSet.has(id)) newSet.delete(id)
     else newSet.add(id)
@@ -327,7 +327,7 @@ export function useAdminState() {
     setSelectedTasks(newSet);
   }
 
-  const handleAction = async (id: number, actionType: string, bodyData: any = {}) => {
+  const handleAction = async (id: string, actionType: string, bodyData: any = {}) => {
     const tId = tenantId || localStorage.getItem("hcl_tenantId") || new URLSearchParams(window.location.search).get("tenantId")
     if (!tId) return
 
@@ -366,19 +366,19 @@ export function useAdminState() {
     }
   }
 
-  const handleTeamChange = async (id: number, teamName: string) => {
+  const handleTeamChange = async (id: string, teamName: string) => {
     await handleAction(id, "MOVE_TASK", { teamName })
   }
 
-  const handleEditDefect = async (id: number) => {
+  const handleEditDefect = async (id: string) => {
     promptAction("ערוך בעיה (תיאור התקלה):", async (newVal) => {
       if (newVal !== null && newVal.trim() !== "") {
         await handleAction(id, "EDIT_DEFECT", { newDefect: newVal.trim() })
       }
     });
   }
-  const handleApprove = (id: number) => handleAction(id, "CLOSE_TASK", { id })
-  const handleReturnToOpen = (id: number) => handleAction(id, "UNMARK_PRINTED", { tasks: [{id}] })
+  const handleApprove = (id: string) => handleAction(id, "CLOSE_TASK", { id })
+  const handleReturnToOpen = (id: string) => handleAction(id, "UNMARK_PRINTED", { tasks: [{id}] })
   const handleReturnToOpenMass = () => {
     if (selectedTasks.size === 0) return toast("לא נבחרו משימות", "error")
     confirmAction("להחזיר את כל המשימות הנבחרות לסטטוס פתוח?", () => {
@@ -522,12 +522,12 @@ export function useAdminState() {
 
   return {
     router, tasks, setTasks, workers, setWorkers, categories, setCategories,
-    systemTeams, setSystemTeams, teams, setTeams, loading, setLoading, tenantId, setTenantId,
+    systemTeams, setSystemTeams, teams, setTeams, loading: loadingLocal, setLoading: setLoadingLocal, tenantId, setTenantId,
     printModalOpen, setPrintModalOpen, printLang, setPrintLang, printWorker, setPrintWorker, printMode, setPrintMode,
     printDocumentData, setPrintDocumentData, printCardsData, setPrintCardsData,
     confirmModalData, setConfirmModalData, promptModalData, setPromptModalData,
     reportsModalOpen, setReportsModalOpen, reportsData, setReportsData,
-    reportsStart, setReportsStart, reportsEnd, setReportsEnd, isReportsLoading, setIsReportsLoading,
+    reportsStart, setReportsStart, reportsEnd, setReportsEnd, isReportsLoading,
     qrModalOpen, setQrModalOpen, workerQrModalOpen, setWorkerQrModalOpen,
     configModalOpen, setConfigModalOpen, teamsModalOpen, setTeamsModalOpen,
     workersModalOpen, setWorkersModalOpen, tenantName, setTenantName,

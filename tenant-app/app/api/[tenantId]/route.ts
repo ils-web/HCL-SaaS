@@ -634,7 +634,9 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         data: { teamId }
       });
     }
-    return NextResponse.json({ status: 'success' });
+    const teamsDb = await prisma.team.findMany({ where: { tenantId }, orderBy: { createdAt: 'asc' } });
+    const teamsData = teamsDb.map(t => ({ id: t.id, name: t.name }));
+    return NextResponse.json({ status: 'success', teams: teamsData });
   }
 
   if (action === 'EDIT_DEFECT') {
@@ -757,22 +759,6 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     }
     
     return NextResponse.json({ status: 'success', translations });
-  }
-
-  if (action === 'MOVE_TASK') {
-    const { id, targetSheet, newTeam } = body;
-    const finalTarget = targetSheet || newTeam;
-    
-    if (id && finalTarget) {
-      let team = await prisma.team.findFirst({ where: { tenantId, name: finalTarget } });
-      if (!team) team = await prisma.team.create({ data: { tenantId, name: finalTarget } });
-      
-      await prisma.task.update({
-        where: { id },
-        data: { teamId: team.id }
-      });
-    }
-    return NextResponse.json({ status: 'success' });
   }
 
   if (action === 'UPDATE_TASK_COMMENT') {

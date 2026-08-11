@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils"
 import { Checkbox } from "./Checkbox"
 
 export interface Task {
-  id: number
+  id: string
   sheet: string
   dept: string
   room: string
@@ -25,14 +25,14 @@ export interface Task {
 interface TaskCardProps {
   task: Task
   checked?: boolean
-  onToggleCheck?: (id: number) => void
-  onEditComment?: (id: number) => void
-  onApprove?: (id: number) => void
-  onReturnToOpen?: (id: number) => void
-  onDelete?: (id: number) => void
+  onToggleCheck: (id: string) => void
+  onEditComment?: (id: string) => void
+  onApprove: (id: string) => void
+  onReturnToOpen: (id: string) => void
+  onDelete?: (id: string) => void
   teams?: any[]
-  onChangeTeam?: (id: number, teamName: string) => void
-  onEditDefect?: (id: number) => void
+  onChangeTeam?: (id: string, teamName: string) => void
+  onEditDefect?: (id: string) => void
   className?: string
 }
 

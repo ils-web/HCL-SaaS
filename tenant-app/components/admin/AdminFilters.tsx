@@ -15,7 +15,7 @@ interface AdminFiltersProps {
   activeDepts: string[]
   filterDate: Date | undefined
   setFilterDate: (val: Date | undefined) => void
-  taskDates: string[]
+  taskDates: Set<string>
   
   handleSelectAll: () => void
   selectedTasksSize: number

@@ -109,7 +109,7 @@ export default function AdminReactPage() {
             activeDepts={activeDepts}
             filterDate={filterDate}
             setFilterDate={setFilterDate}
-            taskDates={taskDates}
+            taskDates={Array.from(taskDates)}
             handleSelectAll={handleSelectAll}
             selectedTasksSize={selectedTasks.size}
             filteredLength={filtered.length}
@@ -213,6 +213,7 @@ export default function AdminReactPage() {
         <i className="fas fa-arrow-up"></i>
       </button>
       
+      </div>
     </>
   )
 }
