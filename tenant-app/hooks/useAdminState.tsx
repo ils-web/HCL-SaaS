@@ -485,24 +485,27 @@ export function useAdminState() {
         // Prepare print layout
         const printNowStr = new Date().toLocaleString('en-GB')
         
-        // Group by department first
-        const groupedByDept = finalSelectedList.reduce((acc: Record<string, any[]>, t) => {
+        // Group by sheet (brigade) and department
+        const groupedBySheetAndDept = finalSelectedList.reduce((acc: Record<string, any[]>, t) => {
+          const sheet = t.sheet || 'Unknown';
           const dept = (t as any).department || t.dept || 'Unknown';
-          if (!acc[dept]) acc[dept] = [];
-          acc[dept].push(t);
+          const key = `${sheet}___${dept}`;
+          if (!acc[key]) acc[key] = [];
+          acc[key].push(t);
           return acc;
         }, {});
-
-        // chunk the tasks into pages of 4, keeping departments separate
+        
+        // chunk the tasks into pages of 4, keeping sheet and departments separate
         let pages: any[] = [];
-        Object.keys(groupedByDept).forEach(dept => {
-          const deptTasks = groupedByDept[dept];
+        Object.keys(groupedBySheetAndDept).forEach(key => {
+          const deptTasks = groupedBySheetAndDept[key];
+          const [sheet, dept] = key.split('___');
           for(let i=0; i<deptTasks.length; i+=4) {
              pages.push({
-               id: `${dept}-${i}`,
+               id: `${key}-${i}`,
                tasks: deptTasks.slice(i, i+4),
                printedTime: printNowStr,
-               tabName: currentTab.replace(/_/g, ' ')
+               tabName: sheet
              });
           }
         });
