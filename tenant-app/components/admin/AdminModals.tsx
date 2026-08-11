@@ -535,9 +535,9 @@ export function AdminModals({
 
       {/* Config Modal (Categories & Systems) */}
       <Modal isOpen={configModalOpen} onClose={() => setConfigModalOpen(false)} title="ניהול מערכות נבדקות">
-        <div className="space-y-4 max-h-[70vh] flex flex-col md:flex-row gap-4 p-1">
+        <div className="h-[70vh] flex flex-col md:flex-row gap-4 p-1">
           {/* Areas List (Right in RTL) */}
-          <div className="w-full md:w-1/2 flex flex-col gap-2 border-l pl-4 overflow-y-auto bg-gray-50/50 p-2 rounded-xl border border-gray-100">
+          <div className="w-full md:w-1/2 flex flex-col gap-2 border-l pl-4 overflow-y-auto custom-scrollbar bg-gray-50/50 p-2 rounded-xl border border-gray-100">
             <h3 className="font-bold text-gray-800 mb-2 border-b pb-2 text-center">אזורי בדיקה (כמו אמבטיה, חדר)</h3>
             
             <div className="flex gap-2 mb-4">
@@ -590,7 +590,7 @@ export function AdminModals({
           </div>
 
           {/* Systems List (Left in RTL) */}
-          <div className="w-full md:w-1/2 flex flex-col gap-2 overflow-y-auto pr-4">
+          <div className="w-full md:w-1/2 flex flex-col gap-2 overflow-y-auto custom-scrollbar pr-4">
             <h3 className="font-bold text-gray-800 mb-2 border-b pb-2 text-center bg-gray-100 rounded py-1">מערכות ב: {activeConfigArea || '...'}</h3>
             {!activeConfigArea ? (
               <div className="text-gray-400 text-center py-4">בחר אזור מימין</div>
@@ -631,20 +631,21 @@ export function AdminModals({
                   <div className="text-center text-gray-400 p-4">אין מערכות מוגדרות</div>
                 ) : (
                   (categories[activeConfigArea] || []).map((sys: string, idx: number) => (
-                    <div key={idx} className="flex flex-col bg-white p-3 rounded-lg border border-gray-200 shadow-sm gap-3">
-                      <div className="flex justify-between items-start w-full">
-                        <button className="text-red-500 hover:text-red-700" onClick={() => {
+                    <div key={idx} className="flex flex-col bg-white p-3 rounded-lg border border-gray-200 shadow-sm gap-2 hover:shadow-md transition-shadow">
+                      <div className="flex justify-between items-start w-full gap-2">
+                        <span className="font-bold text-gray-800 text-sm break-words flex-1 text-right">{sys}</span>
+                        <button className="text-red-500 hover:text-red-700 p-1 flex-shrink-0" onClick={() => {
                           const newC = {...categories};
                           newC[activeConfigArea] = newC[activeConfigArea].filter((s: string) => s !== sys);
                           setCategories(newC);
                         }}>
                           <i className="fas fa-times"></i>
                         </button>
-                        <span className="font-bold text-gray-800 text-sm ml-auto" dir="ltr">{sys}</span>
                       </div>
-                      <div className="flex justify-between items-center w-full">
+                      <div className="flex flex-col gap-1 w-full mt-1 border-t border-gray-50 pt-2">
+                        <span className="text-xs text-gray-500 font-medium text-right">צוות מטפל:</span>
                         <Select 
-                          className="w-40 h-8 text-xs py-0 pl-2 pr-6 rounded-md border-gray-300"
+                          className="w-full h-9 text-sm rounded-md border-gray-300 bg-gray-50 focus:ring-2 focus:ring-indigo-500 transition-all outline-none"
                           value={systemTeams[sys] || ""}
                           onChange={(e) => {
                             setSystemTeams({...systemTeams, [sys]: e.target.value})
@@ -656,7 +657,6 @@ export function AdminModals({
                             <option key={t.id} value={t.name}>{t.name}</option>
                           ))}
                         </Select>
-                        <span className="text-xs text-gray-500">צוות מטפל:</span>
                       </div>
                     </div>
                   ))
