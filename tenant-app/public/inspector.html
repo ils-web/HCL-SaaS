@@ -195,13 +195,19 @@
     </template>
 
     <script>
-        const _tId = new URLSearchParams(window.location.search).get('tenantId') || 'default';
-        const API_URL = `/api/${_tId}`;
+        const urlParams = new URLSearchParams(window.location.search);
+        let _tId = urlParams.get('tenantId');
+        if (_tId) {
+            localStorage.setItem('hcl_inspector_tenantId', _tId);
+        } else {
+            _tId = localStorage.getItem('hcl_inspector_tenantId') || '';
+        }
+        const API_URL = _tId ? `/api/${_tId}` : '';
         
         // НОВЫЕ ПЕРЕВОДЫ ДОБАВЛЕНЫ СЮДА
         const dict = {
-            ru: { syncText: "Синхронизация...", title: "Инспекция Систем", subtitle: "Управление активами и ремонтом", inspectorLabel: "ФИО инспектора", deptLabel: "Отделение (напр. А 1)", startBtn: "Начать проверку", roomCheckTitle: "Проверка помещений", roomLabel: "Номер или название помещения:", roomPlaceholder: "Напр: 101", okBtn: "ОК", cancelBtn: "Отмена", yesBtn: "Да", roomPrefix: "Помещение:", allGoodBtn: "В помещении всё исправно", addIssueBtn: "Добавить неисправность", saveRoomBtn: "Сохранить дефекты помещения", inspectedTitle: "Уже проверено:", emptyList: "(пока пусто)", finishBtn: "Завершить проверку отделения", whatBroken: "Что неисправно?", ratingLabel: "Действие:", btnRepair: "Ремонт", btnReplace: "Замена", selectDefault: "Выберите систему...", otherOption: "🔧 Другое (вписать вручную)...", customPlaceholder: "Впишите название...", commentPlaceholder: "Описание поломки (обязательно)...", photoLabel: "Фото", photoAdded: "Фотография добавлена", alertUnsavedRoom: "Внимание! Сначала сохраните текущее открытое помещение!", alertFillFields: "Заполните все обязательные поля (подсвечены красным)!", detailsTitle: "Детали помещения", newIssueTitle: "Новая неисправность...", collapseBtn: "Готово (Свернуть)", exitModalTitle: "Завершить проверку помещения?", exitModalDesc: "Вы собираетесь закончить проверку этого помещения и перейти к другому. Вернуться и изменить данные будет нельзя. Продолжить?", exitModalConfirm: "Да, выйти" },
-            he: { syncText: "מסנכרן...", title: "בדיקת מערכות", subtitle: "ניהול נכסים ותיקונים", inspectorLabel: "שם הבודק", deptLabel: "מחלקה (לדוגמה A 1)", startBtn: "התחל בדיקה", roomCheckTitle: "בדיקת חדרים", roomLabel: "מספר או שם חדר:", roomPlaceholder: "לדוגמה: 101", okBtn: "אישור", cancelBtn: "ביטול", yesBtn: "כן", roomPrefix: "חדר:", allGoodBtn: "הכל תקין בחדר זה", addIssueBtn: "הוסף תקלה", saveRoomBtn: "שמור תקלות חדר", inspectedTitle: "כבר נבדקו:", emptyList: "(ריק)", finishBtn: "סיים בדיקת מחלקה", whatBroken: "מה תקול?", ratingLabel: "פעולה:", btnRepair: "תיקון", btnReplace: "החלפה", selectDefault: "בחר מערכת...", otherOption: "🔧 אחר (הזן ידנית)...", customPlaceholder: "הזן שם...", commentPlaceholder: "תיאור התקלה (חובה)...", photoLabel: "תמונה", photoAdded: "תמונה צורפה", alertUnsavedRoom: "שים לב! אנא שמור קודם את החדר הפתוח הנוכחי!", alertFillFields: "נא למלא את כל שדות החובה (מודגשים באדום)!", detailsTitle: "פירוט חדר", newIssueTitle: "תקלה חדשה...", collapseBtn: "מוכן (מזער)", exitModalTitle: "לסיים בדיקת חדר?", exitModalDesc: "אתה עומד לסיים את הבדיקה של חדר זה ולעבור לאחר. לא תוכל לחזור ולערוך נתונים. להמשיך?", exitModalConfirm: "כן, לסיים" }
+            ru: { syncText: "Синхронизация...", title: "Инспекция Систем", subtitle: "Управление активами и ремонтом", inspectorLabel: "ФИО инспектора", deptLabel: "Отделение (напр. А 1)", startBtn: "Начать проверку", roomCheckTitle: "Проверка помещений", roomLabel: "Номер или название помещения:", roomPlaceholder: "Напр: 101", okBtn: "ОК", cancelBtn: "Отмена", yesBtn: "Да", roomPrefix: "Помещение:", allGoodBtn: "В помещении всё исправно", addIssueBtn: "Добавить неисправность", saveRoomBtn: "Сохранить дефекты помещения", inspectedTitle: "Уже проверено:", emptyList: "(пока пусто)", finishBtn: "Завершить проверку отделения", whatBroken: "Что неисправно?", ratingLabel: "Действие:", btnRepair: "Ремонт", btnReplace: "Замена", selectDefault: "Выберите систему...", otherOption: "🔧 Другое (вписать вручную)...", customPlaceholder: "Впишите название...", commentPlaceholder: "Описание поломки (обязательно)...", photoLabel: "Фото", photoAdded: "Фотография добавлена", alertUnsavedRoom: "Внимание! Сначала сохраните текущее открытое помещение!", alertFillFields: "Заполните все обязательные поля (подсвечены красным)!", detailsTitle: "Детали помещения", newIssueTitle: "Новая неисправность...", collapseBtn: "Готово (Свернуть)", exitModalTitle: "Завершить проверку помещения?", exitModalDesc: "Вы собираетесь закончить проверку этого помещения и перейти к другому. Вернуться и изменить данные будет нельзя. Продолжить?", exitModalConfirm: "Да, выйти", noTenantErr: "Организация не найдена! Пожалуйста, отсканируйте QR-код вашей организации заново." },
+            he: { syncText: "מסנכרן...", title: "בדיקת מערכות", subtitle: "ניהול נכסים ותיקונים", inspectorLabel: "שם הבודק", deptLabel: "מחלקה (לדוגמה A 1)", startBtn: "התחל בדיקה", roomCheckTitle: "בדיקת חדרים", roomLabel: "מספר או שם חדר:", roomPlaceholder: "לדוגמה: 101", okBtn: "אישור", cancelBtn: "ביטול", yesBtn: "כן", roomPrefix: "חדר:", allGoodBtn: "הכל תקין בחדר זה", addIssueBtn: "הוסף תקלה", saveRoomBtn: "שמור תקלות חדר", inspectedTitle: "כבר נבדקו:", emptyList: "(ריק)", finishBtn: "סיים בדיקת מחלקה", whatBroken: "מה תקול?", ratingLabel: "פעולה:", btnRepair: "תיקון", btnReplace: "החלפה", selectDefault: "בחר מערכת...", otherOption: "🔧 אחר (הזן ידנית)...", customPlaceholder: "הזן שם...", commentPlaceholder: "תיאור התקלה (חובה)...", photoLabel: "תמונה", photoAdded: "תמונה צורפה", alertUnsavedRoom: "שים לב! אנא שמור קודם את החדר הפתוח הנוכחי!", alertFillFields: "נא למלא את כל שדות החובה (מודגשים באדום)!", detailsTitle: "פירוט חדר", newIssueTitle: "תקלה חדשה...", collapseBtn: "מוכן (מזער)", exitModalTitle: "לסיים בדיקת חדר?", exitModalDesc: "אתה עומד לסיים את הבדיקה של חדר זה ולעבור לאחר. לא תוכל לחזור ולערוך נתונים. להמשיך?", exitModalConfirm: "כן, לסיים", noTenantErr: "לא נמצא ארגון! אנא סרוק שוב את קוד ה-QR של הארגון שלך." }
         };
 
         const isHebrew = (navigator.language || navigator.userLanguage).toLowerCase().startsWith('he');
@@ -221,6 +227,10 @@
         window.addEventListener('beforeunload', e => { if (state.isRunning) { e.preventDefault(); e.returnValue = ''; } });
 
         async function fetchTenantInfo() {
+            if (!_tId || !API_URL) {
+                appAlert(T.noTenantErr);
+                return;
+            }
             try {
                 const res = await fetch(`${API_URL}?action=getSettings`);
                 const data = await res.json();
@@ -231,7 +241,13 @@
                     if (subEl) { subEl.innerText = T.title; }
                     document.title = data.tenantName;
                 }
-            } catch(e) {}
+                if (data.categories && Object.keys(data.categories).length > 0) {
+                    state.categories = data.categories;
+                    localStorage.setItem(`hcl_cats_${_tId}`, JSON.stringify(state.categories));
+                }
+            } catch(e) {
+                console.error("fetchTenantInfo error:", e);
+            }
         }
 
         document.addEventListener("DOMContentLoaded", () => {
@@ -295,12 +311,31 @@
         async function confirmExit() { if(await appConfirm(isHebrew ? "לצאת מהבדיקה? הנתונים יאבדו." : "Выйти из инспекции? Данные удалятся.")) clearSession(); }
 
         async function startInspection() {
+            if (!_tId || !API_URL) {
+                return appAlert(T.noTenantErr);
+            }
             const insp = document.getElementById('inspectorName').value.trim(); const dept = document.getElementById('department').value.trim();
             if(!insp || !dept) return appAlert(isHebrew ? "מלא את כל השדות!" : "Заполните все поля!");
             state.inspector = insp; state.department = dept; state.isRunning = true;
             document.getElementById('loaderText').innerText = T.syncText; document.getElementById('loader').classList.remove('hidden');
-            try { const cached = localStorage.getItem(`hcl_cats_${_tId}`); if (cached) state.categories = JSON.parse(cached); const res = await fetch(`${API_URL}?action=getSettings`); const data = await res.json(); if (data.categories && Object.keys(data.categories).length > 0) { state.categories = data.categories; localStorage.setItem(`hcl_cats_${_tId}`, JSON.stringify(state.categories)); } } catch(e) {}
-            if(Object.keys(state.categories).length === 0) { state.categories = isHebrew ? {"כללי": ["חלון", "דלת"]} : {"Общее": ["Окно", "Дверь"]}; }
+            try { 
+                const res = await fetch(`${API_URL}?action=getSettings`); 
+                const data = await res.json(); 
+                if (data.categories && Object.keys(data.categories).length > 0) { 
+                    state.categories = data.categories; 
+                    localStorage.setItem(`hcl_cats_${_tId}`, JSON.stringify(state.categories)); 
+                } 
+            } catch(e) {
+                const cached = localStorage.getItem(`hcl_cats_${_tId}`); 
+                if (cached) state.categories = JSON.parse(cached);
+            }
+            if(Object.keys(state.categories).length === 0) { 
+                const cached = localStorage.getItem(`hcl_cats_${_tId}`);
+                if (cached) state.categories = JSON.parse(cached);
+            }
+            if(Object.keys(state.categories).length === 0) { 
+                state.categories = isHebrew ? {"כללי": ["חלון", "דלת"]} : {"Общее": ["Окно", "Дверь"]}; 
+            }
             saveSession(); document.getElementById('headerInfo').innerText = `${state.inspector} | ${state.department}`; navigate('inspectionPage'); document.getElementById('loader').classList.add('hidden'); vibrate('light');
         }
 

@@ -38,8 +38,8 @@ export default function AdminReactPage() {
     filterDept, setFilterDept, activeDepts, filterDate, setFilterDate, taskDates, handleSelectAll,
     selectedTasks, filtered, viewMode, setViewMode, handlePrintSelected, handleSendToApp, handleCloseMass,
     handleReturnToOpenMass, activeTabs, currentTab, setCurrentTab, handleToggleCheck, handleApprove,
-    handleReturnToOpen, handleTeamChange, handleEditDefect, printDocumentData, printCardsData,
-    qrSettings, setQrSettings, saveQrSettings
+    handleReturnToOpen, handleDelete, handleTeamChange, handleEditDefect, printDocumentData, printCardsData,
+    qrSettings, setQrSettings, saveQrSettings, exportTasksToCSV, handleCleanupTasks
   } = adminState
   if (!tenantId && !loading) {
     return (
@@ -51,7 +51,7 @@ export default function AdminReactPage() {
 
   return (
     <>
-    <div className="min-h-screen bg-[#858d9c] p-4 lg:p-8 print:hidden" dir="rtl">
+    <div className="min-h-screen bg-[#858d9c] p-4 lg:p-8 print:hidden overflow-y-scroll" dir="rtl">
       {/* Top Header */}
       <AdminHeader
         tenantName={tenantName}
@@ -135,6 +135,7 @@ export default function AdminReactPage() {
             handleToggleCheck={handleToggleCheck}
             handleApprove={handleApprove}
             handleReturnToOpen={handleReturnToOpen}
+            handleDelete={handleDelete}
             teams={teams}
             handleTeamChange={handleTeamChange}
             handleEditDefect={handleEditDefect}
@@ -202,6 +203,8 @@ export default function AdminReactPage() {
         qrSettings={qrSettings}
         setQrSettings={setQrSettings}
         saveQrSettings={saveQrSettings}
+        exportTasksToCSV={exportTasksToCSV}
+        handleCleanupTasks={handleCleanupTasks}
       />
       {/* Scroll to Top Button */}
       <button 

@@ -182,7 +182,12 @@
                 }
 
                 workerInfo = data.worker;
-                document.getElementById('uiWorkerName').innerText = workerInfo.name + (workerInfo.teamId ? ` (${workerInfo.teamId})` : ''); // UI will just show name and team uuid for now, could be better
+                const brigade = workerInfo.teamName || '';
+                const tenantDisplay = data.tenantName ? ` | ${data.tenantName}` : '';
+                document.getElementById('uiWorkerName').innerText = `${workerInfo.name}${brigade ? ` (${brigade})` : ''}${tenantDisplay}`;
+                if (data.tenantName) {
+                    document.title = `${data.tenantName} - ${t.title}`;
+                }
 
                 const tasks = data.tasks || [];
                 const newIds = tasks.map(tk => tk.id);

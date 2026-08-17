@@ -18,6 +18,7 @@ interface AdminTaskTableProps {
   teams: any[]
   handleTeamChange: (taskId: string, teamId: string) => void
   handleEditDefect: (id: string) => void
+  handleDelete: (id: string) => void
 }
 
 export function AdminTaskTable({
@@ -35,6 +36,7 @@ export function AdminTaskTable({
   teams,
   handleTeamChange,
   handleEditDefect,
+  handleDelete,
 }: AdminTaskTableProps) {
   return (
     <>
@@ -153,6 +155,7 @@ export function AdminTaskTable({
               teams={teams}
               onChangeTeam={handleTeamChange}
               onEditDefect={handleEditDefect}
+              onDelete={handleDelete}
             />
           ))}
         </div>

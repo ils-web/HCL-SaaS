@@ -102,6 +102,9 @@ interface AdminModalsProps {
   setWhatsappInstance: (val: string) => void
   whatsappToken: string
   setWhatsappToken: (val: string) => void
+
+  exportTasksToCSV?: () => void
+  handleCleanupTasks?: (days: number) => void
 }
 
 export function AdminModals({
@@ -117,7 +120,8 @@ export function AdminModals({
   reportsEnd, setReportsEnd, isReportsLoading, loadReports, reportsData, handlePrintReports,
   telegramBotToken, setTelegramBotToken, telegramChatId, setTelegramChatId,
   whatsappInstance, setWhatsappInstance, whatsappToken, setWhatsappToken,
-  qrSettings, setQrSettings, saveQrSettings
+  qrSettings, setQrSettings, saveQrSettings,
+  exportTasksToCSV, handleCleanupTasks
 }: AdminModalsProps) {
   const [qrDept, setQrDept] = React.useState("")
   const [qrCustomDept, setQrCustomDept] = React.useState("")
@@ -663,6 +667,30 @@ export function AdminModals({
                 )}
               </>
             )}
+          </div>
+        </div>
+
+        {/* Data Management Section */}
+        <div className="mt-4 p-4 bg-gray-100 rounded-xl border border-gray-200">
+          <h3 className="font-bold text-gray-800 mb-3"><i className="fas fa-database text-indigo-600 ml-2"></i>ניהול נתונים (ארכיון וגיבוי)</h3>
+          <div className="flex flex-col md:flex-row gap-3">
+            <Button variant="outline" className="flex-1 bg-white hover:bg-gray-50 border-gray-300 text-gray-700 font-bold shadow-sm" onClick={exportTasksToCSV}>
+              <i className="fas fa-file-excel ml-2 text-green-600"></i> ייצא את כל המשימות (CSV)
+            </Button>
+            
+            <div className="flex-1 flex gap-2">
+              <Select id="cleanupDays" className="w-1/2 bg-white" defaultValue="180">
+                <option value="90">מעל 3 חודשים</option>
+                <option value="180">מעל חצי שנה</option>
+                <option value="365">מעל שנה</option>
+              </Select>
+              <Button variant="outline" className="w-1/2 bg-white hover:bg-red-50 border-red-200 text-red-600 font-bold shadow-sm" onClick={() => {
+                const val = (document.getElementById('cleanupDays') as HTMLSelectElement).value;
+                if (handleCleanupTasks) handleCleanupTasks(parseInt(val));
+              }}>
+                <i className="fas fa-trash ml-2"></i> נקה סגורות
+              </Button>
+            </div>
           </div>
         </div>
         

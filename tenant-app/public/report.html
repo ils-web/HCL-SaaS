@@ -122,7 +122,13 @@
     </div>
 
     <script>
-        const _tId = new URLSearchParams(window.location.search).get('tenantId') || 'default';
+        const urlParams = new URLSearchParams(window.location.search);
+        let _tId = urlParams.get('tenantId');
+        if (_tId) {
+            localStorage.setItem('hcl_report_tenantId', _tId);
+        } else {
+            _tId = localStorage.getItem('hcl_report_tenantId') || 'default';
+        }
         const API_URL = `/api/${_tId}`;
         
         const dict = {
@@ -141,38 +147,46 @@
 
           document.addEventListener("DOMContentLoaded", async () => {
               // Check QR settings first
-              try {
-                  const urlParamsLocal = new URLSearchParams(window.location.search);
-                  const tId = urlParamsLocal.get('tenantId') || 'default';
-                  const setRes = await fetch(`/api/${tId}?action=getSettings`);
-                  const setData = await setRes.json();
-                  if (setData.qrSettings) {
-                      const { mode, start, end } = setData.qrSettings;
-                      if (mode === 'SCHEDULED' && start && end) {
-                          const now = new Date();
-                          const currentMinutes = now.getHours() * 60 + now.getMinutes();
-                          const [startH, startM] = start.split(':').map(Number);
-                          const [endH, endM] = end.split(':').map(Number);
-                          const startMinutes = startH * 60 + startM;
-                          const endMinutes = endH * 60 + endM;
-                          
-                          let isClosed = false;
-                          if (startMinutes <= endMinutes) {
-                              if (currentMinutes < startMinutes || currentMinutes > endMinutes) isClosed = true;
-                          } else {
-                              // Overnight shift
-                              if (currentMinutes < startMinutes && currentMinutes > endMinutes) isClosed = true;
-                          }
-                          
-                          if (isClosed) {
-                              document.getElementById('formContainer').classList.add('hidden');
-                              document.getElementById('closedMessage').classList.remove('hidden');
-                              document.getElementById('closedHoursText').innerText = `שעות פעילות: מ- ${start} עד- ${end}. תודה!`;
-                              return; // Stop execution
+              if (_tId && API_URL) {
+                  try {
+                      const setRes = await fetch(`${API_URL}?action=getSettings`);
+                      const setData = await setRes.json();
+                      if (setData.tenantName) {
+                          document.title = `${setData.tenantName} - ${dict[lang].pageTitle}`;
+                          const deptEl = document.getElementById('deptDisplay');
+                          if (deptEl) {
+                              const currentDept = new URLSearchParams(window.location.search).get('dept') || "כללי (General)";
+                              deptEl.innerText = `${setData.tenantName} | ${currentDept}`;
                           }
                       }
-                  }
-              } catch(e) { console.error('Failed to fetch settings', e); }
+                      if (setData.qrSettings) {
+                          const { mode, start, end } = setData.qrSettings;
+                          if (mode === 'SCHEDULED' && start && end) {
+                              const now = new Date();
+                              const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                              const [startH, startM] = start.split(':').map(Number);
+                              const [endH, endM] = end.split(':').map(Number);
+                              const startMinutes = startH * 60 + startM;
+                              const endMinutes = endH * 60 + endM;
+                              
+                              let isClosed = false;
+                              if (startMinutes <= endMinutes) {
+                                  if (currentMinutes < startMinutes || currentMinutes > endMinutes) isClosed = true;
+                              } else {
+                                  // Overnight shift
+                                  if (currentMinutes < startMinutes && currentMinutes > endMinutes) isClosed = true;
+                              }
+                              
+                              if (isClosed) {
+                                  document.getElementById('formContainer').classList.add('hidden');
+                                  document.getElementById('closedMessage').classList.remove('hidden');
+                                  document.getElementById('closedHoursText').innerText = `שעות פעילות: מ- ${start} עד- ${end}. תודה!`;
+                                  return; // Stop execution
+                              }
+                          }
+                      }
+                  } catch(e) { console.error('Failed to fetch settings', e); }
+              }
 
               // Get department from URL ?dept=Cardiology
               const urlParams = new URLSearchParams(window.location.search);

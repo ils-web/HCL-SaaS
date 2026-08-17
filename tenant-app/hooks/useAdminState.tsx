@@ -172,47 +172,28 @@ export function useAdminState() {
 
   // Load data
   const loadTasks = React.useCallback(async (overrideTenantId?: string) => {
-    const role = localStorage.getItem("hcl_role")
-    const paramTenantId = new URLSearchParams(window.location.search).get("tenantId")
-    let localTenantId = localStorage.getItem("hcl_tenantId")
+    let tId: string | null = overrideTenantId || null
     
-    if (!localTenantId && role === "SUPERADMIN" && paramTenantId) {
-       localTenantId = paramTenantId;
+    if (!tId && typeof window !== 'undefined') {
+      const paramTenantId = new URLSearchParams(window.location.search).get("tenantId")
+      if (paramTenantId) {
+        tId = paramTenantId
+        localStorage.setItem("hcl_tenantId", paramTenantId)
+      } else {
+        tId = localStorage.getItem("hcl_tenantId")
+      }
     }
-
-    let tId = overrideTenantId || localTenantId
     
     if (!tId) {
       if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-        window.location.href = '/login';
-        return;
+        window.location.href = '/login'
+        return
       }
     }
 
     setTenantId(tId)
-    if (!tId) return;
+    if (!tId) return
 
-    // Dev mode auto-fallback
-    if (process.env.NODE_ENV === "development" && !tId) {
-      try {
-        const devRes = await fetch("/api/dev/default-tenant")
-        if (devRes.ok) {
-          const devData = await devRes.json()
-          if (devData.tenantId) {
-            tId = devData.tenantId
-            if (tId) localStorage.setItem("hcl_tenantId", tId)
-          }
-        }
-      } catch (e) {
-        console.warn("Could not fetch default dev tenant")
-      }
-    }
-    if (!tId) {
-      setLoadingLocal(false)
-      setTenantId(null) // Make sure tenantId is null so we can show the prompt
-      return
-    }
-    setTenantId(tId)
     setLoadingLocal(true)
 
     try {
@@ -379,8 +360,13 @@ export function useAdminState() {
       }
     });
   }
-  const handleApprove = (id: string) => handleAction(id, "CLOSE_TASK", { id })
-  const handleReturnToOpen = (id: string) => handleAction(id, "UNMARK_PRINTED", { tasks: [{id}] })
+    const handleApprove = (id: string) => handleAction(id, "CLOSE_TASK", { id })
+    const handleDelete = (id: string) => {
+      confirmAction("האם אתה בטוח שברצונך למחוק משימה זו?", () => {
+        handleAction(id, "DELETE_TASK", { taskId: id });
+      });
+    }
+    const handleReturnToOpen = (id: string) => handleAction(id, "UNMARK_PRINTED", { tasks: [{id}] })
   const handleReturnToOpenMass = () => {
     if (selectedTasks.size === 0) return toast("לא נבחרו משימות", "error")
     confirmAction("להחזיר את כל המשימות הנבחרות לסטטוס פתוח?", () => {
@@ -554,6 +540,79 @@ export function useAdminState() {
 
   
 
+  const exportTasksToCSV = async () => {
+    try {
+      const tId = tenantId || localStorage.getItem("hcl_tenantId") || new URLSearchParams(window.location.search).get("tenantId");
+      if (!tId) return;
+      
+      const res = await fetch(`/api/${tId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "GET_ALL_TASKS" })
+      });
+      const data = await res.json();
+      if (data.tasks) {
+        const headers = ["ID", "Sheet", "Department", "Room", "System", "Defect", "Status", "Worker", "Team", "Date", "Comment"];
+        const rows = data.tasks.map((t: any) => [
+          t.id, 
+          t.sheet, 
+          t.dept, 
+          t.room, 
+          t.system, 
+          t.defect, 
+          t.status, 
+          t.worker, 
+          t.team, 
+          t.dateStr, 
+          (t.comment || '').replace(/"/g, '""')
+        ]);
+        
+        const csvContent = "\uFEFF" + [
+          headers.join(","),
+          ...rows.map((row: any[]) => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(","))
+        ].join("\n");
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `tasks_export_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast("ייצוא עבר בהצלחה", "success");
+      }
+    } catch (err) {
+      console.error(err);
+      toast("שגיאה בייצוא", "error");
+    }
+  };
+
+  const handleCleanupTasks = async (days: number) => {
+    confirmAction(`האם אתה בטוח שברצונך למחוק משימות סגורות הישנות מ-${days} ימים? פעולה זו אינה ניתנת לביטול!`, async () => {
+      try {
+        const tId = tenantId || localStorage.getItem("hcl_tenantId") || new URLSearchParams(window.location.search).get("tenantId");
+        if (!tId) return;
+        
+        const res = await fetch(`/api/${tId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "CLEANUP_TASKS", days })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+          toast(`נמחקו ${data.deletedCount} משימות ישנות`, "success");
+          loadTasks();
+        } else {
+          toast("שגיאה במחיקת משימות", "error");
+        }
+      } catch (err) {
+        console.error(err);
+        toast("שגיאה בשרת", "error");
+      }
+    });
+  };
+
   return {
     router, tasks, setTasks, workers, setWorkers, categories, setCategories,
     systemTeams, setSystemTeams, teams, setTeams, loading: loadingLocal, setLoading: setLoadingLocal, tenantId, setTenantId,
@@ -572,8 +631,9 @@ export function useAdminState() {
     workerStats, warningStats, activeTabs, activeDepts, taskDates, filtered,
     confirmAction, promptAction, loadReports, handlePrintReports, handleManagerReportPrint, loadTasks,
     handleToggleCheck, handleSelectAll, handleAction, handleTeamChange, handleEditDefect,
-    handleApprove, handleReturnToOpen, handleReturnToOpenMass, handleCloseMass,
+    handleApprove, handleDelete, handleReturnToOpen, handleReturnToOpenMass, handleCloseMass,
     handlePrintSelected, handleSendToApp, executeOutputSequence,
-    qrSettings, setQrSettings, saveQrSettings
+    qrSettings, setQrSettings, saveQrSettings,
+    exportTasksToCSV, handleCleanupTasks
   }
 }

@@ -221,6 +221,40 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
     return NextResponse.json({ tasks: filteredTasks });
   }
 
+  if (action === 'GET_ALL_TASKS') {
+    const tasksDb = await prisma.task.findMany({
+      where: { tenantId },
+      include: {
+        department: true,
+        system: true,
+        team: true,
+        worker: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    const tasks = tasksDb.map(t => {
+      const isQr = t.customDefectName?.includes('דיווח מהמחלקה') || t.customDefectName?.includes('תקלה חדשה') || t.inspectorName?.includes('צוות');
+      return {
+        id: t.id,
+        sheet: t.team?.name || (isQr ? 'QR' : 'כללי'),
+        dept: t.department?.name || 'כללי',
+        room: t.room,
+        system: t.system?.name || t.customDefectName || 'אחר',
+        defect: t.system?.name || t.customDefectName || 'אחר',
+        inspector: t.inspectorName || 'מנהל',
+        comment: t.notes || '',
+        status: t.status === 'NEW' ? 'פתוח' : (t.status === 'IN_PROGRESS' ? 'בעבודה' : (t.status === 'CLOSED' ? 'סגור' : 'הושלם')),
+        worker: t.worker?.name || '',
+        team: t.team?.name || '',
+        timestamp: t.createdAt.getTime(),
+        dateStr: `${String(t.createdAt.getDate()).padStart(2, '0')}/${String(t.createdAt.getMonth() + 1).padStart(2, '0')}/${t.createdAt.getFullYear()} ${String(t.createdAt.getHours()).padStart(2, '0')}:${String(t.createdAt.getMinutes()).padStart(2, '0')}`,
+      };
+    });
+    return NextResponse.json({ tasks });
+  }
+
+
   if (action === 'getMonthlyStats') {
     const start = new Date();
     start.setDate(1);
@@ -416,19 +450,39 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     return NextResponse.json({ status: 'success' });
   }
 
-  if (action === 'DELETE_TASK') {
-    const { taskId } = body;
-    if (!taskId) return NextResponse.json({ error: 'Missing taskId' }, { status: 400 });
-    
-    // Verify task belongs to tenant
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
-    if (!task || task.tenantId !== tenantId) {
-      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    if (action === 'DELETE_TASK') {
+      const { taskId } = body;
+      if (!taskId) return NextResponse.json({ error: 'Missing taskId' }, { status: 400 });
+      
+      // Verify task belongs to tenant
+      const task = await prisma.task.findUnique({ where: { id: taskId } });
+      if (!task || task.tenantId !== tenantId) {
+        return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+      }
+      
+      await prisma.task.delete({ where: { id: taskId } });
+      return NextResponse.json({ status: 'success' });
     }
-    
-    await prisma.task.delete({ where: { id: taskId } });
-    return NextResponse.json({ status: 'success' });
-  }
+
+    if (action === 'CLEANUP_TASKS') {
+      const { days } = body;
+      if (typeof days !== 'number' || days < 1) return NextResponse.json({ error: 'Invalid days parameter' }, { status: 400 });
+      
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+      
+      const result = await prisma.task.deleteMany({
+        where: {
+          tenantId: tenantId,
+          status: 'CLOSED',
+          updatedAt: {
+            lt: cutoffDate
+          }
+        }
+      });
+      
+      return NextResponse.json({ status: 'success', deletedCount: result.count });
+    }
 
   if (action === 'FINISH_DEPT') {
     const { reportText } = body;
@@ -776,7 +830,10 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     const { workerId } = body;
     if (!workerId) return NextResponse.json({ error: 'Missing workerId' }, { status: 400 });
 
-    const worker = await prisma.user.findUnique({ where: { id: workerId } });
+    const worker = await prisma.user.findUnique({ 
+      where: { id: workerId },
+      include: { team: true }
+    });
     if (!worker || worker.tenantId !== tenantId) return NextResponse.json({ error: 'Worker not found' }, { status: 404 });
 
     const whereClause: any = {
@@ -820,7 +877,17 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       workerId: t.workerId
     }));
 
-    return NextResponse.json({ status: 'success', tasks, worker: { id: worker.id, name: worker.name, teamId: worker.teamId } });
+    return NextResponse.json({ 
+      status: 'success', 
+      tasks, 
+      tenantName: tenant.name,
+      worker: { 
+        id: worker.id, 
+        name: worker.name, 
+        teamId: worker.teamId, 
+        teamName: worker.team?.name || '' 
+      } 
+    });
   }
 
   if (action === 'SEND_TO_APP') {

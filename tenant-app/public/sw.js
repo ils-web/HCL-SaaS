@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hcl-pwa-v2';
+const CACHE_NAME = 'hcl-pwa-v4';
 
 // Core assets to pre-cache
 const PRECACHE_ASSETS = [
@@ -34,13 +34,15 @@ self.addEventListener('fetch', (event) => {
   // We only want to handle GET requests
   if (event.request.method !== 'GET') return;
 
-  // For API requests, use Network First, fallback to Cache
+  // For API requests: Network First, only cache valid 200 responses
   if (event.request.url.includes('/api/')) {
     event.respondWith(
       fetch(event.request)
         .then(response => {
-          const clonedResponse = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clonedResponse));
+          if (response && response.status === 200) {
+            const clonedResponse = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clonedResponse));
+          }
           return response;
         })
         .catch(() => caches.match(event.request))
@@ -48,11 +50,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For HTML, CSS, JS and Images, use Stale-While-Revalidate
+  // For HTML, CSS, JS and Images, use Network First / Stale-While-Revalidate
   event.respondWith(
     caches.match(event.request).then(cachedResponse => {
       const fetchPromise = fetch(event.request).then(networkResponse => {
-        caches.open(CACHE_NAME).then(cache => cache.put(event.request, networkResponse.clone()));
+        if (networkResponse && networkResponse.status === 200) {
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, networkResponse.clone()));
+        }
         return networkResponse;
       }).catch(() => {
         // Ignore network errors on revalidate
