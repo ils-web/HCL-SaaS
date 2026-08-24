@@ -51,7 +51,7 @@ export default function AdminReactPage() {
 
   return (
     <>
-    <div className="min-h-screen bg-[#858d9c] p-4 lg:p-8 print:hidden overflow-y-scroll" dir="rtl">
+    <div className="min-h-screen bg-[#858d9c] p-4 lg:p-8 print:hidden" dir="rtl">
       {/* Top Header */}
       <AdminHeader
         tenantName={tenantName}
