@@ -64,10 +64,10 @@ export function AdminPrintLayouts({
               .print-card { width: 49%; height: 48.5%; margin-bottom: 1.5%; border: 2px solid #000; border-radius: 10px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; page-break-inside: avoid; break-inside: avoid; overflow: hidden; background: white; color: black; }
               .print-card-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ccc; padding-bottom: 4px; margin-bottom: 6px; color: black; }
               .print-card-body { display: flex; gap: 8px; flex-grow: 1; align-items: stretch; overflow: hidden; }
-              .print-photo { width: 72%; height: 100%; max-height: 100%; object-fit: cover; object-position: center; border: 1.5px solid #cbd5e1; border-radius: 8px; }
-              .print-info { width: 28%; display: flex; flex-direction: column; color: black; overflow: hidden; padding: 0 2px; }
-              .defect-title { font-size: 16px; font-weight: 900; margin-bottom: 4px; line-height: 1.2; word-break: break-word; overflow-wrap: break-word; hyphens: auto; }
-              .defect-comment { font-size: 13px; color: #1f2937; line-height: 1.2; word-break: break-word; }
+              .print-photo { width: 75%; height: 100%; max-height: 100%; object-fit: cover; object-position: center; border: 1.5px solid #cbd5e1; border-radius: 8px; }
+              .print-info { width: 25%; display: flex; flex-direction: column; color: black; overflow: hidden; padding: 0 2px; }
+              .defect-title { font-size: 15.5px; font-weight: 900; margin-bottom: 4px; line-height: 1.2; word-break: break-word; overflow-wrap: break-word; hyphens: auto; }
+              .defect-comment { font-size: 12.5px; color: #1f2937; line-height: 1.2; word-break: break-word; }
               .signature-box { border-top: 2px dashed #000; margin-top: 6px; padding-top: 5px; display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; color: black;}
             }
           `}} />
