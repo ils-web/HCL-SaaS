@@ -787,7 +787,7 @@ export function AdminModals({
       </Modal>
 
       {/* Config Modal (Categories & Systems) */}
-      <Modal isOpen={configModalOpen} onClose={() => setConfigModalOpen(false)} title="ניהול מערכות נבדקות">
+      <Modal isOpen={configModalOpen} onClose={() => setConfigModalOpen(false)} title="ניהול מערכות נבדקות" className="max-w-4xl w-full">
         <div className="h-[70vh] flex flex-col md:flex-row gap-4 p-1">
           {/* Areas List (Right in RTL) */}
           <div className="w-full md:w-1/2 flex flex-col gap-2 border-l pl-4 overflow-y-auto custom-scrollbar bg-gray-50/50 p-2 rounded-xl border border-gray-100">
@@ -919,30 +919,6 @@ export function AdminModals({
           </div>
         </div>
 
-        {/* Data Management Section */}
-        <div className="mt-4 p-4 bg-gray-100 rounded-xl border border-gray-200">
-          <h3 className="font-bold text-gray-800 mb-3"><i className="fas fa-database text-indigo-600 ml-2"></i>ניהול נתונים (ארכיון וגיבוי)</h3>
-          <div className="flex flex-col md:flex-row gap-3">
-            <Button variant="outline" className="flex-1 bg-white hover:bg-gray-50 border-gray-300 text-gray-700 font-bold shadow-sm" onClick={exportTasksToCSV}>
-              <i className="fas fa-file-excel ml-2 text-green-600"></i> ייצא את כל המשימות (CSV)
-            </Button>
-            
-            <div className="flex-1 flex gap-2">
-              <Select id="cleanupDays" className="w-1/2 bg-white" defaultValue="180">
-                <option value="90">מעל 3 חודשים</option>
-                <option value="180">מעל חצי שנה</option>
-                <option value="365">מעל שנה</option>
-              </Select>
-              <Button variant="outline" className="w-1/2 bg-white hover:bg-red-50 border-red-200 text-red-600 font-bold shadow-sm" onClick={() => {
-                const val = (document.getElementById('cleanupDays') as HTMLSelectElement).value;
-                if (handleCleanupTasks) handleCleanupTasks(parseInt(val));
-              }}>
-                <i className="fas fa-trash ml-2"></i> נקה סגורות
-              </Button>
-            </div>
-          </div>
-        </div>
-        
         <div className="flex gap-3 pt-4 mt-4 border-t border-gray-200">
           <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-12 text-lg" onClick={async () => {
             setLoading(true);
@@ -1151,6 +1127,44 @@ export function AdminModals({
                <i className="fas fa-print ml-2"></i>הדפסת דוח
              </Button>
            </div>
+
+            {/* Data Management Section (Export CSV & Cleanup) */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between bg-gray-100 p-3.5 rounded-xl border border-gray-200 gap-3 mt-3 shrink-0" dir="rtl">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-700 shrink-0">
+                  <i className="fas fa-database text-lg"></i>
+                </div>
+                <div>
+                  <h4 className="font-bold text-gray-800 text-sm">ניהול נתונים וארכיון</h4>
+                  <p className="text-xs text-gray-500">ייצוא כל הנתונים לקובץ Excel/CSV או מחיקת משימות סגורות ישנות</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3 items-center justify-end">
+                <Button variant="outline" className="bg-white hover:bg-emerald-50 border-emerald-300 text-emerald-700 font-bold shadow-xs flex items-center gap-2 h-10 px-4" onClick={exportTasksToCSV}>
+                  <i className="fas fa-file-excel text-green-600 text-base"></i>
+                  <span>ייצא את כל המשימות (CSV)</span>
+                </Button>
+                <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-2.5 py-1 h-10 shadow-xs">
+                  <label className="text-xs font-bold text-gray-600 whitespace-nowrap">מחק סגורות:</label>
+                  <select id="cleanupDays" className="bg-transparent font-bold text-xs text-gray-700 outline-none cursor-pointer pr-1">
+                    <option value="90">מעל 3 חודשים</option>
+                    <option value="180">מעל חצי שנה</option>
+                    <option value="365">מעל שנה</option>
+                  </select>
+                  <button 
+                    type="button" 
+                    className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold text-xs px-3 py-1 rounded transition-colors"
+                    onClick={() => {
+                      const sel = document.getElementById('cleanupDays') as HTMLSelectElement | null;
+                      const val = sel ? sel.value : "180";
+                      if (handleCleanupTasks) handleCleanupTasks(parseInt(val));
+                    }}
+                  >
+                    <i className="fas fa-trash-alt ml-1"></i>נקה
+                  </button>
+                </div>
+              </div>
+            </div>
         </div>
       </Modal>
 

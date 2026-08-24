@@ -938,6 +938,39 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     return NextResponse.json({ status: 'success' });
   }
 
+  if (action === 'GET_ALL_TASKS') {
+    const tasksDb = await prisma.task.findMany({
+      where: { tenantId },
+      include: {
+        department: true,
+        system: true,
+        team: true,
+        worker: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    
+    const tasks = tasksDb.map(t => {
+      const isQr = t.customDefectName?.includes('דיווח מהמחלקה') || t.customDefectName?.includes('תקלה חדשה') || t.inspectorName?.includes('צוות');
+      return {
+        id: t.id,
+        sheet: t.team?.name || (isQr ? 'QR' : 'כללי'),
+        dept: t.department?.name || 'כללי',
+        room: t.room,
+        system: t.system?.name || t.customDefectName || 'אחר',
+        defect: t.system?.name || t.customDefectName || 'אחר',
+        inspector: t.inspectorName || 'מנהל',
+        comment: t.notes || '',
+        status: t.status === 'NEW' ? 'פתוח' : (t.status === 'IN_PROGRESS' ? 'בעבודה' : (t.status === 'CLOSED' ? 'סגור' : 'הושלם')),
+        worker: t.worker?.name || '',
+        team: t.team?.name || '',
+        timestamp: t.createdAt.getTime(),
+        dateStr: `${String(t.createdAt.getDate()).padStart(2, '0')}/${String(t.createdAt.getMonth() + 1).padStart(2, '0')}/${t.createdAt.getFullYear()} ${String(t.createdAt.getHours()).padStart(2, '0')}:${String(t.createdAt.getMinutes()).padStart(2, '0')}`,
+      };
+    });
+    return NextResponse.json({ status: 'success', tasks });
+  }
+
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
   } catch (error: any) {
     console.error('Unhandled POST error:', error);

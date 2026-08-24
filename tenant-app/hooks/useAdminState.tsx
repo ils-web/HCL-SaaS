@@ -596,20 +596,19 @@ export function useAdminState() {
         body: JSON.stringify({ action: "GET_ALL_TASKS" })
       });
       const data = await res.json();
-      if (data.tasks) {
-        const headers = ["ID", "Sheet", "Department", "Room", "System", "Defect", "Status", "Worker", "Team", "Date", "Comment"];
+      if (data.tasks && data.tasks.length > 0) {
+        const headers = ["מזהה", "צוות", "מחלקה", "חדר", "מערכת / תקלה", "סטטוס", "עובד מטפל", "בודק / מדווח", "תאריך דיווח", "הערות"];
         const rows = data.tasks.map((t: any) => [
           t.id, 
-          t.sheet, 
-          t.dept, 
-          t.room, 
-          t.system, 
-          t.defect, 
-          t.status, 
-          t.worker, 
-          t.team, 
-          t.dateStr, 
-          (t.comment || '').replace(/"/g, '""')
+          t.sheet || '', 
+          t.dept || t.department || '', 
+          t.room || '', 
+          t.defect || t.system || '', 
+          t.status || '', 
+          t.worker || '', 
+          t.inspector || '', 
+          t.dateStr || '', 
+          (t.comment || t.notes || '').replace(/"/g, '""')
         ]);
         
         const csvContent = "\uFEFF" + [
@@ -621,15 +620,18 @@ export function useAdminState() {
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", `tasks_export_${new Date().toISOString().split('T')[0]}.csv`);
+        link.setAttribute("download", `HCL_tasks_export_${new Date().toISOString().split('T')[0]}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        toast("ייצוא עבר בהצלחה", "success");
+        URL.revokeObjectURL(url);
+        toast("קובץ הנתונים יוצא בהצלחה (CSV)", "success");
+      } else {
+        toast("אין משימות לייצוא", "error");
       }
     } catch (err) {
       console.error(err);
-      toast("שגיאה בייצוא", "error");
+      toast("שגיאה בייצוא נתונים", "error");
     }
   };
 
