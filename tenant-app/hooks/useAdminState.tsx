@@ -198,6 +198,7 @@ export function useAdminState() {
     setLoadingLocal(true)
 
     try {
+      mutateTasks()
       // Load settings
       const settingsRes = await fetch(`/api/${tId}?action=getSettings`)
       const settingsData = await settingsRes.json()
