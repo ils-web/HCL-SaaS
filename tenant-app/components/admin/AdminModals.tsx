@@ -59,6 +59,8 @@ interface AdminModalsProps {
   setPrintLang: (val: string) => void
   printWorker: string
   setPrintWorker: (val: string) => void
+  printMode?: "print" | "app"
+  isOutputProcessing?: boolean
   executeOutputSequence: () => void
 
   workerQrModalOpen: boolean
@@ -111,7 +113,7 @@ export function AdminModals({
   tenantId, tenantName, tasks, teams, setTeams, workers, setWorkers,
   categories, setCategories, systemTeams, setSystemTeams, loadTasks,
   loading, setLoading,
-  printModalOpen, setPrintModalOpen, printLang, setPrintLang, printWorker, setPrintWorker, executeOutputSequence,
+  printModalOpen, setPrintModalOpen, printLang, setPrintLang, printWorker, setPrintWorker, printMode, isOutputProcessing, executeOutputSequence,
   workerQrModalOpen, setWorkerQrModalOpen, qrModalOpen, setQrModalOpen,
   workersModalOpen, setWorkersModalOpen, teamsModalOpen, setTeamsModalOpen,
   configModalOpen, setConfigModalOpen, integrationsModalOpen, setIntegrationsModalOpen,
@@ -144,29 +146,51 @@ export function AdminModals({
 
   return (
     <>
-      <Modal isOpen={printModalOpen} onClose={() => setPrintModalOpen(false)} title="הגדרות הדפסה">
+      <Modal 
+        isOpen={printModalOpen} 
+        onClose={() => !isOutputProcessing && setPrintModalOpen(false)} 
+        title={printMode === "app" ? "שליחה לאפליקציית עובד" : "הגדרות הדפסה"}
+      >
         <div className="space-y-4">
-          <div className="mb-4">
-            <label className="block text-sm font-bold text-gray-700 mb-1">שפת הדפסה</label>
-            <Select value={printLang} onChange={e => setPrintLang(e.target.value)} className="w-full">
-              <option value="he">עברית</option>
-              <option value="ru">Русский</option>
-              <option value="en">English</option>
-              <option value="ar">العربية</option>
-            </Select>
-          </div>
+          {printMode === "print" && (
+            <div className="mb-4">
+              <label className="block text-sm font-bold text-gray-700 mb-1">שפת הדפסה</label>
+              <Select value={printLang} onChange={e => setPrintLang(e.target.value)} disabled={isOutputProcessing} className="w-full">
+                <option value="he">עברית</option>
+                <option value="ru">Русский</option>
+                <option value="en">English</option>
+                <option value="ar">العربية</option>
+              </Select>
+            </div>
+          )}
           <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">שיוך לעובד (אופציונלי)</label>
-            <Select value={printWorker} onChange={e => setPrintWorker(e.target.value)} className="w-full">
-              <option value="">-- ללא שיוך מיוחד --</option>
+            <label className="block text-sm font-bold text-gray-700 mb-1">{printMode === "app" ? "בחר עובד לקבלת המשימות" : "שיוך לעובד (אופציונלי)"}</label>
+            <Select value={printWorker} onChange={e => setPrintWorker(e.target.value)} disabled={isOutputProcessing} className="w-full">
+              <option value="">-- {printMode === "app" ? "כל העובדים / ללא שיוך" : "ללא שיוך מיוחד"} --</option>
               {workers.map(w => (
                 <option key={w.id} value={w.name}>{w.name}</option>
               ))}
             </Select>
           </div>
           <div className="pt-4 flex gap-3">
-            <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold" onClick={executeOutputSequence}>אישור</Button>
-            <Button variant="outline" className="w-full" onClick={() => setPrintModalOpen(false)}>ביטול</Button>
+            <Button 
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-11 flex items-center justify-center gap-2" 
+              onClick={executeOutputSequence}
+              disabled={isOutputProcessing}
+            >
+              {isOutputProcessing ? (
+                <>
+                  <i className="fas fa-spinner fa-spin"></i>
+                  <span>{printMode === "app" ? "שולח לאפליקציה..." : "מעבד ומכין להדפסה..."}</span>
+                </>
+              ) : (
+                <>
+                  <i className={printMode === "app" ? "fas fa-paper-plane" : "fas fa-print"}></i>
+                  <span>{printMode === "app" ? "שלח לאפליקציה" : "אישור והדפסה"}</span>
+                </>
+              )}
+            </Button>
+            <Button variant="outline" className="w-full h-11" disabled={isOutputProcessing} onClick={() => setPrintModalOpen(false)}>ביטול</Button>
           </div>
         </div>
       </Modal>

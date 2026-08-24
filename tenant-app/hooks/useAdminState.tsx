@@ -36,6 +36,7 @@ export function useAdminState() {
   const [printLang, setPrintLang] = React.useState("he")
   const [printWorker, setPrintWorker] = React.useState("")
   const [printMode, setPrintMode] = React.useState<"print" | "app">("print")
+  const [isOutputProcessing, setIsOutputProcessing] = React.useState(false)
   
   // Print State for Reports
   const [printDocumentData, setPrintDocumentData] = React.useState<{title: string, data: any[], type: 'manager' | 'reports'} | null>(null);
@@ -416,7 +417,7 @@ export function useAdminState() {
 
   const executeOutputSequence = async (eOrSkip?: React.MouseEvent | boolean) => {
     const skipConfirmation = typeof eOrSkip === "boolean" ? eOrSkip : false;
-    if (!tenantId) return
+    if (!tenantId || isOutputProcessing) return
     const allSelectedList = tasks.filter(t => selectedTasks.has(t.id))
     
     // Only 'פתוח' (NEW) tasks should be marked in-progress or assigned to worker app.
@@ -428,113 +429,121 @@ export function useAdminState() {
       });
       return;
     }
-    
-    setPrintModalOpen(false)
 
     if (validToUpdate.length === 0) {
-      toast("אין משימות חדשות להדפסה", "error")
+      toast("אין משימות חדשות להפקה", "error")
+      setPrintModalOpen(false)
       return
     }
+
+    setIsOutputProcessing(true)
 
     const taskIds = validToUpdate.map(t => t.id)
     const tasksToUpdate = validToUpdate.map(t => ({ id: t.id }))
     
-    if (printMode === "app") {
-      // SEND_TO_APP API logic
-      const res = await fetch(`/api/${tenantId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "SEND_TO_APP", taskIds: taskIds, workerName: printWorker })
-      })
-      const data = await res.json()
-      if (data.status === "success") {
-        toast("נשלח לאפליקציה (WorkerApp)", "success")
-        setSelectedTasks(new Set())
-        loadTasks()
+    try {
+      if (printMode === "app") {
+        const res = await fetch(`/api/${tenantId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "SEND_TO_APP", taskIds: taskIds, workerName: printWorker })
+        })
+        const data = await res.json()
+        if (data.status === "success") {
+          toast("נשלח בהצלחה לאפליקציית עובד", "success")
+          setSelectedTasks(new Set())
+          setPrintModalOpen(false)
+          loadTasks()
+        } else {
+          toast(data.message || "שגיאה בשליחה לאפליקציה", "error")
+        }
       } else {
-        toast("שגיאה בשליחה", "error")
-      }
-    } else {
-      const res = await fetch(`/api/${tenantId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "MARK_PRINTED", tasks: tasksToUpdate, worker: printWorker })
-      })
-      const data = await res.json()
-      if (data.status === "success") {
-        toast("סומן בהצלחה", "success")
-        setSelectedTasks(new Set())
-        loadTasks()
-        
-        let finalSelectedList = [...validToUpdate];
-        
-        if (printLang !== 'he') {
-           try {
-             const trRes = await fetch(`/api/${tenantId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: "TRANSLATE_TASKS", targetLang: printLang, tasks: validToUpdate.map(t => ({ id: t.id, defect: t.defect, comment: t.comment, actT: t.actionType === 1 ? 'החלפה' : 'תיקון' })) })
-             });
-             const trData = await trRes.json();
-             if (trData.status === 'success' && trData.translations) {
-                 finalSelectedList = validToUpdate.map(t => {
-                     const trItem = trData.translations.find((x:any) => x.id === t.id);
-                     if (trItem) {
-                         return { ...t, defect: trItem.defect, comment: trItem.comment, actionStrOverride: trItem.actT, translatedLabels: trItem.labels };
-                     }
-                     return t;
-                 });
+        const res = await fetch(`/api/${tenantId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "MARK_PRINTED", tasks: tasksToUpdate, worker: printWorker })
+        })
+        const data = await res.json()
+        if (data.status === "success") {
+          setSelectedTasks(new Set())
+          loadTasks()
+          
+          let finalSelectedList = [...validToUpdate];
+          
+          if (printLang !== 'he') {
+             try {
+               const trRes = await fetch(`/api/${tenantId}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: "TRANSLATE_TASKS", targetLang: printLang, tasks: validToUpdate.map(t => ({ id: t.id, defect: t.defect, comment: t.comment, actT: t.actionType === 1 ? 'החלפה' : 'תיקון' })) })
+               });
+               const trData = await trRes.json();
+               if (trData.status === 'success' && trData.translations) {
+                   finalSelectedList = validToUpdate.map(t => {
+                       const trItem = trData.translations.find((x:any) => x.id === t.id);
+                       if (trItem) {
+                           return { ...t, defect: trItem.defect, comment: trItem.comment, actionStrOverride: trItem.actT, translatedLabels: trItem.labels };
+                       }
+                       return t;
+                   });
+               }
+             } catch(e) {
+               console.error("Translation failed", e);
              }
-           } catch(e) {
-             console.error("Translation failed", e);
-           }
-        }
-        
-        // Prepare print layout
-        const printNowStr = new Date().toLocaleString('en-GB')
-        
-        let targetBrigadeName = 'Unknown';
-        if (printWorker) {
-          const wObj = workers.find((w: any) => w.name === printWorker);
-          if (wObj && wObj.teamId) {
-            const tObj = teams.find((t: any) => t.id === wObj.teamId);
-            if (tObj) targetBrigadeName = tObj.name;
           }
-        }
-        
-        // Group by sheet (brigade) and department
-        const groupedBySheetAndDept = finalSelectedList.reduce((acc: Record<string, any[]>, t) => {
-          const sheet = targetBrigadeName !== 'Unknown' ? targetBrigadeName : (t.sheet || 'Unknown');
-          const dept = (t as any).department || t.dept || 'Unknown';
-          const key = `${sheet}___${dept}`;
-          if (!acc[key]) acc[key] = [];
-          acc[key].push(t);
-          return acc;
-        }, {});
-        
-        // chunk the tasks into pages of 4, keeping sheet and departments separate
-        let pages: any[] = [];
-        Object.keys(groupedBySheetAndDept).forEach(key => {
-          const deptTasks = groupedBySheetAndDept[key];
-          const [sheet, dept] = key.split('___');
-          for(let i=0; i<deptTasks.length; i+=4) {
-             pages.push({
-               id: `${key}-${i}`,
-               tasks: deptTasks.slice(i, i+4),
-               printedTime: printNowStr,
-               tabName: sheet
-             });
+          
+          // Prepare print layout
+          const printNowStr = new Date().toLocaleString('en-GB')
+          
+          let targetBrigadeName = 'Unknown';
+          if (printWorker) {
+            const wObj = workers.find((w: any) => w.name === printWorker);
+            if (wObj && wObj.teamId) {
+              const tObj = teams.find((t: any) => t.id === wObj.teamId);
+              if (tObj) targetBrigadeName = tObj.name;
+            }
           }
-        });
-        setPrintCardsData(pages)
-        
-        setTimeout(() => {
-          window.print()
-          setTimeout(() => setPrintCardsData(null), 1000)
-        }, 800)
-      } else {
-        toast("שגיאה בהפקה", "error")
+          
+          // Group by sheet (brigade) and department
+          const groupedBySheetAndDept = finalSelectedList.reduce((acc: Record<string, any[]>, t) => {
+            const sheet = targetBrigadeName !== 'Unknown' ? targetBrigadeName : (t.sheet || 'Unknown');
+            const dept = (t as any).department || t.dept || 'Unknown';
+            const key = `${sheet}___${dept}`;
+            if (!acc[key]) acc[key] = [];
+            acc[key].push(t);
+            return acc;
+          }, {});
+          
+          // chunk the tasks into pages of 4, keeping sheet and departments separate
+          let pages: any[] = [];
+          Object.keys(groupedBySheetAndDept).forEach(key => {
+            const deptTasks = groupedBySheetAndDept[key];
+            const [sheet, dept] = key.split('___');
+            for(let i=0; i<deptTasks.length; i+=4) {
+               pages.push({
+                 id: `${key}-${i}`,
+                 tasks: deptTasks.slice(i, i+4),
+                 printedTime: printNowStr,
+                 tabName: sheet
+               });
+            }
+          });
+          setPrintCardsData(pages)
+          setPrintModalOpen(false)
+          
+          setTimeout(() => {
+            window.print()
+            setTimeout(() => setPrintCardsData(null), 1000)
+          }, 300)
+        } else {
+          toast(data.message || "שגיאה בהפקת הדפסה", "error")
+        }
       }
+    } catch (err) {
+      console.error(err)
+      toast("שגיאת תקשורת", "error")
+    } finally {
+      setIsOutputProcessing(false)
     }
   }
 
@@ -617,6 +626,7 @@ export function useAdminState() {
     router, tasks, setTasks, workers, setWorkers, categories, setCategories,
     systemTeams, setSystemTeams, teams, setTeams, loading: loadingLocal, setLoading: setLoadingLocal, tenantId, setTenantId,
     printModalOpen, setPrintModalOpen, printLang, setPrintLang, printWorker, setPrintWorker, printMode, setPrintMode,
+    isOutputProcessing, setIsOutputProcessing,
     printDocumentData, setPrintDocumentData, printCardsData, setPrintCardsData,
     confirmModalData, setConfirmModalData, promptModalData, setPromptModalData,
     reportsModalOpen, setReportsModalOpen, reportsData, setReportsData,

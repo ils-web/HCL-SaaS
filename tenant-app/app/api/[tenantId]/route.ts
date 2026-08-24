@@ -773,33 +773,34 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       return NextResponse.json({ status: 'error', message: 'Invalid payload' }, { status: 400 });
     }
     
-    const translations = [];
-    for (const t of tasks) {
-      let trDefect = t.defect;
-      let trComment = t.comment;
-      
+    const translateText = async (text: string): Promise<string> => {
+      if (!text || !text.trim()) return text || '';
       try {
-        if (trDefect) {
-            const r1 = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=he&tl=${targetLang}&dt=t&q=${encodeURIComponent(trDefect)}`);
-            const d1 = await r1.json();
-            trDefect = d1[0].map((item: any) => item[0]).join('');
-        }
-        if (trComment) {
-            const r2 = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=he&tl=${targetLang}&dt=t&q=${encodeURIComponent(trComment)}`);
-            const d2 = await r2.json();
-            trComment = d2[0].map((item: any) => item[0]).join('');
-        }
-      } catch(e) {
-        console.error('Translation error', e);
+        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=he&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`, {
+          signal: AbortSignal.timeout(3000)
+        });
+        const data = await res.json();
+        return data?.[0]?.map((item: any) => item[0])?.join('') || text;
+      } catch (e) {
+        return text;
       }
-      
-      translations.push({
-        id: t.id,
-        defect: trDefect,
-        comment: trComment,
-        actT: t.actT === 'החלפה' ? (targetLang==='ru'?'Замена':(targetLang==='ar'?'استبدال':'Replace')) : (targetLang==='ru'?'Ремонт':(targetLang==='ar'?'إصلاح':'Repair'))
-      });
-    }
+    };
+
+    const translations = await Promise.all(
+      tasks.map(async (t: any) => {
+        const [trDefect, trComment] = await Promise.all([
+          t.defect ? translateText(t.defect) : Promise.resolve(''),
+          t.comment ? translateText(t.comment) : Promise.resolve('')
+        ]);
+
+        return {
+          id: t.id,
+          defect: trDefect || t.defect || '',
+          comment: trComment || t.comment || '',
+          actT: t.actT === 'החלפה' ? (targetLang==='ru'?'Замена':(targetLang==='ar'?'استبدال':'Replace')) : (targetLang==='ru'?'Ремонт':(targetLang==='ar'?'إصلاح':'Repair'))
+        };
+      })
+    );
     
     const labelsMap: Record<string, any> = {
         'ru': { room: 'Комната: ', name: 'Имя: ', date: 'Дата: ', sign: 'Подпись: ' },

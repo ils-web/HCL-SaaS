@@ -34,7 +34,7 @@ export default function AdminReactPage() {
     reportsModalOpen, setReportsModalOpen, reportsStart, setReportsStart, reportsEnd, setReportsEnd,
     isReportsLoading, loadReports, reportsData, handlePrintReports, telegramBotToken, setTelegramBotToken,
     telegramChatId, setTelegramChatId, whatsappInstance, setWhatsappInstance, whatsappToken, setWhatsappToken,
-    searchQuery, setSearchQuery, warningStats, workerStats, setPrintMode, handleManagerReportPrint,
+    searchQuery, setSearchQuery, warningStats, workerStats, printMode, setPrintMode, isOutputProcessing, handleManagerReportPrint,
     filterDept, setFilterDept, activeDepts, filterDate, setFilterDate, taskDates, handleSelectAll,
     selectedTasks, filtered, viewMode, setViewMode, handlePrintSelected, handleSendToApp, handleCloseMass,
     handleReturnToOpenMass, activeTabs, currentTab, setCurrentTab, handleToggleCheck, handleApprove,
@@ -165,6 +165,8 @@ export default function AdminReactPage() {
         setPrintLang={setPrintLang}
         printWorker={printWorker}
         setPrintWorker={setPrintWorker}
+        printMode={printMode}
+        isOutputProcessing={isOutputProcessing}
         executeOutputSequence={executeOutputSequence}
         workerQrModalOpen={workerQrModalOpen}
         setWorkerQrModalOpen={setWorkerQrModalOpen}
