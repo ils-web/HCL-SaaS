@@ -318,14 +318,14 @@ export function useAdminState() {
     // Optimistic Update
     if (actionType === "CLOSE_TASK") {
        const ids = bodyData.tasks ? bodyData.tasks.map((t:any)=>t.id) : [id];
-       setTasks(tasks.map((t:any) => ids.includes(t.id) ? { ...t, status: "בוצע" } : t));
+       setTasks((prev: Task[]) => prev.map((t:any) => ids.includes(t.id) ? { ...t, status: "סגור" } : t));
     } else if (actionType === "UNMARK_PRINTED") {
        const ids = bodyData.tasks ? bodyData.tasks.map((t:any)=>t.id) : [id];
-       setTasks(tasks.map((t:any) => ids.includes(t.id) ? { ...t, status: "פתוח" } : t));
+       setTasks((prev: Task[]) => prev.map((t:any) => ids.includes(t.id) ? { ...t, status: "פתוח", worker: null, isSentToApp: false } : t));
     } else if (actionType === "MOVE_TASK") {
-       setTasks(tasks.map((t:any) => t.id === id ? { ...t, sheet: bodyData.teamName, team: bodyData.teamName } : t));
+       setTasks((prev: Task[]) => prev.map((t:any) => t.id === id ? { ...t, sheet: bodyData.teamName, team: bodyData.teamName } : t));
     } else if (actionType === "EDIT_DEFECT") {
-       setTasks(tasks.map((t:any) => t.id === id ? { ...t, defect: bodyData.newDefect } : t));
+       setTasks((prev: Task[]) => prev.map((t:any) => t.id === id ? { ...t, defect: bodyData.newDefect } : t));
     }
 
     try {
@@ -471,6 +471,11 @@ export function useAdminState() {
     
     try {
       if (printMode === "app") {
+        // Instant optimistic update to "in progress"
+        setTasks((prev: Task[]) => prev.map(t => taskIds.includes(t.id) ? { ...t, status: "בעבודה", worker: printWorker || t.worker, isSentToApp: true } : t));
+        setSelectedTasks(new Set());
+        setPrintModalOpen(false);
+
         const res = await fetch(`/api/${tenantId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -478,14 +483,17 @@ export function useAdminState() {
         })
         const data = await res.json()
         if (data.status === "success") {
-          toast("נשלח בהצלחה לאפליקציית עובד", "success")
-          setSelectedTasks(new Set())
-          setPrintModalOpen(false)
-          loadTasks()
+          toast("נשלח בהצלחה לאפליקציית עובד", "success");
+          mutateTasks();
         } else {
-          toast(data.message || "שגיאה בשליחה לאפליקציה", "error")
+          toast(data.message || "שגיאה בשליחה לאפליקציה", "error");
+          mutateTasks();
         }
       } else {
+        // Instant optimistic update to "in progress"
+        setTasks((prev: Task[]) => prev.map(t => taskIds.includes(t.id) ? { ...t, status: "בעבודה", worker: printWorker || t.worker, isSentToApp: false } : t));
+        setSelectedTasks(new Set());
+
         const res = await fetch(`/api/${tenantId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -493,8 +501,7 @@ export function useAdminState() {
         })
         const data = await res.json()
         if (data.status === "success") {
-          setSelectedTasks(new Set())
-          loadTasks()
+          mutateTasks();
           
           let finalSelectedList = [...validToUpdate];
           
