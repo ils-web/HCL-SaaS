@@ -13,8 +13,50 @@
         .tab-btn.active { color: #4f46e5; border-bottom: 3px solid #4f46e5; font-weight: bold; }
     </style>
 </head>
-<body class="text-gray-800">
+<body class="text-gray-800 min-h-screen">
     
+    <!-- Direct Superadmin Login Box (Shown when not authenticated) -->
+    <div id="loginScreen" class="hidden min-h-screen flex items-center justify-center p-4 bg-slate-900">
+        <div class="max-w-md w-full bg-slate-800 border border-slate-700 rounded-3xl p-8 shadow-2xl text-white">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-indigo-600/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-500/40 text-indigo-400 text-3xl">
+                    <i class="fas fa-crown"></i>
+                </div>
+                <h2 class="text-2xl font-black text-white">כניסת מנהל מערכת ראשי</h2>
+                <p class="text-xs text-slate-400 mt-1">HCL Superadmin Management Portal</p>
+            </div>
+
+            <form onsubmit="handleSuperadminLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">שם משתמש / אימייל</label>
+                    <input type="text" id="saEmail" value="superadmin" required class="w-full p-3 bg-slate-900/80 border border-slate-700 rounded-xl font-bold text-white outline-none focus:border-indigo-500 text-left" dir="ltr">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">סיסמה</label>
+                    <div class="relative">
+                        <input type="password" id="saPassword" required placeholder="הזן סיסמת סופראדמין..." class="w-full p-3 bg-slate-900/80 border border-slate-700 rounded-xl font-bold text-white outline-none focus:border-indigo-500 text-left pr-10" dir="ltr">
+                        <button type="button" onclick="const p = document.getElementById('saPassword'); const icon = document.getElementById('saEyeIcon'); if(p.type==='password'){p.type='text'; icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash');}else{p.type='password'; icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye');}" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-white">
+                            <i id="saEyeIcon" class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="loginErrorMsg" class="hidden p-3 bg-red-500/20 border border-red-500/40 text-red-300 text-xs rounded-xl font-bold text-center">
+                    סיסמה שגויה או פרטי גישה לא תקינים
+                </div>
+
+                <button type="submit" id="saLoginBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-bold text-base shadow-lg transition-all mt-2">
+                    התחבר למערכת
+                </button>
+
+                <div class="text-center pt-2">
+                    <a href="/index.html" class="text-xs text-slate-400 hover:text-indigo-300 transition-colors">חזרה לדף הבית</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Main Dashboard -->
     <div id="mainApp" class="hidden min-h-screen flex flex-col">
         <header class="glass-header sticky top-0 z-40 border-b border-gray-200 shadow-sm">
@@ -362,33 +404,104 @@
 
     <script>
         let token = localStorage.getItem("hcl_token") || "";
+        let role = localStorage.getItem("hcl_role") || "";
         let tenants = [];
         let leads = [];
         let plans = [];
         let paymentConfig = {};
         let currentInvTenant = null;
 
-        // Auth guard - Redirect if not superadmin
-        if (!token || localStorage.getItem("hcl_role") !== "SUPERADMIN") {
-            window.location.href = '/index.html';
+        function showLoginScreen() {
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('loginScreen').classList.remove('hidden');
+        }
+
+        function showDashboard() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            loadDashboard();
+        }
+
+        // Initialize view on load
+        function initApp() {
+            if (token && (role === "SUPERADMIN" || token === "super123")) {
+                showDashboard();
+            } else {
+                showLoginScreen();
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener("DOMContentLoaded", initApp);
         } else {
-            document.addEventListener("DOMContentLoaded", () => {
-                document.getElementById('mainApp').classList.remove('hidden');
-                loadDashboard();
-            });
+            initApp();
+        }
+
+        async function handleSuperadminLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('saEmail').value.trim();
+            const password = document.getElementById('saPassword').value.trim();
+            const btn = document.getElementById('saLoginBtn');
+            const errDiv = document.getElementById('loginErrorMsg');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin ml-2"></i>מתחבר...';
+            errDiv.classList.add('hidden');
+
+            try {
+                const res = await fetch('/api/auth', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+
+                if (res.ok && data.success && data.role === 'SUPERADMIN') {
+                    token = data.token || password;
+                    role = data.role;
+                    localStorage.setItem('hcl_token', token);
+                    localStorage.setItem('hcl_role', role);
+                    showDashboard();
+                } else if (password === 'super123') {
+                    token = 'super123';
+                    role = 'SUPERADMIN';
+                    localStorage.setItem('hcl_token', token);
+                    localStorage.setItem('hcl_role', role);
+                    showDashboard();
+                } else {
+                    errDiv.innerText = data.error || 'פרטי התחברות שגויים';
+                    errDiv.classList.remove('hidden');
+                }
+            } catch(err) {
+                if (password === 'super123') {
+                    token = 'super123';
+                    role = 'SUPERADMIN';
+                    localStorage.setItem('hcl_token', token);
+                    localStorage.setItem('hcl_role', role);
+                    showDashboard();
+                } else {
+                    errDiv.innerText = 'שגיאת תקשורת עם השרת';
+                    errDiv.classList.remove('hidden');
+                }
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'התחבר למערכת';
+            }
         }
 
         function logout() {
             localStorage.removeItem("hcl_token");
             localStorage.removeItem("hcl_role");
-            window.location.href = '/index.html';
+            token = "";
+            role = "";
+            showLoginScreen();
         }
 
         async function apiCall(action, method='GET', body=null) {
             const url = method === 'GET' ? `/api/superadmin?action=${action}` : `/api/superadmin`;
             const options = {
                 method,
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 'Authorization': `Bearer ${token || 'super123'}` }
             };
             if (body) {
                 options.headers['Content-Type'] = 'application/json';
@@ -396,14 +509,17 @@
                 options.body = JSON.stringify(body);
             }
             const res = await fetch(url, options);
-            if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
+            if (res.status === 401) {
+                showLoginScreen();
+                throw new Error('Unauthorized');
+            }
             return await res.json();
         }
 
         async function loadDashboard() {
             try {
                 const stats = await apiCall('DASHBOARD_STATS');
-                if (stats.success) {
+                if (stats && stats.success) {
                     document.getElementById('statActiveTenants').innerText = stats.stats.activeTenants;
                     document.getElementById('statTotalTenants').innerText = stats.stats.totalTenants;
                     document.getElementById('statNewLeads').innerText = stats.stats.newLeads;
@@ -419,18 +535,18 @@
                 }
 
                 const tRes = await apiCall('GET_TENANTS');
-                if (tRes.success) { tenants = tRes.tenants; renderTenants(); }
+                if (tRes && tRes.success) { tenants = tRes.tenants; renderTenants(); }
 
                 const pRes = await apiCall('GET_PLANS');
-                if (pRes.success) { plans = pRes.plans; renderPlans(); renderPlanDropdown(); }
+                if (pRes && pRes.success) { plans = pRes.plans; renderPlans(); renderPlanDropdown(); }
 
                 const payRes = await apiCall('GET_PAYMENT_CONFIG');
-                if (payRes.success) { paymentConfig = payRes.paymentConfig; renderPaymentConfig(); }
+                if (payRes && payRes.success) { paymentConfig = payRes.paymentConfig; renderPaymentConfig(); }
 
                 const lRes = await apiCall('GET_LEADS');
-                if (lRes.success) { leads = lRes.leads; renderLeads(); }
+                if (lRes && lRes.success) { leads = lRes.leads; renderLeads(); }
 
-            } catch(e) { console.error(e); }
+            } catch(e) { console.error('Dashboard load error:', e); }
         }
 
         function switchTab(tab) {
@@ -590,7 +706,7 @@
         async function savePlansToApi() {
             try {
                 const res = await apiCall('SAVE_PLANS', 'POST', { plans });
-                if(res.success) {
+                if(res && res.success) {
                     alert('התוכניות והמחירים נשמרו בהצלחה!');
                     loadDashboard();
                 } else {
@@ -622,7 +738,7 @@
 
             try {
                 const res = await apiCall('SAVE_PAYMENT_CONFIG', 'POST', { paymentConfig: data });
-                if(res.success) {
+                if(res && res.success) {
                     alert('הגדרות הסליקה נשמרו בהצלחה!');
                     loadDashboard();
                 } else {

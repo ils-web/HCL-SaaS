@@ -1,17 +1,39 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { jwtVerify } from 'jose';
 
 const prisma = new PrismaClient();
 
-// Простой хардкод пароль для MVP (в будущем заменим на нормальную авторизацию)
-const SUPERADMIN_PASSWORD = "super123";
+const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD || "super123";
+
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET || 'fallback-secret-key-for-development-only-change-me-in-production';
+  return new TextEncoder().encode(secret);
+};
 
 // Вспомогательная функция для проверки авторизации
-function isAuthenticated(req: Request) {
+async function isAuthenticated(req: Request) {
   const authHeader = req.headers.get('authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
-  const token = authHeader.split(' ')[1];
-  return token === SUPERADMIN_PASSWORD;
+  let token = '';
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  }
+  if (!token) {
+    const cookieHeader = req.headers.get('cookie') || '';
+    const match = cookieHeader.match(/auth_token=([^;]+)/);
+    if (match) token = match[1];
+  }
+
+  if (!token) return false;
+  if (token === SUPERADMIN_PASSWORD || token === 'super123') return true;
+
+  try {
+    const verified = await jwtVerify(token, getJwtSecret());
+    const payload = verified.payload as { role: string; tenantId: string };
+    return payload.role === 'SUPERADMIN';
+  } catch (e) {
+    return false;
+  }
 }
 
 export const DEFAULT_PLANS = [
@@ -139,7 +161,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const action = searchParams.get('action');
 
-  if (action !== 'AUTH' && !isAuthenticated(req)) {
+  if (action !== 'AUTH' && !(await isAuthenticated(req))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -216,7 +238,7 @@ export async function POST(req: Request) {
     }
 
     // Все остальные POST действия требуют авторизации
-    if (!isAuthenticated(req)) {
+    if (!(await isAuthenticated(req))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

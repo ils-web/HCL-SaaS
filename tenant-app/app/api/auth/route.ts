@@ -48,7 +48,7 @@ export async function POST(req: Request) {
       .setExpirationTime('24h')
       .sign(getJwtSecret());
 
-    const response = NextResponse.json({ success: true, role: userRole, tenantId: userTenantId });
+    const response = NextResponse.json({ success: true, token, role: userRole, tenantId: userTenantId });
 
     response.cookies.set({
       name: 'auth_token',
