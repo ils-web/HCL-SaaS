@@ -22,14 +22,17 @@
                 <div class="text-2xl font-black text-indigo-900 flex items-center gap-2">
                     <i class="fas fa-crown text-indigo-600"></i> HCL Superadmin
                 </div>
-                <div class="flex gap-4">
-                    <button onclick="logout()" class="text-gray-500 hover:text-red-600 font-bold"><i class="fas fa-sign-out-alt ml-1"></i>התנתק</button>
+                <div class="flex gap-4 items-center">
+                    <span class="text-xs bg-indigo-50 text-indigo-700 font-bold px-3 py-1.5 rounded-full border border-indigo-200">SaaS Management Suite</span>
+                    <button onclick="logout()" class="text-gray-500 hover:text-red-600 font-bold mr-2"><i class="fas fa-sign-out-alt ml-1"></i>התנתק</button>
                 </div>
             </div>
-            <div class="container mx-auto px-6 flex gap-6 mt-2">
-                <button onclick="switchTab('tenants')" id="tab-tenants" class="tab-btn active pb-2 px-2 text-gray-500 hover:text-indigo-600">לקוחות (Tenants)</button>
-                <button onclick="switchTab('leads')" id="tab-leads" class="tab-btn pb-2 px-2 text-gray-500 hover:text-indigo-600 flex items-center gap-2">
-                    לידים 
+            <div class="container mx-auto px-6 flex gap-6 mt-2 overflow-x-auto">
+                <button onclick="switchTab('tenants')" id="tab-tenants" class="tab-btn active pb-2 px-2 text-gray-500 hover:text-indigo-600 font-bold whitespace-nowrap"><i class="fas fa-building ml-1"></i>לקוחות (Tenants)</button>
+                <button onclick="switchTab('plans')" id="tab-plans" class="tab-btn pb-2 px-2 text-gray-500 hover:text-indigo-600 font-bold whitespace-nowrap"><i class="fas fa-tags ml-1"></i>תוכניות ומחירים</button>
+                <button onclick="switchTab('payments')" id="tab-payments" class="tab-btn pb-2 px-2 text-gray-500 hover:text-indigo-600 font-bold whitespace-nowrap"><i class="fas fa-credit-card ml-1"></i>הגדרות סליקה (API)</button>
+                <button onclick="switchTab('leads')" id="tab-leads" class="tab-btn pb-2 px-2 text-gray-500 hover:text-indigo-600 flex items-center gap-2 font-bold whitespace-nowrap">
+                    <i class="fas fa-envelope-open-text ml-1"></i>לידים 
                     <span id="newLeadsBadge" class="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full hidden">0</span>
                 </button>
             </div>
@@ -59,7 +62,7 @@
             <!-- Tenants View -->
             <div id="view-tenants">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold">ניהול לקוחות</h2>
+                    <h2 class="text-2xl font-bold">ניהול לקוחות ומנויים</h2>
                     <button onclick="openTenantModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl font-bold hover:bg-indigo-500 shadow-sm"><i class="fas fa-plus ml-2"></i>לקוח חדש</button>
                 </div>
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -69,6 +72,8 @@
                                 <th class="p-4 font-bold text-gray-600">שם לקוח</th>
                                 <th class="p-4 font-bold text-gray-600">ID</th>
                                 <th class="p-4 font-bold text-gray-600">סטטוס</th>
+                                <th class="p-4 font-bold text-gray-600">תוכנית</th>
+                                <th class="p-4 font-bold text-gray-600">תוקף מנוי</th>
                                 <th class="p-4 font-bold text-gray-600">מפקחים</th>
                                 <th class="p-4 font-bold text-gray-600">משימות</th>
                                 <th class="p-4 font-bold text-gray-600">נוצר ב</th>
@@ -76,16 +81,111 @@
                             </tr>
                         </thead>
                         <tbody id="tenantsTableBody" class="divide-y divide-gray-100">
-                            <tr><td colspan="7" class="p-8 text-center text-gray-500">טוען...</td></tr>
+                            <tr><td colspan="9" class="p-8 text-center text-gray-500">טוען...</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Plans View -->
+            <div id="view-plans" class="hidden">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800">ניהול תוכניות ומחירים (SaaS Plans)</h2>
+                        <p class="text-sm text-gray-500">עריכת מחירי המנויים, הטבות וחבילות המוצגים ללקוחות בעת שדרוג וחידוש</p>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="addNewPlan()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-indigo-500 shadow-sm"><i class="fas fa-plus ml-2"></i>תוכנית חדשה</button>
+                        <button onclick="savePlansToApi()" class="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-emerald-500 shadow-sm"><i class="fas fa-save ml-2"></i>שמור תוכניות</button>
+                    </div>
+                </div>
+                <div id="plansListGrid" class="grid md:grid-cols-3 gap-6">
+                    <!-- Injected plans -->
+                </div>
+            </div>
+
+            <!-- Payment Gateway API View -->
+            <div id="view-payments" class="hidden">
+                <div class="max-w-3xl mx-auto bg-white p-8 rounded-3xl shadow-sm border border-gray-200">
+                    <div class="flex items-center gap-3 border-b pb-4 mb-6">
+                        <div class="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600 text-xl">
+                            <i class="fas fa-credit-card"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-800">הגדרות סליקה ותשלומים (Payment Gateway API)</h2>
+                            <p class="text-sm text-gray-500">הזנת מפתחות API וחיבור לחברת הסליקה לחיוב כרטיסי אשראי ופתיחת מנויים אוטומטית</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">ספק סליקה (Gateway Provider)</label>
+                            <select id="payProvider" class="w-full p-3.5 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="CARDCOM">Cardcom (קארדקום / יעד שריג)</option>
+                                <option value="TRANZILA">Tranzila (טרנזילה)</option>
+                                <option value="MESHULAM">Meshulam / Grow (משולם)</option>
+                                <option value="STRIPE">Stripe (סטראייפ בינלאומי)</option>
+                                <option value="TEST">מצב סימולציה ובדיקה (Test Sandbox)</option>
+                            </select>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">מספר מסוף (Terminal ID / Company ID)</label>
+                                <input type="text" id="payTerminal" placeholder="לדוגמה: 1000123" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500 text-left font-mono" dir="ltr">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold text-gray-700 mb-1">מטבע ברירת מחדל</label>
+                                <select id="payCurrency" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="ILS">₪ שקל ישראלי (ILS)</option>
+                                    <option value="USD">$ דולר ארה"ב (USD)</option>
+                                    <option value="EUR">€ אירו (EUR)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">מפתח API (API Key / Terminal Password)</label>
+                            <input type="text" id="payApiKey" placeholder="הזן מפתח API..." class="w-full p-3 bg-gray-50 border rounded-xl font-mono text-sm outline-none focus:ring-2 focus:ring-indigo-500 text-left" dir="ltr">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">מפתח סודי (Secret Token / Signature Key)</label>
+                            <input type="password" id="payApiSecret" placeholder="••••••••••••••••" class="w-full p-3 bg-gray-50 border rounded-xl font-mono text-sm outline-none focus:ring-2 focus:ring-indigo-500 text-left" dir="ltr">
+                        </div>
+
+                        <div class="bg-indigo-50/60 p-4 rounded-2xl border border-indigo-100 flex items-center justify-between">
+                            <div>
+                                <div class="font-bold text-indigo-900 text-sm">מצב עבודה פעיל (Live Production)</div>
+                                <div class="text-xs text-indigo-700">כאשר מסומן, המערכת תבצע חיובים אמיתיים מול חברת הסליקה</div>
+                            </div>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="payIsLive" class="sr-only peer">
+                                <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                            </label>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">Webhook URL (כתובת לעדכון אוטומטי בהגדרות המסוף)</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="payWebhookUrl" readonly value="https://hcl.co.il/api/webhook/payment" class="w-full p-3 bg-gray-100 border rounded-xl font-mono text-xs text-gray-600 outline-none text-left" dir="ltr">
+                                <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('payWebhookUrl').value); alert('הכתובת הועתקה');" class="bg-gray-200 hover:bg-gray-300 px-4 rounded-xl font-bold text-sm">העתק</button>
+                            </div>
+                        </div>
+
+                        <div class="border-t pt-6">
+                            <button onclick="savePaymentConfigToApi()" class="w-full bg-indigo-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-indigo-500 shadow-md">
+                                <i class="fas fa-save ml-2"></i>שמור הגדרות סליקה
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Leads View -->
             <div id="view-leads" class="hidden">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-2xl font-bold">פניות מהאתר</h2>
+                    <h2 class="text-2xl font-bold">פניות מהאתר ושדרוגי מנוי</h2>
                 </div>
                 <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6" id="leadsGrid">
                     <!-- Leads injected here -->
@@ -97,7 +197,7 @@
 
     <!-- Tenant Modal -->
     <div id="tenantModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl flex flex-col max-h-[92vh]">
             <div class="flex justify-between items-center border-b pb-3 mb-4">
                 <h3 id="tenantModalTitle" class="text-xl font-black text-gray-800">לקוח חדש</h3>
                 <button onclick="closeTenantModal()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
@@ -121,6 +221,18 @@
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">תוכנית מנוי</label>
+                        <select id="tPlan" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                            <!-- Injected plans -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">מחיר חודשי (₪)</label>
+                        <input type="number" id="tPrice" value="0" min="0" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
                         <label class="block text-sm font-bold text-gray-700 mb-1">מספר מפקחים (מנהלים)</label>
                         <input type="number" id="tInspectors" value="1" min="1" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
@@ -134,6 +246,20 @@
                         </select>
                     </div>
                 </div>
+
+                <!-- Subscription Expiry Date and Quick Extensions -->
+                <div class="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 space-y-2">
+                    <label class="block text-sm font-bold text-gray-700">תאריך סיום מנוי (Subscription Ends At)</label>
+                    <input type="date" id="tSubEnd" class="w-full p-3 bg-white border border-gray-200 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                    <div class="flex flex-wrap gap-2 pt-1">
+                        <button type="button" onclick="addSubscriptionPeriod(1)" class="bg-white hover:bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-200 shadow-xs">+ חודש 1</button>
+                        <button type="button" onclick="addSubscriptionPeriod(3)" class="bg-white hover:bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-200 shadow-xs">+ 3 חודשים</button>
+                        <button type="button" onclick="addSubscriptionPeriod(6)" class="bg-white hover:bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-200 shadow-xs">+ חצי שנה</button>
+                        <button type="button" onclick="addSubscriptionPeriod(12)" class="bg-white hover:bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-lg text-xs font-bold border border-indigo-200 shadow-xs">+ שנה 1</button>
+                        <button type="button" onclick="document.getElementById('tSubEnd').value='';" class="bg-white hover:bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-bold border border-red-200 shadow-xs">איפוס</button>
+                    </div>
+                </div>
+
                 <div class="border-t pt-4 mt-2" id="newTenantCredentials">
                     <h4 class="text-md font-bold text-gray-800 mb-2">פרטי התחברות ללקוח (Admin Login)</h4>
                     <div class="space-y-3">
@@ -146,7 +272,6 @@
                                 <label class="block text-sm font-bold text-gray-700 mb-1">סיסמה</label>
                                 <input type="password" id="tAdminPwd" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
                             </div>
-
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-1">אימות סיסמה</label>
                                 <input type="password" id="tAdminPwdConfirm" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
@@ -239,6 +364,8 @@
         let token = localStorage.getItem("hcl_token") || "";
         let tenants = [];
         let leads = [];
+        let plans = [];
+        let paymentConfig = {};
         let currentInvTenant = null;
 
         // Auth guard - Redirect if not superadmin
@@ -294,6 +421,12 @@
                 const tRes = await apiCall('GET_TENANTS');
                 if (tRes.success) { tenants = tRes.tenants; renderTenants(); }
 
+                const pRes = await apiCall('GET_PLANS');
+                if (pRes.success) { plans = pRes.plans; renderPlans(); renderPlanDropdown(); }
+
+                const payRes = await apiCall('GET_PAYMENT_CONFIG');
+                if (payRes.success) { paymentConfig = payRes.paymentConfig; renderPaymentConfig(); }
+
                 const lRes = await apiCall('GET_LEADS');
                 if (lRes.success) { leads = lRes.leads; renderLeads(); }
 
@@ -301,13 +434,17 @@
         }
 
         function switchTab(tab) {
-            document.getElementById('view-tenants').classList.add('hidden');
-            document.getElementById('view-leads').classList.add('hidden');
-            document.getElementById('tab-tenants').classList.remove('active');
-            document.getElementById('tab-leads').classList.remove('active');
+            ['tenants', 'plans', 'payments', 'leads'].forEach(t => {
+                const el = document.getElementById(`view-${t}`);
+                const btn = document.getElementById(`tab-${t}`);
+                if(el) el.classList.add('hidden');
+                if(btn) btn.classList.remove('active');
+            });
 
-            document.getElementById(`view-${tab}`).classList.remove('hidden');
-            document.getElementById(`tab-${tab}`).classList.add('active');
+            const activeView = document.getElementById(`view-${tab}`);
+            const activeBtn = document.getElementById(`tab-${tab}`);
+            if(activeView) activeView.classList.remove('hidden');
+            if(activeBtn) activeBtn.classList.add('active');
         }
 
         function renderTenants() {
@@ -319,16 +456,37 @@
                 if(t.status === "UNPAID") statusColor = "bg-orange-100 text-orange-700";
                 if(t.status === "TRIAL") statusColor = "bg-purple-100 text-purple-700";
 
+                let expiryBadge = '<span class="text-gray-400 text-xs">לא הוגדר</span>';
+                if(t.subscriptionEndsAt) {
+                    const end = new Date(t.subscriptionEndsAt);
+                    const now = new Date();
+                    const diffDays = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                    const dateStr = end.toLocaleDateString('he-IL');
+                    if(diffDays > 30) {
+                        const months = Math.floor(diffDays / 30);
+                        const remDays = diffDays % 30;
+                        expiryBadge = `<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md font-bold text-xs">עוד ${months} חוד' ו-${remDays} ימים (${dateStr})</span>`;
+                    } else if(diffDays > 0) {
+                        expiryBadge = `<span class="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-md font-bold text-xs">עוד ${diffDays} ימים (${dateStr})</span>`;
+                    } else {
+                        expiryBadge = `<span class="bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-md font-bold text-xs">פג תוקף (${dateStr})</span>`;
+                    }
+                } else if(t.status === "TRIAL") {
+                    expiryBadge = '<span class="bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-md font-bold text-xs">גרסת ניסיון (TRIAL)</span>';
+                }
+
                 tbody.innerHTML += `
                     <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="p-4 font-bold">${t.name}</td>
-                        <td class="p-4 text-xs text-gray-500 font-mono">${t.id}</td>
-                        <td class="p-4"><span class="px-2 py-1 rounded-md font-bold text-xs ${statusColor}">${t.status}</span></td>
+                        <td class="p-4 font-bold text-gray-900">${t.name}</td>
+                        <td class="p-4 text-xs text-gray-500 font-mono">${t.id.substring(0,8)}...</td>
+                        <td class="p-4"><span class="px-2.5 py-1 rounded-md font-bold text-xs ${statusColor}">${t.status}</span></td>
+                        <td class="p-4 font-bold text-indigo-700 text-xs">${t.plan || 'BASIC'} (${t.price || 0}₪)</td>
+                        <td class="p-4">${expiryBadge}</td>
                         <td class="p-4 font-bold text-gray-600">${t.maxInspectors || 1}</td>
-                        <td class="p-4 text-gray-600">${t._count.tasks} משימות</td>
+                        <td class="p-4 text-gray-600 font-medium">${t._count ? t._count.tasks : 0} משימות</td>
                         <td class="p-4 text-gray-500">${new Date(t.createdAt).toLocaleDateString('he-IL')}</td>
                         <td class="p-4 text-center space-x-2 space-x-reverse">
-                            <button onclick="editTenant('${t.id}')" class="text-blue-600 hover:text-blue-800 p-2" title="עריכה"><i class="fas fa-edit"></i></button>
+                            <button onclick="editTenant('${t.id}')" class="text-blue-600 hover:text-blue-800 p-2" title="עריכה והארכת מנוי"><i class="fas fa-edit"></i></button>
                             <button onclick="openResetPwdModal('${t.id}')" class="text-yellow-500 hover:text-yellow-600 p-2" title="איפוס סיסמה"><i class="fas fa-key"></i></button>
                             <button onclick="openInvoiceModal('${t.id}')" class="text-green-600 hover:text-green-800 p-2" title="הפק חשבונית/הצעה"><i class="fas fa-file-invoice-dollar"></i></button>
                             <a href="/admin-react?tenantId=${t.id}" target="_blank" class="text-indigo-600 hover:text-indigo-800 p-2" title="כניסה למערכת"><i class="fas fa-external-link-alt"></i></a>
@@ -339,13 +497,147 @@
             });
         }
 
+        function renderPlanDropdown() {
+            const sel = document.getElementById('tPlan');
+            if(!sel) return;
+            sel.innerHTML = '';
+            plans.forEach(p => {
+                sel.innerHTML += `<option value="${p.code}">${p.name} (${p.priceMonth} ₪/חודש)</option>`;
+            });
+        }
+
+        function renderPlans() {
+            const grid = document.getElementById('plansListGrid');
+            if(!grid) return;
+            grid.innerHTML = '';
+            plans.forEach((p, idx) => {
+                grid.innerHTML += `
+                    <div class="bg-white rounded-3xl p-6 border ${p.isPopular ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-gray-200'} shadow-sm relative flex flex-col justify-between">
+                        ${p.isPopular ? '<span class="absolute -top-3 left-6 bg-indigo-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">⭐ הפופולרי ביותר</span>' : ''}
+                        <div>
+                            <div class="flex justify-between items-center mb-3">
+                                <input type="text" value="${p.name}" onchange="updatePlanField(${idx}, 'name', this.value)" class="font-black text-xl text-gray-800 border-b border-transparent hover:border-gray-300 focus:border-indigo-500 outline-none w-2/3">
+                                <span class="text-xs font-mono font-bold bg-gray-100 text-gray-600 px-2 py-1 rounded">${p.code}</span>
+                            </div>
+                            <textarea onchange="updatePlanField(${idx}, 'description', this.value)" rows="2" class="w-full text-xs text-gray-500 border border-gray-100 rounded-lg p-2 mb-4 outline-none focus:border-indigo-400">${p.description || ''}</textarea>
+
+                            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-4 space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-bold text-gray-600">מחיר חודשי (₪):</span>
+                                    <input type="number" value="${p.priceMonth}" onchange="updatePlanField(${idx}, 'priceMonth', Number(this.value))" class="w-24 p-1.5 bg-white border rounded font-bold text-left outline-none text-sm">
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-bold text-gray-600">מחיר שנתי (₪):</span>
+                                    <input type="number" value="${p.priceYear}" onchange="updatePlanField(${idx}, 'priceYear', Number(this.value))" class="w-24 p-1.5 bg-white border rounded font-bold text-left outline-none text-sm">
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs font-bold text-gray-600">מקס' מפקחים:</span>
+                                    <input type="number" value="${p.maxInspectors || 1}" onchange="updatePlanField(${idx}, 'maxInspectors', Number(this.value))" class="w-24 p-1.5 bg-white border rounded font-bold text-left outline-none text-sm">
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="block text-xs font-bold text-gray-700 mb-1">רשימת הטבות ופיצ'רים (שורה לכל הטבה):</label>
+                                <textarea onchange="updatePlanFeatures(${idx}, this.value)" rows="4" class="w-full text-xs bg-gray-50 border border-gray-200 rounded-xl p-2.5 outline-none font-medium leading-relaxed">${(p.features || []).join('\n')}</textarea>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center border-t pt-4">
+                            <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-gray-700">
+                                <input type="checkbox" ${p.isPopular ? 'checked' : ''} onchange="updatePlanField(${idx}, 'isPopular', this.checked)" class="rounded text-indigo-600">
+                                סמן כמומלץ
+                            </label>
+                            <button onclick="removePlan(${idx})" class="text-red-500 hover:text-red-700 text-xs font-bold"><i class="fas fa-trash-alt ml-1"></i>מחק תוכנית</button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function updatePlanField(idx, field, value) {
+            plans[idx][field] = value;
+        }
+
+        function updatePlanFeatures(idx, text) {
+            plans[idx].features = text.split('\n').map(s => s.trim()).filter(Boolean);
+        }
+
+        function addNewPlan() {
+            const newCode = 'CUSTOM_' + (plans.length + 1);
+            plans.push({
+                id: 'plan_' + Date.now(),
+                code: newCode,
+                name: 'חבילה חדשה',
+                priceMonth: 400,
+                priceYear: 4000,
+                description: 'תיאור החבילה החדשה',
+                maxInspectors: 2,
+                maxTeams: 5,
+                features: ['צוותי עבודה ללא הגבלה', 'מפקחים מורשים', 'תמיכה מלאה'],
+                isPopular: false
+            });
+            renderPlans();
+            renderPlanDropdown();
+        }
+
+        function removePlan(idx) {
+            if(!confirm('האם למחוק תוכנית זו?')) return;
+            plans.splice(idx, 1);
+            renderPlans();
+            renderPlanDropdown();
+        }
+
+        async function savePlansToApi() {
+            try {
+                const res = await apiCall('SAVE_PLANS', 'POST', { plans });
+                if(res.success) {
+                    alert('התוכניות והמחירים נשמרו בהצלחה!');
+                    loadDashboard();
+                } else {
+                    alert(res.error || 'שגיאה בשמירה');
+                }
+            } catch(e) { alert('שגיאת תקשורת'); }
+        }
+
+        function renderPaymentConfig() {
+            if(!paymentConfig) return;
+            document.getElementById('payProvider').value = paymentConfig.provider || 'CARDCOM';
+            document.getElementById('payTerminal').value = paymentConfig.terminalNumber || '';
+            document.getElementById('payApiKey').value = paymentConfig.apiKey || '';
+            document.getElementById('payApiSecret').value = paymentConfig.apiSecret || '';
+            document.getElementById('payCurrency').value = paymentConfig.currency || 'ILS';
+            document.getElementById('payIsLive').checked = !!paymentConfig.isLive;
+        }
+
+        async function savePaymentConfigToApi() {
+            const data = {
+                provider: document.getElementById('payProvider').value,
+                terminalNumber: document.getElementById('payTerminal').value.trim(),
+                apiKey: document.getElementById('payApiKey').value.trim(),
+                apiSecret: document.getElementById('payApiSecret').value.trim(),
+                currency: document.getElementById('payCurrency').value,
+                isLive: document.getElementById('payIsLive').checked,
+                webhookUrl: document.getElementById('payWebhookUrl').value
+            };
+
+            try {
+                const res = await apiCall('SAVE_PAYMENT_CONFIG', 'POST', { paymentConfig: data });
+                if(res.success) {
+                    alert('הגדרות הסליקה נשמרו בהצלחה!');
+                    loadDashboard();
+                } else {
+                    alert(res.error || 'שגיאה בשמירת הגדרות סליקה');
+                }
+            } catch(e) { alert('שגיאת תקשורת'); }
+        }
+
         function renderLeads() {
             const grid = document.getElementById('leadsGrid');
             grid.innerHTML = '';
             leads.forEach(l => {
-                let badge = `<span class="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded font-bold">חדש</span>`;
-                if(l.status === 'CONTACTED') badge = `<span class="bg-orange-100 text-orange-700 text-xs px-2 py-1 rounded font-bold">בטיפול</span>`;
-                if(l.status === 'CLOSED') badge = `<span class="bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded font-bold">סגור</span>`;
+                let badge = `<span class="bg-blue-100 text-blue-700 text-xs px-2.5 py-1 rounded-full font-bold">חדש</span>`;
+                if(l.status === 'CONTACTED') badge = `<span class="bg-orange-100 text-orange-700 text-xs px-2.5 py-1 rounded-full font-bold">בטיפול</span>`;
+                if(l.status === 'CLOSED') badge = `<span class="bg-gray-100 text-gray-500 text-xs px-2.5 py-1 rounded-full font-bold">סגור</span>`;
 
                 grid.innerHTML += `
                     <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
@@ -354,19 +646,19 @@
                             ${badge}
                         </div>
                         <div class="text-sm text-gray-600 space-y-2 mb-4">
-                            <p><i class="fas fa-phone ml-2 w-4"></i><span dir="ltr">${l.phone}</span></p>
-                            <p><i class="fas fa-envelope ml-2 w-4"></i>${l.email || '---'}</p>
-                            <p><i class="fas fa-building ml-2 w-4"></i>${l.company || '---'}</p>
+                            <p><i class="fas fa-phone ml-2 w-4 text-indigo-500"></i><span dir="ltr">${l.phone}</span></p>
+                            <p><i class="fas fa-envelope ml-2 w-4 text-indigo-500"></i>${l.email || '---'}</p>
+                            <p><i class="fas fa-building ml-2 w-4 text-indigo-500"></i>${l.company || '---'}</p>
                             <p class="text-xs text-gray-400 mt-2">${new Date(l.createdAt).toLocaleString('he-IL')}</p>
                         </div>
                         <div class="flex gap-2 border-t pt-3">
-                            <select onchange="updateLeadStatus('${l.id}', this.value)" class="flex-grow p-1 border rounded text-sm bg-gray-50 outline-none">
+                            <select onchange="updateLeadStatus('${l.id}', this.value)" class="flex-grow p-1.5 border rounded-lg text-sm bg-gray-50 outline-none font-bold">
                                 <option value="NEW" ${l.status==='NEW'?'selected':''}>חדש</option>
                                 <option value="CONTACTED" ${l.status==='CONTACTED'?'selected':''}>בטיפול</option>
                                 <option value="CLOSED" ${l.status==='CLOSED'?'selected':''}>סגור</option>
                             </select>
-                            <button onclick="createTenantFromLead('${l.id}')" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded hover:bg-indigo-200 text-sm font-bold" title="הפוך ללקוח">
-                                <i class="fas fa-user-plus"></i>
+                            <button onclick="createTenantFromLead('${l.id}')" class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-200 text-sm font-bold" title="הפוך ללקוח">
+                                <i class="fas fa-user-plus ml-1"></i>לקוח
                             </button>
                         </div>
                     </div>
@@ -398,6 +690,9 @@
             document.getElementById('tPhone').value = "";
             document.getElementById('tInspectors').value = "1";
             document.getElementById('tStatus').value = "ACTIVE";
+            document.getElementById('tPrice').value = "550";
+            document.getElementById('tSubEnd').value = "";
+            renderPlanDropdown();
             document.getElementById('tAdminEmail').value = "";
             document.getElementById('tAdminPwd').value = "";
             document.getElementById('tAdminPwdConfirm').value = "";
@@ -418,23 +713,49 @@
             document.getElementById('tPhone').value = t.contactPhone || "";
             document.getElementById('tInspectors').value = t.maxInspectors || 1;
             document.getElementById('tStatus').value = t.status;
-            document.getElementById('tenantModalTitle').innerText = "עריכת לקוח";
-            document.getElementById('newTenantCredentials').classList.add('hidden'); // Cannot edit admin credentials here
+            document.getElementById('tPrice').value = t.price || 0;
+            if(t.plan) document.getElementById('tPlan').value = t.plan;
+            
+            if(t.subscriptionEndsAt) {
+                const d = new Date(t.subscriptionEndsAt);
+                document.getElementById('tSubEnd').value = d.toISOString().split('T')[0];
+            } else {
+                document.getElementById('tSubEnd').value = '';
+            }
+
+            document.getElementById('tenantModalTitle').innerText = "עריכת לקוח והארכת מנוי";
+            document.getElementById('newTenantCredentials').classList.add('hidden');
+        }
+
+        function addSubscriptionPeriod(months) {
+            const input = document.getElementById('tSubEnd');
+            let baseDate = new Date();
+            if(input.value) {
+                const current = new Date(input.value);
+                if(!isNaN(current.getTime()) && current > baseDate) {
+                    baseDate = current;
+                }
+            }
+            baseDate.setMonth(baseDate.getMonth() + months);
+            input.value = baseDate.toISOString().split('T')[0];
         }
 
         async function saveTenant() {
             const id = document.getElementById('tId').value;
+            const subEndVal = document.getElementById('tSubEnd').value;
             const data = {
                 name: document.getElementById('tName').value,
                 contactEmail: document.getElementById('tEmail').value,
                 contactPhone: document.getElementById('tPhone').value,
                 maxInspectors: parseInt(document.getElementById('tInspectors').value),
                 status: document.getElementById('tStatus').value,
+                plan: document.getElementById('tPlan').value,
+                price: parseFloat(document.getElementById('tPrice').value) || 0,
+                subscriptionEndsAt: subEndVal ? new Date(subEndVal).toISOString() : null
             };
             if(!data.name) return alert('שם חובה');
 
             if(!id) {
-                // Creating new tenant, get admin credentials
                 const email = document.getElementById('tAdminEmail').value;
                 const pwd = document.getElementById('tAdminPwd').value;
                 const confirm = document.getElementById('tAdminPwdConfirm').value;
@@ -490,7 +811,6 @@
                 }
             } catch(e) { alert('Error resetting password'); }
         }
-
 
         // Invoice Functions
         function openInvoiceModal(tenantId) {
@@ -590,7 +910,7 @@
             
             // Generate PDF
             html2pdf().set(opt).from(element).save().then(() => {
-                // Optionally save to DB here via API call
+                // Done
             });
         }
 

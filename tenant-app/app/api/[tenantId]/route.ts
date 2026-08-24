@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { getGlobalConfig } from '@/app/api/superadmin/route';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,10 +102,20 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
     }
   
     const qrSettings = (tenant as any).qrSettings || { mode: '24/7', start: '08:00', end: '17:00' };
+    const globalConfig = await getGlobalConfig();
 
     return NextResponse.json({ 
       workers, categories, teams, teamsData, systemTeams, qrSettings, 
-      tenantName: tenant.name, tenantStatus: tenant.status,
+      tenantName: tenant.name, 
+      tenantStatus: tenant.status,
+      plan: tenant.plan || 'BASIC',
+      price: tenant.price || 0,
+      subscriptionEndsAt: tenant.subscriptionEndsAt,
+      plans: globalConfig.plans,
+      paymentConfig: {
+        provider: globalConfig.paymentConfig?.provider || 'CARDCOM',
+        isLive: !!globalConfig.paymentConfig?.isLive
+      },
       telegramChatId: tenant.telegramChatId || "",
       telegramBotToken: tenant.telegramBotToken || "",
       whatsappInstance: tenant.whatsappInstance || "",
@@ -964,11 +975,83 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         status: t.status === 'NEW' ? 'פתוח' : (t.status === 'IN_PROGRESS' ? 'בעבודה' : (t.status === 'CLOSED' ? 'סגור' : 'הושלם')),
         worker: t.worker?.name || '',
         team: t.team?.name || '',
-        timestamp: t.createdAt.getTime(),
         dateStr: `${String(t.createdAt.getDate()).padStart(2, '0')}/${String(t.createdAt.getMonth() + 1).padStart(2, '0')}/${t.createdAt.getFullYear()} ${String(t.createdAt.getHours()).padStart(2, '0')}:${String(t.createdAt.getMinutes()).padStart(2, '0')}`,
       };
     });
     return NextResponse.json({ status: 'success', tasks });
+  }
+
+  if (action === 'PROCESS_PAYMENT_RENEWAL') {
+    const { planCode, billingCycle, cardDetails } = body;
+    if (!planCode) return NextResponse.json({ error: 'Missing planCode' }, { status: 400 });
+
+    const globalConfig = await getGlobalConfig();
+    const selectedPlan = globalConfig.plans.find((p: any) => p.code === planCode) || globalConfig.plans[0];
+    const amount = billingCycle === 'YEAR' ? (selectedPlan.priceYear || selectedPlan.priceMonth * 10) : selectedPlan.priceMonth;
+    const monthsToAdd = billingCycle === 'YEAR' ? 12 : 1;
+
+    // Compute new subscriptionEndsAt
+    const now = new Date();
+    let baseDate = now;
+    if (tenant.subscriptionEndsAt && new Date(tenant.subscriptionEndsAt) > now) {
+      baseDate = new Date(tenant.subscriptionEndsAt);
+    }
+    const newEndsAt = new Date(baseDate);
+    newEndsAt.setMonth(newEndsAt.getMonth() + monthsToAdd);
+
+    // Update tenant status to ACTIVE, plan, price and subscriptionEndsAt
+    const updatedTenant = await prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        status: 'ACTIVE',
+        plan: selectedPlan.code,
+        price: Number(amount),
+        subscriptionEndsAt: newEndsAt,
+        maxInspectors: selectedPlan.maxInspectors || 1
+      }
+    });
+
+    // Record invoice
+    try {
+      await prisma.invoice.create({
+        data: {
+          tenantId,
+          type: 'INVOICE',
+          amount: Number(amount),
+          status: 'PAID',
+          extraInspectors: 0
+        }
+      });
+    } catch (invErr) {
+      console.error('Failed to create invoice record:', invErr);
+    }
+
+    return NextResponse.json({
+      status: 'success',
+      message: 'המנוי חודש בהצלחה!',
+      tenant: {
+        id: updatedTenant.id,
+        name: updatedTenant.name,
+        status: updatedTenant.status,
+        plan: updatedTenant.plan,
+        price: updatedTenant.price,
+        subscriptionEndsAt: updatedTenant.subscriptionEndsAt
+      }
+    });
+  }
+
+  if (action === 'REQUEST_SALES_CONTACT') {
+    const { contactName, contactPhone, notes, requestedPlan } = body;
+    await prisma.lead.create({
+      data: {
+        name: contactName || tenant.name,
+        phone: contactPhone || tenant.contactPhone || '050-0000000',
+        email: tenant.contactEmail || null,
+        company: `${tenant.name} (${requestedPlan || tenant.plan}) - ${notes || 'פנייה לחידוש מנוי'}`,
+        status: 'NEW'
+      }
+    });
+    return NextResponse.json({ status: 'success', message: 'פנייתך התקבלה בהצלחה, ניצור קשר בהקדם' });
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });

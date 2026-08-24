@@ -6,6 +6,11 @@ import { Input } from "@/components/ui/Input"
 
 interface AdminHeaderProps {
   tenantName: string
+  tenantStatus?: string
+  subscriptionEndsAt?: string | null
+  plan?: string
+  price?: number
+  onOpenSubscriptionModal?: () => void
   searchQuery: string
   setSearchQuery: (val: string) => void
   loading: boolean
@@ -20,6 +25,11 @@ interface AdminHeaderProps {
 
 export function AdminHeader({
   tenantName,
+  tenantStatus,
+  subscriptionEndsAt,
+  plan,
+  price,
+  onOpenSubscriptionModal,
   searchQuery,
   setSearchQuery,
   loading,
@@ -31,6 +41,77 @@ export function AdminHeader({
   setConfigModalOpen,
   setIntegrationsModalOpen,
 }: AdminHeaderProps) {
+  const subscriptionInfo = React.useMemo(() => {
+    if (tenantStatus === 'TRIAL') {
+      let trialDays = 14;
+      if (subscriptionEndsAt) {
+        const diff = Math.ceil((new Date(subscriptionEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        trialDays = Math.max(0, diff);
+      }
+      return {
+        icon: <i className="fas fa-sparkles text-purple-600"></i>,
+        text: `גרסת ניסיון (TRIAL)${trialDays > 0 ? ` • נותרו ${trialDays} ימים` : ''}`,
+        btnText: "שדרג לגרסה מלאה",
+        btnIcon: <i className="fas fa-crown text-amber-300"></i>,
+        btnClass: "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white"
+      };
+    }
+
+    if (tenantStatus === 'UNPAID' || tenantStatus === 'BLOCKED') {
+      return {
+        icon: <i className="fas fa-exclamation-triangle text-red-500"></i>,
+        text: "מנוי לא שולם / חסום",
+        btnText: "שלם וחדש מנוי",
+        btnIcon: <i className="fas fa-credit-card"></i>,
+        btnClass: "bg-red-600 hover:bg-red-700 text-white"
+      };
+    }
+
+    if (subscriptionEndsAt) {
+      const end = new Date(subscriptionEndsAt);
+      const now = new Date();
+      const diffDays = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 0) {
+        return {
+          icon: <i className="fas fa-times-circle text-red-500"></i>,
+          text: "המנוי פג תוקף",
+          btnText: "חדש מנוי עכשיו",
+          btnIcon: <i className="fas fa-sync-alt"></i>,
+          btnClass: "bg-red-600 hover:bg-red-700 text-white"
+        };
+      }
+
+      if (diffDays > 30) {
+        const months = Math.floor(diffDays / 30);
+        const remDays = diffDays % 30;
+        return {
+          icon: <i className="fas fa-calendar-check text-emerald-600"></i>,
+          text: `תוקף מנוי: עוד ${months} חודש${months > 1 ? 'ים' : ''} ו-${remDays} ימים`,
+          btnText: "הארך מנוי",
+          btnIcon: <i className="fas fa-sync-alt text-xs"></i>,
+          btnClass: "bg-emerald-600 hover:bg-emerald-700 text-white"
+        };
+      }
+
+      return {
+        icon: <i className="fas fa-clock text-amber-500"></i>,
+        text: `תוקף מנוי: נותרו עוד ${diffDays} ימים`,
+        btnText: "הארך מנוי",
+        btnIcon: <i className="fas fa-sync-alt text-xs"></i>,
+        btnClass: "bg-amber-600 hover:bg-amber-700 text-white"
+      };
+    }
+
+    return {
+      icon: <i className="fas fa-shield-alt text-blue-600"></i>,
+      text: `מנוי פעיל (${plan || 'BASIC'})`,
+      btnText: "הארך מנוי",
+      btnIcon: <i className="fas fa-sync-alt text-xs"></i>,
+      btnClass: "bg-blue-600 hover:bg-blue-700 text-white"
+    };
+  }, [tenantStatus, subscriptionEndsAt, plan]);
+
   return (
     <header className="flex flex-col xl:flex-row justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 gap-4">
       <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -38,6 +119,23 @@ export function AdminHeader({
           <i className="fas fa-building text-blue-500 opacity-80"></i>
           {tenantName}
         </h1>
+
+        {/* Subscription Banner Badge */}
+        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl shadow-xs">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-gray-700">
+            {subscriptionInfo.icon}
+            <span>{subscriptionInfo.text}</span>
+          </div>
+          {onOpenSubscriptionModal && (
+            <button
+              onClick={onOpenSubscriptionModal}
+              className={`text-xs font-bold px-3 py-1 rounded-lg transition-all shadow-xs flex items-center gap-1.5 ${subscriptionInfo.btnClass}`}
+            >
+              {subscriptionInfo.btnIcon}
+              <span>{subscriptionInfo.btnText}</span>
+            </button>
+          )}
+        </div>
       </div>
       <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap justify-center xl:justify-end">
         <Button variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50 font-bold px-4 h-10" onClick={() => setWorkerQrModalOpen(true)}>

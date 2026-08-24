@@ -95,6 +95,12 @@ export function useAdminState() {
   const [teamsModalOpen, setTeamsModalOpen] = React.useState(false)
   const [workersModalOpen, setWorkersModalOpen] = React.useState(false)
   const [tenantName, setTenantName] = React.useState("מוסד לבדיקה")
+  const [tenantStatus, setTenantStatus] = React.useState("ACTIVE")
+  const [plan, setPlan] = React.useState("BASIC")
+  const [price, setPrice] = React.useState(0)
+  const [subscriptionEndsAt, setSubscriptionEndsAt] = React.useState<string | null>(null)
+  const [plans, setPlans] = React.useState<any[]>([])
+  const [subscriptionModalOpen, setSubscriptionModalOpen] = React.useState(false)
   
   // Integrations State
   const [integrationsModalOpen, setIntegrationsModalOpen] = React.useState(false)
@@ -209,6 +215,11 @@ export function useAdminState() {
       if (settingsData.systemTeams) setSystemTeams(settingsData.systemTeams)
       if (settingsData.teamsData) setTeams(settingsData.teamsData)
       if (settingsData.tenantName) setTenantName(settingsData.tenantName)
+      if (settingsData.tenantStatus) setTenantStatus(settingsData.tenantStatus)
+      if (settingsData.plan) setPlan(settingsData.plan)
+      if (settingsData.price !== undefined) setPrice(settingsData.price)
+      if (settingsData.subscriptionEndsAt !== undefined) setSubscriptionEndsAt(settingsData.subscriptionEndsAt)
+      if (settingsData.plans) setPlans(settingsData.plans)
       
       if (settingsData.telegramBotToken) setTelegramBotToken(settingsData.telegramBotToken)
       if (settingsData.telegramChatId) setTelegramChatId(settingsData.telegramChatId)
@@ -682,6 +693,9 @@ export function useAdminState() {
     handleApprove, handleDelete, handleReturnToOpen, handleReturnToOpenMass, handleCloseMass,
     handlePrintSelected, handleSendToApp, executeOutputSequence,
     qrSettings, setQrSettings, saveQrSettings,
-    exportTasksToCSV, handleCleanupTasks
+    exportTasksToCSV, handleCleanupTasks,
+    tenantStatus, setTenantStatus, plan, setPlan, price, setPrice,
+    subscriptionEndsAt, setSubscriptionEndsAt, plans, setPlans,
+    subscriptionModalOpen, setSubscriptionModalOpen
   }
 }

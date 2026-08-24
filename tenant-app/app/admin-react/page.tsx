@@ -19,6 +19,7 @@ import { AdminFilters } from "@/components/admin/AdminFilters"
 import { AdminTaskTable } from "@/components/admin/AdminTaskTable"
 import { AdminModals } from "@/components/admin/AdminModals"
 import { AdminPrintLayouts } from "@/components/admin/AdminPrintLayouts"
+import { SubscriptionModal } from "@/components/admin/SubscriptionModal"
 
 export default function AdminReactPage() {
 
@@ -39,7 +40,10 @@ export default function AdminReactPage() {
     selectedTasks, filtered, viewMode, setViewMode, handlePrintSelected, handleSendToApp, handleCloseMass,
     handleReturnToOpenMass, activeTabs, currentTab, setCurrentTab, handleToggleCheck, handleApprove,
     handleReturnToOpen, handleDelete, handleTeamChange, handleEditDefect, printDocumentData, printCardsData,
-    qrSettings, setQrSettings, saveQrSettings, exportTasksToCSV, handleCleanupTasks
+    qrSettings, setQrSettings, saveQrSettings, exportTasksToCSV, handleCleanupTasks,
+    tenantStatus, setTenantStatus, plan, setPlan, price, setPrice,
+    subscriptionEndsAt, setSubscriptionEndsAt, plans, setPlans,
+    subscriptionModalOpen, setSubscriptionModalOpen
   } = adminState
   if (!tenantId && !loading) {
     return (
@@ -55,6 +59,11 @@ export default function AdminReactPage() {
       {/* Top Header */}
       <AdminHeader
         tenantName={tenantName}
+        tenantStatus={tenantStatus}
+        subscriptionEndsAt={subscriptionEndsAt}
+        plan={plan}
+        price={price}
+        onOpenSubscriptionModal={() => setSubscriptionModalOpen(true)}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         loading={loading}
@@ -207,6 +216,27 @@ export default function AdminReactPage() {
         saveQrSettings={saveQrSettings}
         exportTasksToCSV={exportTasksToCSV}
         handleCleanupTasks={handleCleanupTasks}
+      />
+
+      <SubscriptionModal
+        isOpen={subscriptionModalOpen}
+        onClose={() => setSubscriptionModalOpen(false)}
+        tenantId={tenantId}
+        tenantName={tenantName}
+        tenantStatus={tenantStatus}
+        currentPlan={plan}
+        currentPrice={price}
+        subscriptionEndsAt={subscriptionEndsAt}
+        plans={plans}
+        onSuccessRenewal={(updated) => {
+          if (updated) {
+            if (updated.status) setTenantStatus(updated.status);
+            if (updated.plan) setPlan(updated.plan);
+            if (updated.price !== undefined) setPrice(updated.price);
+            if (updated.subscriptionEndsAt) setSubscriptionEndsAt(updated.subscriptionEndsAt);
+          }
+          loadTasks();
+        }}
       />
       {/* Scroll to Top Button */}
       <button 
