@@ -41,9 +41,27 @@ export function AdminTaskTable({
   return (
     <>
       {/* Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+      <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar" dir="rtl">
+        <button
+          onClick={() => setCurrentTab("ALL")}
+          className={`relative px-6 py-3 rounded-xl font-black text-sm whitespace-nowrap transition-all shadow-sm ${
+            currentTab === "ALL" 
+              ? "bg-blue-600 text-white shadow-md transform -translate-y-0.5" 
+              : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+          }`}
+        >
+          הכל ({tasks.filter(t => t.status !== "סגור").length})
+          {tasks.some(t => t.status === "פתוח") && (
+            <span className="absolute top-1 right-1 flex h-3 w-3 -mt-1 -mr-1">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+            </span>
+          )}
+        </button>
+
         {activeTabs.map(tab => {
-          const hasNewTasks = tasks.some(t => t.sheet === tab && t.status === "פתוח")
+          const tabOpenCount = tasks.filter(t => t.sheet === tab && t.status !== "סגור").length;
+          const hasNewTasks = tasks.some(t => t.sheet === tab && t.status === "פתוח");
           return (
           <button
             key={tab}
@@ -54,7 +72,7 @@ export function AdminTaskTable({
                 : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
             }`}
           >
-            {tab.replace(/_/g, " ")}
+            {tab.replace(/_/g, " ")} ({tabOpenCount})
             {hasNewTasks && (
               <span className="absolute top-1 right-1 flex h-3 w-3 -mt-1 -mr-1">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>

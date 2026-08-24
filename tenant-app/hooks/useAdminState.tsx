@@ -351,7 +351,8 @@ export function useAdminState() {
   }
 
   const handleTeamChange = async (id: string, teamName: string) => {
-    await handleAction(id, "MOVE_TASK", { teamName })
+    setTasks((prev: Task[]) => prev.map((t: any) => t.id === id ? { ...t, sheet: teamName, team: teamName } : t));
+    await handleAction(id, "MOVE_TASK", { teamName });
   }
 
   const handleEditDefect = async (id: string) => {
