@@ -250,6 +250,14 @@
             document.getElementById('successMsg').classList.remove('flex');
         }
 
+        function openTermsModal() {
+            document.getElementById('termsModal').classList.remove('hidden');
+        }
+
+        function closeTermsModal() {
+            document.getElementById('termsModal').classList.add('hidden');
+        }
+
         function openLoginModal() {
             document.getElementById('loginModal').classList.remove('hidden');
             document.getElementById('loginError').classList.add('hidden');
@@ -363,6 +371,88 @@
             <div class="mt-8">
                 <button id="loginBtn" onclick="submitLogin()" class="w-full btn-gradient text-white py-3 rounded-xl font-bold text-lg shadow-lg">
                     התחבר
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terms & Licensing Agreement Modal -->
+    <div id="termsModal" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-[#1e1b4b] border border-indigo-500/40 rounded-3xl max-w-2xl w-full p-6 md:p-8 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center border-b border-indigo-500/30 pb-4 mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-600/30 flex items-center justify-center text-indigo-400 text-xl border border-indigo-500/30">
+                        <i class="fas fa-file-contract"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-white">תנאי שימוש והסכם רישיון למערכת HCL</h3>
+                        <p class="text-xs text-indigo-300">Software as a Service (SaaS) Licensing Agreement</p>
+                    </div>
+                </div>
+                <button onclick="closeTermsModal()" class="text-gray-400 hover:text-white text-2xl transition"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="flex-grow overflow-y-auto space-y-4 text-right text-gray-200 text-sm leading-relaxed pr-2" dir="rtl">
+                <div class="bg-indigo-950/80 p-4 rounded-2xl border border-indigo-500/30 text-xs text-indigo-200">
+                    <i class="fas fa-info-circle ml-1 text-indigo-400"></i>
+                    <strong>תקציר משפטי מחייב:</strong> שליחת טופס בקשה, יצירת ליד, התחברות או שימוש במערכת מהווים הסכמה אוטומטית, מלאה ובלתי מותנית לכל התנאים המפורטים להלן.
+                </div>
+
+                <div class="space-y-1.5">
+                    <h4 class="font-bold text-indigo-300 text-sm flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600/40 flex items-center justify-center text-xs text-white">1</span>
+                        מהות השירות ומודל המנוי (SaaS Service)
+                    </h4>
+                    <p class="text-gray-300 text-xs leading-normal">
+                        מערכת HCL פועלת כפלטפורמת ענן בתשלום (Software as a Service) שנועדה לסייע בארגון, ייעול, ניהול ותיעוד תחזוקת מבנים, בקרת ניקיון, ניהול צוותי שטח ומשימות תפעוליות עבור בתי מלון, מוסדות ומבני ציבור.
+                    </p>
+                </div>
+
+                <div class="space-y-1.5">
+                    <h4 class="font-bold text-indigo-300 text-sm flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600/40 flex items-center justify-center text-xs text-white">2</span>
+                        תשתית ענן עצמאית ואוטונומיה מוחלטת (Zero Internal Access)
+                    </h4>
+                    <p class="text-gray-300 text-xs leading-normal">
+                        המערכת פועלת באופן בלעדי על גבי שרתי אינטרנט וענן חיצוניים ומאובטחים. <strong>המערכת הינה עצמאית ואוטונומית לחלוטין, ואינה מקושרת, אינה מחוברת ואינה בעלת גישה כלשהי למערכות המחשוב, הרשתות או מאגרי המידע הפנימיים של הארגון או המוסד שבו נעשה שימוש.</strong> המערכת אינה שואבת ואינה עושה שימוש באף נתון פנימי של הלקוח.
+                    </p>
+                </div>
+
+                <div class="space-y-1.5">
+                    <h4 class="font-bold text-indigo-300 text-sm flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600/40 flex items-center justify-center text-xs text-white">3</span>
+                        מדיניות מחיקה אוטומטית של תמונות ומדיה לאחר 15 ימים
+                    </h4>
+                    <p class="text-gray-300 text-xs leading-normal">
+                        כל התמונות והמדיה המועלים במסגרת דיווח וטיפול בתקלות מאוחסנים בשרת מדיה חיצוני מאובטח. 
+                        <strong>כל התמונות נמחקות באופן אוטומטי ולצמיתות לאחר 15 ימים ממועד העלאתן, ללא אפשרות לשחזור</strong>, וזאת במטרה לייעל משאבים ולחסוך מקום אחסון בשרתים. הלקוח אחראי לייצא דוחות מרוכזים (CSV / PDF) ככל הנדרש לפני חלוף מועד זה.
+                    </p>
+                </div>
+
+                <div class="space-y-1.5">
+                    <h4 class="font-bold text-indigo-300 text-sm flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600/40 flex items-center justify-center text-xs text-white">4</span>
+                        אבטחת מידע והגנת פרטיות
+                    </h4>
+                    <p class="text-gray-300 text-xs leading-normal">
+                        השירות מופעל תוך שימוש בפרוטוקולי הצפנה מאובטחים (SSL/TLS). פרטי הלקוחות והמשימות משמשים אך ורק לצורך מתן השירות השוטף ואינם מועברים או נמכרים לצד שלישי כלשהו.
+                    </p>
+                </div>
+
+                <div class="space-y-1.5">
+                    <h4 class="font-bold text-indigo-300 text-sm flex items-center gap-2">
+                        <span class="w-5 h-5 rounded-full bg-indigo-600/40 flex items-center justify-center text-xs text-white">5</span>
+                        הסכמה אוטומטית ומחייבת
+                    </h4>
+                    <p class="text-gray-300 text-xs leading-normal">
+                        שליחת טופס ליד, בקשת הצטרפות לניסיון (TRIAL), חידוש מנוי או ביצוע תשלום מהווים הצהרה מפורשת כי קראת, הבנת והסכמת לתנאי רישיון אלו.
+                    </p>
+                </div>
+            </div>
+
+            <div class="border-t border-indigo-500/30 pt-4 mt-4 flex justify-end">
+                <button onclick="closeTermsModal()" class="btn-gradient text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-md">
+                    קראתי ואני מסכים/ה
                 </button>
             </div>
         </div>

@@ -104,13 +104,27 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
     const qrSettings = (tenant as any).qrSettings || { mode: '24/7', start: '08:00', end: '17:00' };
     const globalConfig = await getGlobalConfig();
 
+    let subscriptionEndsAt = tenant.subscriptionEndsAt;
+    if (!subscriptionEndsAt) {
+      const created = tenant.createdAt ? new Date(tenant.createdAt) : new Date();
+      const days = tenant.status === 'TRIAL' ? 14 : 30;
+      const defaultEndsAt = new Date(created.getTime() + days * 24 * 60 * 60 * 1000);
+      subscriptionEndsAt = defaultEndsAt;
+      try {
+        await prisma.tenant.update({
+          where: { id: tenant.id },
+          data: { subscriptionEndsAt: defaultEndsAt }
+        });
+      } catch (e) {}
+    }
+
     return NextResponse.json({ 
       workers, categories, teams, teamsData, systemTeams, qrSettings, 
       tenantName: tenant.name, 
       tenantStatus: tenant.status,
       plan: tenant.plan || 'BASIC',
       price: tenant.price || 0,
-      subscriptionEndsAt: tenant.subscriptionEndsAt,
+      subscriptionEndsAt: subscriptionEndsAt,
       plans: globalConfig.plans,
       paymentConfig: {
         provider: globalConfig.paymentConfig?.provider || 'CARDCOM',
