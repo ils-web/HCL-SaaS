@@ -3,148 +3,186 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HCL - מערכת ניהול חכמה למלונות ובניינים</title>
+    <title>HCL SaaS - ניהול חכם לאחזקה, ניקיון ותקלות</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700;800&display=swap');
-        
         body {
             font-family: 'Assistant', sans-serif;
-            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
-            color: white;
-            min-height: 100vh;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow-x: hidden;
         }
-
+        .glass-nav {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
         .glass-card {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
         }
-
         .gradient-text {
-            background: linear-gradient(to left, #818cf8, #c084fc, #f472b6);
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-
-        .hero-glow {
-            position: absolute;
-            top: 20%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 60vw;
-            height: 60vw;
-            background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(0, 0, 0, 0) 70%);
-            z-index: -1;
-            pointer-events: none;
+        .btn-gradient {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            transition: all 0.3s ease;
         }
-
+        .btn-gradient:hover {
+            box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.5);
+            transform: translateY(-2px);
+        }
         .input-glass {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             color: white;
             transition: all 0.3s ease;
         }
-
         .input-glass:focus {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: #818cf8;
+            border-color: #6366f1;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
             outline: none;
-            box-shadow: 0 0 15px rgba(129, 140, 248, 0.3);
-        }
-
-        .btn-gradient {
-            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-            transition: all 0.3s ease;
-        }
-
-        .btn-gradient:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(124, 58, 237, 0.4);
         }
     </style>
 </head>
-<body class="relative overflow-x-hidden">
-    <div class="hero-glow"></div>
+<body class="relative min-h-screen selection:bg-indigo-500 selection:text-white">
 
-    <!-- Header -->
-    <header class="fixed w-full top-0 z-50 glass-card">
-        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="text-2xl font-bold tracking-wider gradient-text flex items-center gap-2">
-                <i class="fas fa-building text-indigo-400"></i> HCL SYSTEM
+    <!-- Background Orbs -->
+    <div class="fixed top-0 left-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10 animate-pulse"></div>
+    <div class="fixed bottom-0 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none -z-10"></div>
+
+    <!-- Navigation -->
+    <header class="glass-nav fixed top-0 w-full z-40">
+        <div class="container mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-pink-500 flex items-center justify-center shadow-lg">
+                    <i class="fas fa-hotel text-white text-xl"></i>
+                </div>
+                <span class="text-2xl font-black tracking-wider text-white">HCL <span class="text-indigo-400 font-bold text-lg">SYSTEM</span></span>
             </div>
-            <nav class="hidden md:flex gap-8">
-                <a href="#features" class="hover:text-indigo-300 transition-colors">יתרונות</a>
-                <a href="#contact" class="hover:text-indigo-300 transition-colors">צור קשר</a>
+            
+            <nav class="hidden md:flex items-center gap-8 font-semibold text-gray-300">
+                <a href="#features" class="hover:text-white transition-colors">יתרונות</a>
+                <a href="#contact" class="hover:text-white transition-colors">צור קשר</a>
+                <button type="button" onclick="openTermsModal()" class="hover:text-indigo-300 transition-colors text-xs font-bold underline">תנאי שימוש והסכם רישיון</button>
             </nav>
-            <button onclick="openLoginModal()" class="glass-card px-6 py-2 rounded-full font-semibold hover:bg-white/10 transition-colors text-sm cursor-pointer">
-                התחברות למערכת
-            </button>
+
+            <div class="flex items-center gap-4">
+                <button onclick="openLoginModal()" class="px-5 py-2.5 rounded-xl border border-white/20 hover:bg-white/10 text-white font-bold transition-all text-sm shadow-sm flex items-center gap-2">
+                    <i class="fas fa-lock text-xs text-indigo-400"></i>
+                    <span>התחברות למערכת</span>
+                </button>
+            </div>
         </div>
     </header>
 
     <!-- Hero Section -->
-    <section class="pt-32 pb-20 px-6 min-h-[90vh] flex items-center relative">
-        <div class="container mx-auto grid lg:grid-cols-2 gap-12 items-center">
-            <div class="text-right z-10" dir="rtl">
-                <div class="inline-block glass-card px-4 py-1.5 rounded-full text-indigo-300 text-sm font-semibold mb-6">
-                    <i class="fas fa-star mr-2"></i> המערכת המובילה לניהול אחזקה
+    <section class="pt-32 pb-20 overflow-hidden">
+        <div class="container mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
+            
+            <!-- Hero Text -->
+            <div class="text-right">
+                <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-sm font-semibold mb-6">
+                    <i class="fas fa-star text-xs"></i>
+                    <span>המערכת המובילה לניהול אחזקה וניקיון</span>
                 </div>
-                <h1 class="text-5xl md:text-7xl font-extrabold mb-6 leading-tight">
-                    ניהול תקלות <br>
-                    <span class="gradient-text">חכם ומהיר</span>
+                <h1 class="text-4xl md:text-6xl font-extrabold mb-6 leading-tight text-white">
+                    ניהול תקלות ומשימות <br>
+                    <span class="gradient-text">חכם, מהיר ואוטונומי</span>
                 </h1>
-                <p class="text-lg text-gray-300 mb-10 max-w-xl leading-relaxed">
-                    HCL SaaS מאפשרת לנהל את צוותי האחזקה, הניקיון והשירות במלונות, בתי חולים ומבני ציבור בצורה יעילה, דיגיטלית ופשוטה.
+                <p class="text-lg text-gray-300 mb-8 max-w-xl leading-relaxed">
+                    HCL SaaS מאפשרת לנהל את צוותי האחזקה, הניקיון והשירות במלונות, בתי חולים ומבני ציבור בצורה יעילה, דיגיטלית ופשוטה — ללא צורך בהתקנות או חיבור למערכות הפנימיות.
                 </p>
-                <div class="flex gap-4">
-                    <a href="#contact" class="btn-gradient px-8 py-4 rounded-xl font-bold text-lg shadow-lg">
-                        התחל עכשיו
+                <div class="flex flex-wrap gap-4">
+                    <a href="#contact" class="btn-gradient px-8 py-4 rounded-xl font-bold text-lg text-white shadow-lg flex items-center gap-2">
+                        <span>התחל ניסיון חינם</span>
+                        <i class="fas fa-arrow-left text-sm"></i>
                     </a>
-                    <a href="#features" class="glass-card px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/10 transition-colors">
+                    <a href="#features" class="glass-card px-8 py-4 rounded-xl font-bold text-lg text-gray-200 hover:bg-white/10 transition-colors">
                         למידע נוסף
                     </a>
                 </div>
             </div>
             
-            <!-- Lead Form -->
-            <div class="relative z-10 w-full max-w-md mx-auto" id="contact">
-                <div class="glass-card p-8 rounded-3xl relative overflow-hidden">
+            <!-- Lead Form Container -->
+            <div class="relative z-10 w-full max-w-lg mx-auto" id="contact">
+                <div class="glass-card p-6 md:p-8 rounded-3xl relative overflow-hidden shadow-2xl border border-indigo-500/30">
                     <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/20 rounded-full blur-3xl -mr-16 -mt-16"></div>
                     <div class="absolute bottom-0 left-0 w-32 h-32 bg-pink-500/20 rounded-full blur-3xl -ml-16 -mb-16"></div>
                     
-                    <h3 class="text-2xl font-bold mb-2 text-center">התחל ניסיון חינם (TRIAL)</h3>
-                    <p class="text-gray-400 text-center mb-6 text-sm">השאירו פרטים ונפתח לכם סביבת התנסות בחינם</p>
-                    
-                    <form id="leadForm" class="space-y-4" onsubmit="submitLead(event)">
-                        <div>
-                            <input type="text" id="name" required placeholder="שם מלא" class="w-full input-glass rounded-xl px-4 py-3 text-right" dir="rtl">
+                    <!-- Form Section -->
+                    <div id="formSection" class="relative z-10">
+                        <div class="text-center mb-5">
+                            <span class="inline-block bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-300 text-xs px-3 py-1 rounded-full font-bold mb-2">
+                                ⭐ פתיחת סביבת עבודה
+                            </span>
+                            <h3 class="text-2xl md:text-3xl font-black text-white">התחל ניסיון חינם (TRIAL)</h3>
+                            <p class="text-gray-300 text-xs md:text-sm mt-1">מלאו את הפרטים ונפתח עבורכם סביבת התנסות מיידית</p>
                         </div>
-                        <div>
-                            <input type="tel" id="phone" required placeholder="טלפון" class="w-full input-glass rounded-xl px-4 py-3 text-right" dir="rtl">
-                        </div>
-                        <div>
-                            <input type="text" id="company" placeholder="שם החברה / ארגון" class="w-full input-glass rounded-xl px-4 py-3 text-right" dir="rtl">
-                        </div>
-                        <div>
-                            <input type="email" id="email" placeholder="אימייל" class="w-full input-glass rounded-xl px-4 py-3 text-right" dir="rtl">
-                        </div>
-                        <button type="submit" id="submitBtn" class="w-full btn-gradient py-4 rounded-xl font-bold text-lg mt-4 flex justify-center items-center gap-2">
-                            <span>שלח בקשה</span>
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
-                    </form>
+                        
+                        <form id="leadForm" class="space-y-3.5" onsubmit="submitLead(event)">
+                            <div>
+                                <label class="block text-xs font-bold text-gray-300 mb-1 text-right">שם איש קשר *</label>
+                                <input type="text" id="name" required placeholder="ישראל ישראלי" class="w-full input-glass rounded-xl px-4 py-3 text-right text-sm" dir="rtl">
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-300 mb-1 text-right">טלפון ליצירת קשר *</label>
+                                    <input type="tel" id="phone" required placeholder="050-1234567" class="w-full input-glass rounded-xl px-4 py-3 text-right font-mono text-sm" dir="rtl">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-gray-300 mb-1 text-right">שם המלון / חברה *</label>
+                                    <input type="text" id="company" required placeholder="מלון נוף / חברת ניהול" class="w-full input-glass rounded-xl px-4 py-3 text-right text-sm" dir="rtl">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-gray-300 mb-1 text-right">אימייל לקבלת פרטי גישה *</label>
+                                <input type="email" id="email" required placeholder="name@hotel.co.il" class="w-full input-glass rounded-xl px-4 py-3 text-right text-sm" dir="rtl">
+                            </div>
 
-                    <div id="successMsg" class="hidden absolute inset-0 glass-card bg-emerald-900/40 flex-col items-center justify-center p-8 text-center backdrop-blur-xl">
-                        <div class="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mb-4 text-emerald-400 text-4xl">
-                            <i class="fas fa-check"></i>
+                            <!-- License Agreement & Terms Box -->
+                            <div class="bg-indigo-950/90 p-3.5 rounded-2xl border border-indigo-500/40 text-right space-y-2 text-xs text-gray-200 mt-2" dir="rtl">
+                                <label class="flex items-start gap-2.5 cursor-pointer font-medium">
+                                    <input type="checkbox" id="termsAgree" required checked class="mt-0.5 rounded accent-indigo-500 w-4 h-4 shrink-0 cursor-pointer">
+                                    <span class="text-[12px] leading-tight text-indigo-100 font-bold">
+                                        אני מאשר/ת את <button type="button" onclick="openTermsModal()" class="text-indigo-300 underline font-black hover:text-white mx-0.5 inline">הסכם הרישיון ותנאי השימוש</button> של מערכת HCL.
+                                    </span>
+                                </label>
+                                <div class="text-[11px] text-gray-300 pr-6 space-y-1 leading-normal border-t border-indigo-500/20 pt-1.5 font-normal">
+                                    <div class="flex items-center gap-1.5"><i class="fas fa-check text-emerald-400 text-[10px]"></i><span>מערכת ענן אוטונומית חיצונית ללא גישה לנתוני המוסד</span></div>
+                                    <div class="flex items-center gap-1.5"><i class="fas fa-check text-emerald-400 text-[10px]"></i><span>תמונות נמחקות אוטומטית ולצמיתות לאחר 15 יום לחיסכון במקום</span></div>
+                                    <div class="flex items-center gap-1.5"><i class="fas fa-check text-emerald-400 text-[10px]"></i><span>שירות SaaS בתשלום לניהול אחזקה וצוותי שטח</span></div>
+                                </div>
+                            </div>
+
+                            <button type="submit" id="submitBtn" class="w-full btn-gradient py-4 rounded-2xl font-black text-base md:text-lg mt-2 flex justify-center items-center gap-2 text-white shadow-lg hover:shadow-indigo-500/40 transition-all">
+                                <span>פתח חשבון ניסיון חינם</span>
+                                <i class="fas fa-arrow-left text-sm"></i>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Clean, Dedicated Success Message -->
+                    <div id="successMsg" class="hidden flex-col items-center justify-center py-8 px-4 text-center relative z-10" dir="rtl">
+                        <div class="w-20 h-20 bg-emerald-500/20 rounded-3xl flex items-center justify-center mb-5 text-emerald-400 text-4xl border border-emerald-500/40 shadow-xl">
+                            <i class="fas fa-check-circle"></i>
                         </div>
-                        <h4 class="text-2xl font-bold text-emerald-400 mb-2">תודה רבה!</h4>
-                        <p class="text-gray-300">פנייתך התקבלה בהצלחה, ניצור קשר בקרוב.</p>
-                        <button onclick="resetForm()" class="mt-6 px-6 py-2 glass-card rounded-xl text-sm hover:bg-white/10 transition-colors">שלח הודעה נוספת</button>
+                        <h4 class="text-2xl md:text-3xl font-black text-emerald-400 mb-2">תודה רבה! הבקשה התקבלה</h4>
+                        <p class="text-gray-200 text-sm md:text-base leading-relaxed max-w-sm mb-6">
+                            פרטיך נקלטו בהצלחה. נציגנו יפתח עבורך את סביבת ההתנסות (TRIAL) וייצור איתך קשר בהקדם.
+                        </p>
+                        <div class="w-full bg-emerald-950/60 border border-emerald-500/30 p-3 rounded-xl text-xs text-emerald-200 mb-6 text-right">
+                            <i class="fas fa-shield-alt ml-1 text-emerald-400"></i>
+                            <strong>הסכם הרישיון אושר:</strong> המערכת פועלת כסביבת ענן עצמאית ומאובטחת.
+                        </div>
+                        <button onclick="resetForm()" class="px-6 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs md:text-sm font-bold text-white transition-all">
+                            <i class="fas fa-redo-alt ml-2 text-xs"></i>שליחת פנייה נוספת
+                        </button>
                     </div>
                 </div>
             </div>
@@ -155,7 +193,7 @@
     <section id="features" class="py-20 relative">
         <div class="container mx-auto px-6">
             <div class="text-center mb-16">
-                <h2 class="text-4xl font-bold mb-4">למה לבחור ב-HCL?</h2>
+                <h2 class="text-4xl font-bold mb-4 text-white">למה לבחור ב-HCL?</h2>
                 <div class="w-24 h-1 bg-gradient-to-r from-indigo-500 to-pink-500 mx-auto rounded-full"></div>
             </div>
             
@@ -165,8 +203,8 @@
                     <div class="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center text-indigo-400 text-2xl mb-6">
                         <i class="fas fa-qrcode"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-3">דיווח מהיר ב-QR</h3>
-                    <p class="text-gray-400 leading-relaxed">
+                    <h3 class="text-xl font-bold mb-3 text-white">דיווח מהיר ב-QR</h3>
+                    <p class="text-gray-400 leading-relaxed text-sm">
                         האורחים או הצוות יכולים לסרוק קוד QR ולדווח על תקלה ב-5 שניות ללא צורך בהורדת אפליקציה.
                     </p>
                 </div>
@@ -176,8 +214,8 @@
                     <div class="w-16 h-16 bg-purple-500/20 rounded-2xl flex items-center justify-center text-purple-400 text-2xl mb-6">
                         <i class="fas fa-mobile-alt"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-3">אפליקציית עובדים ומפקחים</h3>
-                    <p class="text-gray-400 leading-relaxed">
+                    <h3 class="text-xl font-bold mb-3 text-white">אפליקציית עובדים ומפקחים</h3>
+                    <p class="text-gray-400 leading-relaxed text-sm">
                         צוות השטח מקבל משימות ישירות לנייד, מעדכן סטטוס בזמן אמת ומוסיף תמונות של התיקון.
                     </p>
                 </div>
@@ -187,8 +225,8 @@
                     <div class="w-16 h-16 bg-pink-500/20 rounded-2xl flex items-center justify-center text-pink-400 text-2xl mb-6">
                         <i class="fas fa-chart-pie"></i>
                     </div>
-                    <h3 class="text-xl font-bold mb-3">דשבורד מנהלים חכם</h3>
-                    <p class="text-gray-400 leading-relaxed">
+                    <h3 class="text-xl font-bold mb-3 text-white">דשבורד מנהלים חכם</h3>
+                    <p class="text-gray-400 leading-relaxed text-sm">
                         שליטה מלאה, דוחות, זמני תגובה, ניהול צוותים וקטגוריות מהמחשב או הטאבלט במשרד.
                     </p>
                 </div>
@@ -196,18 +234,27 @@
         </div>
     </section>
 
+    <!-- Footer -->
     <footer class="glass-card border-t border-white/10 py-8 text-center mt-20">
         <div class="text-gray-400 text-sm">
             &copy; 2026 HCL System. כל הזכויות שמורות.
         </div>
-        <div class="mt-4 flex justify-center gap-4 text-gray-500">
-            <a href="/superadmin.html" class="hover:text-indigo-400 transition-colors text-xs"><i class="fas fa-lock ml-1"></i>ניהול מערכת</a>
+        <div class="mt-4 flex justify-center items-center gap-6 text-gray-400 text-xs">
+            <button type="button" onclick="openTermsModal()" class="hover:text-indigo-300 transition-colors underline font-bold"><i class="fas fa-file-contract ml-1"></i>תנאי שימוש והסכם רישיון</button>
+            <span>•</span>
+            <a href="/superadmin.html" class="hover:text-indigo-400 transition-colors"><i class="fas fa-lock ml-1"></i>ניהול מערכת</a>
         </div>
     </footer>
 
     <script>
         async function submitLead(e) {
             e.preventDefault();
+            const termsCheck = document.getElementById('termsAgree');
+            if(termsCheck && !termsCheck.checked) {
+                alert('יש לאשר את תנאי השימוש והסכם הרישיון כדי להמשיך');
+                return;
+            }
+
             const btn = document.getElementById('submitBtn');
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> שולח...';
@@ -229,23 +276,23 @@
                 });
                 
                 if (res.ok) {
-                    document.getElementById('leadForm').classList.add('hidden');
+                    document.getElementById('formSection').classList.add('hidden');
                     document.getElementById('successMsg').classList.remove('hidden');
                     document.getElementById('successMsg').classList.add('flex');
                 } else {
-                    alert('אירעה שגיאה. נסה שוב.');
+                    alert('אירעה שגיאה בשליחת הבקשה. אנא נסו שוב.');
                 }
             } catch (err) {
-                alert('שגיאת תקשורת.');
+                alert('שגיאת תקשורת עם השרת.');
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
             }
-
-            btn.innerHTML = originalText;
-            btn.disabled = false;
         }
 
         function resetForm() {
             document.getElementById('leadForm').reset();
-            document.getElementById('leadForm').classList.remove('hidden');
+            document.getElementById('formSection').classList.remove('hidden');
             document.getElementById('successMsg').classList.add('hidden');
             document.getElementById('successMsg').classList.remove('flex');
         }
@@ -268,33 +315,33 @@
         }
 
         function togglePasswordVisibility() {
-            const pwdInput = document.getElementById('loginPwd');
-            const eyeIcon = document.getElementById('eyeIcon');
-            if (pwdInput.type === 'password') {
-                pwdInput.type = 'text';
-                eyeIcon.classList.remove('fa-eye');
-                eyeIcon.classList.add('fa-eye-slash');
+            const pwd = document.getElementById('loginPwd');
+            const icon = document.getElementById('eyeIcon');
+            if (pwd.type === 'password') {
+                pwd.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
             } else {
-                pwdInput.type = 'password';
-                eyeIcon.classList.remove('fa-eye-slash');
-                eyeIcon.classList.add('fa-eye');
+                pwd.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
             }
         }
 
         async function submitLogin() {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPwd').value;
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPwd').value.trim();
             const btn = document.getElementById('loginBtn');
             const errorDiv = document.getElementById('loginError');
 
-            if(!email || !password) {
+            if (!email || !password) {
                 errorDiv.innerText = 'נא להזין אימייל וסיסמה';
                 errorDiv.classList.remove('hidden');
                 return;
             }
 
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> מתחבר...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin ml-2"></i>מתחבר...';
             errorDiv.classList.add('hidden');
 
             try {
@@ -303,18 +350,22 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
-
                 const data = await res.json();
-                
+
                 if (res.ok && data.success) {
-                    // Save token and role
-                    localStorage.setItem('hcl_token', data.token);
-                    localStorage.setItem('hcl_role', data.role);
-                    
-                    if (data.role === 'SUPERADMIN') {
+                    if (data.token) {
+                        localStorage.setItem('hcl_token', data.token);
+                    }
+                    if (data.role) {
+                        localStorage.setItem('hcl_role', data.role);
+                    }
+                    if (data.tenantId && data.tenantId !== 'all') {
+                        localStorage.setItem('hcl_tenantId', data.tenantId);
+                    }
+
+                    if (data.role === 'SUPERADMIN' || email === 'superadmin') {
                         window.location.href = '/superadmin.html';
                     } else {
-                        localStorage.setItem('hcl_tenantId', data.tenantId);
                         window.location.href = '/admin-react';
                     }
                 } else {
@@ -324,7 +375,7 @@
                     btn.innerHTML = 'התחבר';
                 }
             } catch (err) {
-                errorDiv.innerText = 'שגיאת תקשורת, נסה שוב.';
+                errorDiv.innerText = 'שגיאת תקשורת עם השרת';
                 errorDiv.classList.remove('hidden');
                 btn.disabled = false;
                 btn.innerHTML = 'התחבר';
