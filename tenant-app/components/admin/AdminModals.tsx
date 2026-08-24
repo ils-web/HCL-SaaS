@@ -219,21 +219,178 @@ export function AdminModals({
                 <Button variant="outline" className="flex-1 font-bold border-orange-500 text-orange-600" onClick={() => {
                   const deptToUse = qrDept === 'custom' ? qrCustomDept : qrDept;
                   printHtmlInIframe(`
-                    <html dir="rtl"><head><title>Print QR</title>
-                    <style>
-                      body { text-align:center; padding:50px; font-family:sans-serif; }
-                      h2 { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
-                      .dept-badge { display:inline-block; padding:8px 16px; background:#4f46e5; color:white; border-radius:20px; font-size:18px; font-weight:bold; }
-                      .qr-container { display:inline-block; padding:15px; border:2px dashed #ccc; border-radius:15px; margin-top:20px; }
-                    </style></head>
+                    <!DOCTYPE html>
+                    <html dir="rtl">
+                    <head>
+                      <meta charset="utf-8">
+                      <title>Report QR - ${tenantName}</title>
+                      <style>
+                        @page {
+                          size: A4 portrait;
+                          margin: 15mm;
+                        }
+                        * { box-sizing: border-box; }
+                        body {
+                          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                          text-align: center;
+                          background: #f8fafc;
+                          color: #0f172a;
+                          margin: 0;
+                          padding: 30px 15px;
+                          display: flex;
+                          flex-direction: column;
+                          align-items: center;
+                          justify-content: center;
+                          min-height: 100vh;
+                        }
+                        .print-card {
+                          background: white;
+                          border: 4px solid #4f46e5;
+                          border-radius: 28px;
+                          display: inline-block;
+                          padding: 36px 44px;
+                          max-width: 520px;
+                          width: 100%;
+                          box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+                          position: relative;
+                        }
+                        .org-title {
+                          font-size: 28px;
+                          font-weight: 900;
+                          color: #3730a3;
+                          margin: 0 0 6px 0;
+                          line-height: 1.2;
+                        }
+                        .card-title {
+                          font-size: 19px;
+                          font-weight: 700;
+                          color: #475569;
+                          margin: 0 0 16px 0;
+                        }
+                        .dept-badge {
+                          display: inline-block;
+                          background: #eef2ff;
+                          color: #4338ca;
+                          border: 2px dashed #818cf8;
+                          padding: 8px 24px;
+                          border-radius: 9999px;
+                          font-size: 22px;
+                          font-weight: 800;
+                          margin-bottom: 22px;
+                        }
+                        .qr-frame {
+                          background: #ffffff;
+                          border: 3px solid #e2e8f0;
+                          border-radius: 22px;
+                          padding: 16px;
+                          display: inline-block;
+                          margin-bottom: 22px;
+                          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+                        }
+                        .qr-frame img {
+                          display: block;
+                          width: 260px;
+                          height: 260px;
+                          border-radius: 12px;
+                        }
+                        .instructions-box {
+                          background: #f8fafc;
+                          border: 2px solid #e2e8f0;
+                          border-radius: 18px;
+                          padding: 14px 18px;
+                          display: flex;
+                          flex-direction: column;
+                          gap: 8px;
+                          text-align: center;
+                        }
+                        .lang-row {
+                          display: flex;
+                          align-items: center;
+                          justify-content: center;
+                          gap: 8px;
+                          font-weight: 800;
+                        }
+                        .lang-he { font-size: 18px; color: #1e1b4b; }
+                        .lang-ru { font-size: 15px; color: #334155; font-family: 'Segoe UI', Arial, sans-serif; }
+                        .lang-ar { font-size: 17px; color: #065f46; font-family: 'Segoe UI', Tahoma, sans-serif; }
+                        .lang-icon { font-size: 16px; }
+                        .footer-note {
+                          margin-top: 16px;
+                          font-size: 12px;
+                          color: #94a3b8;
+                          font-weight: 600;
+                        }
+                        .no-print {
+                          margin-top: 24px;
+                        }
+                        .print-btn {
+                          padding: 12px 36px;
+                          font-size: 16px;
+                          font-weight: 800;
+                          cursor: pointer;
+                          background: #4f46e5;
+                          color: white;
+                          border: none;
+                          border-radius: 12px;
+                          box-shadow: 0 4px 15px rgba(79, 70, 229, 0.35);
+                          transition: all 0.2s;
+                        }
+                        .print-btn:hover {
+                          background: #4338ca;
+                          transform: translateY(-1px);
+                        }
+                        @media print {
+                          body {
+                            background: white;
+                            padding: 0;
+                            min-height: auto;
+                          }
+                          .print-card {
+                            box-shadow: none;
+                            border: 4px solid #4338ca;
+                            page-break-inside: avoid;
+                            margin: 0 auto;
+                          }
+                          .no-print {
+                            display: none !important;
+                          }
+                        }
+                      </style>
+                    </head>
                     <body>
-                          <h2>דיווח תקלות - ${tenantName}</h2>
-                          <div class="dept-badge">מחלקה: ${deptToUse || 'כללי'}</div><br>
-                          <div class="qr-container">
-                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(workerQrGeneratedUrl)}" />
+                      <div class="print-card">
+                        <div class="org-title">${tenantName}</div>
+                        <div class="card-title">דיווח תקלות וליקויים</div>
+                        
+                        <div class="dept-badge">מחלקה: ${deptToUse || 'כללי'}</div><br>
+                        
+                        <div class="qr-frame">
+                          <img src="https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(workerQrGeneratedUrl)}" alt="QR Code" />
+                        </div>
+
+                        <div class="instructions-box">
+                          <div class="lang-row lang-he">
+                            <span class="lang-icon">📲</span>
+                            <span>סרוק כדי לדווח על תקלה</span>
                           </div>
-                      <br><br><button onclick="window.print(); window.close();" style="padding:15px 30px; font-size:18px; cursor:pointer; background:#2563eb; color:white; border:none; border-radius:8px;">הדפס</button>
-                    </body></html>
+                          <div class="lang-row lang-ru">
+                            <span class="lang-icon">📲</span>
+                            <span>Отсканируйте, чтобы сообщить о неполадке</span>
+                          </div>
+                          <div class="lang-row lang-ar">
+                            <span class="lang-icon">📲</span>
+                            <span>امسح الرمز للإبلاغ عن عطل</span>
+                          </div>
+                        </div>
+
+                        <div class="footer-note">HCL Maintenance &amp; Facilities Management</div>
+                      </div>
+
+                      <div class="no-print">
+                        <button class="print-btn" onclick="window.print(); window.close();">🖨️ הדפס כעת (Print)</button>
+                      </div>
+                    </body>
+                    </html>
                   `);
                 }}>הדפס</Button>
               </div>
@@ -298,24 +455,55 @@ export function AdminModals({
                 <Button variant="outline" className="flex-1 font-bold border-blue-600 text-blue-600" onClick={() => window.open(qrGeneratedUrl, "_blank")}>פתח קישור</Button>
                 <Button variant="outline" className="flex-1 font-bold border-orange-500 text-orange-600" onClick={() => {
                   printHtmlInIframe(`
-                    <html dir="rtl"><head><title>Print QR</title>
-                    <style>
-                      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
-                      .card { border: 4px solid #059669; border-radius: 20px; display: inline-block; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-                      h1 { font-size: 36px; margin-bottom: 10px; color: #059669; font-weight: 900; }
-                      p { font-size: 24px; color: #4b5563; font-weight: bold; margin-bottom: 30px; }
-                      .qr-container { padding: 20px; border: 3px solid #e5e7eb; border-radius: 16px; display: inline-block; background: #fff; }
-                    </style>
+                    <!DOCTYPE html>
+                    <html dir="rtl">
+                    <head>
+                      <meta charset="utf-8">
+                      <title>Inspector QR - ${tenantName}</title>
+                      <style>
+                        @page { size: A4 portrait; margin: 15mm; }
+                        * { box-sizing: border-box; }
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background: #f8fafc; color: #0f172a; margin: 0; padding: 30px 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+                        .print-card { background: white; border: 4px solid #059669; border-radius: 28px; display: inline-block; padding: 36px 44px; max-width: 520px; width: 100%; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08); position: relative; }
+                        .org-title { font-size: 28px; font-weight: 900; color: #065f46; margin: 0 0 6px 0; line-height: 1.2; }
+                        .card-title { font-size: 20px; font-weight: 700; color: #475569; margin: 0 0 20px 0; }
+                        .badge { display: inline-block; background: #ecfdf5; color: #059669; border: 2px dashed #6ee7b7; padding: 8px 24px; border-radius: 9999px; font-size: 22px; font-weight: 800; margin-bottom: 22px; }
+                        .qr-frame { background: #ffffff; border: 3px solid #e2e8f0; border-radius: 22px; padding: 16px; display: inline-block; margin-bottom: 22px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03); }
+                        .qr-frame img { display: block; width: 260px; height: 260px; border-radius: 12px; }
+                        .instructions-box { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 18px; padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; text-align: center; }
+                        .lang-row { display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; font-size: 17px; color: #065f46; }
+                        .footer-note { margin-top: 16px; font-size: 12px; color: #94a3b8; font-weight: 600; }
+                        .no-print { margin-top: 24px; }
+                        .print-btn { padding: 12px 36px; font-size: 16px; font-weight: 800; cursor: pointer; background: #059669; color: white; border: none; border-radius: 12px; box-shadow: 0 4px 15px rgba(5, 150, 105, 0.35); transition: all 0.2s; }
+                        .print-btn:hover { background: #047857; transform: translateY(-1px); }
+                        @media print {
+                          body { background: white; padding: 0; min-height: auto; }
+                          .print-card { box-shadow: none; border: 4px solid #059669; page-break-inside: avoid; margin: 0 auto; }
+                          .no-print { display: none !important; }
+                        }
+                      </style>
                     </head>
                     <body>
-                      <div class="card">
-                          <h1>אפליקציית מפקח</h1>
-                          <p>סרוק כדי להתחבר לממשק המפקח (כללי לארגון)</p>
-                          <div class="qr-container">
-                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrGeneratedUrl)}" />
+                      <div class="print-card">
+                        <div class="org-title">${tenantName}</div>
+                        <div class="card-title">אפליקציית מפקח</div>
+                        <div class="badge">בדיקת מערכות וחדרים</div><br>
+                        <div class="qr-frame">
+                          <img src="https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(qrGeneratedUrl)}" alt="Inspector QR Code" />
+                        </div>
+                        <div class="instructions-box">
+                          <div class="lang-row">
+                            <span>📲</span>
+                            <span>סרוק כדי להתחבר לממשק הבדיקה של הארגון</span>
                           </div>
+                        </div>
+                        <div class="footer-note">HCL Maintenance &amp; Facilities Management</div>
                       </div>
-                    </body></html>
+                      <div class="no-print">
+                        <button class="print-btn" onclick="window.print(); window.close();">🖨️ הדפס כעת (Print)</button>
+                      </div>
+                    </body>
+                    </html>
                   `);
                 }}>הדפס</Button>
               </div>

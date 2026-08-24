@@ -35,13 +35,13 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm transition-opacity" onClick={onClose}>
       <div
         className={cn(
-          "relative w-full max-w-lg rounded-xl bg-white p-6 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200",
+          "relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl bg-white p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden",
           className
         )}
         onClick={(e) => e.stopPropagation()} // Prevent click inside from closing
         dir="rtl"
       >
-        <div className="mb-4 flex items-center justify-between border-b pb-3">
+        <div className="mb-4 flex items-center justify-between border-b pb-3 shrink-0">
           <h2 className="text-xl font-bold text-gray-800">{title}</h2>
           <button
             onClick={onClose}
@@ -52,7 +52,9 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
             </svg>
           </button>
         </div>
-        {children}
+        <div className="overflow-y-auto custom-scrollbar flex-1 -mr-1 pr-1">
+          {children}
+        </div>
       </div>
     </div>
   )
