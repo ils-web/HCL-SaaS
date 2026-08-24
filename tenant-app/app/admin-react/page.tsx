@@ -20,6 +20,7 @@ import { AdminTaskTable } from "@/components/admin/AdminTaskTable"
 import { AdminModals } from "@/components/admin/AdminModals"
 import { AdminPrintLayouts } from "@/components/admin/AdminPrintLayouts"
 import { SubscriptionModal } from "@/components/admin/SubscriptionModal"
+import { SubscriptionWidget } from "@/components/ui/SubscriptionWidget"
 
 export default function AdminReactPage() {
 
@@ -59,11 +60,6 @@ export default function AdminReactPage() {
       {/* Top Header */}
       <AdminHeader
         tenantName={tenantName}
-        tenantStatus={tenantStatus}
-        subscriptionEndsAt={subscriptionEndsAt}
-        plan={plan}
-        price={price}
-        onOpenSubscriptionModal={() => setSubscriptionModalOpen(true)}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         loading={loading}
@@ -104,6 +100,14 @@ export default function AdminReactPage() {
           />
           
           <WeatherWidget />
+
+          <SubscriptionWidget
+            tenantStatus={tenantStatus}
+            subscriptionEndsAt={subscriptionEndsAt}
+            plan={plan}
+            price={price}
+            onOpenSubscriptionModal={() => setSubscriptionModalOpen(true)}
+          />
         </div>
 
         {/* Content */}

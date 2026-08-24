@@ -280,11 +280,12 @@
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-1">סטטוס</label>
-                        <select id="tStatus" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                        <select id="tStatus" onchange="handleStatusChange(this.value)" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="FREE">👑 חינם מלא (FREE - ללא הגבלה)</option>
                             <option value="ACTIVE">פעיל (ACTIVE)</option>
+                            <option value="TRIAL">תקופת ניסיון (TRIAL)</option>
                             <option value="UNPAID">לא שולם (UNPAID)</option>
                             <option value="BLOCKED">חסום (BLOCKED)</option>
-                            <option value="TRIAL">תקופת ניסיון (TRIAL)</option>
                         </select>
                     </div>
                 </div>
@@ -595,7 +596,7 @@
                     <tr class="hover:bg-gray-50 transition-colors">
                         <td class="p-4 font-bold text-gray-900">${t.name}</td>
                         <td class="p-4 text-xs text-gray-500 font-mono">${t.id.substring(0,8)}...</td>
-                        <td class="p-4"><span class="px-2.5 py-1 rounded-md font-bold text-xs ${statusColor}">${t.status}</span></td>
+                        <td class="p-4"><span class="px-2.5 py-1 rounded-md font-bold text-xs ${statusColor}">${statusLabel}</span></td>
                         <td class="p-4 font-bold text-indigo-700 text-xs">${t.plan || 'BASIC'} (${t.price || 0}₪)</td>
                         <td class="p-4">${expiryBadge}</td>
                         <td class="p-4 font-bold text-gray-600">${t.maxInspectors || 1}</td>
@@ -799,6 +800,15 @@
         }
 
         // Tenant Modal functions
+        
+        function handleStatusChange(val) {
+            if(val === 'FREE') {
+                document.getElementById('tPrice').value = '0';
+                document.getElementById('tInspectors').value = '999';
+                if(document.getElementById('tPlan')) document.getElementById('tPlan').value = 'FREE';
+            }
+        }
+
         function openTenantModal() {
             document.getElementById('tId').value = "";
             document.getElementById('tName').value = "";

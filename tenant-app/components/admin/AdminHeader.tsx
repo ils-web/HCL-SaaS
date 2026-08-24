@@ -6,11 +6,6 @@ import { Input } from "@/components/ui/Input"
 
 interface AdminHeaderProps {
   tenantName: string
-  tenantStatus?: string
-  subscriptionEndsAt?: string | null
-  plan?: string
-  price?: number
-  onOpenSubscriptionModal?: () => void
   searchQuery: string
   setSearchQuery: (val: string) => void
   loading: boolean
@@ -25,11 +20,6 @@ interface AdminHeaderProps {
 
 export function AdminHeader({
   tenantName,
-  tenantStatus,
-  subscriptionEndsAt,
-  plan,
-  price,
-  onOpenSubscriptionModal,
   searchQuery,
   setSearchQuery,
   loading,
@@ -41,94 +31,13 @@ export function AdminHeader({
   setConfigModalOpen,
   setIntegrationsModalOpen,
 }: AdminHeaderProps) {
-  const subscriptionInfo = React.useMemo(() => {
-    // If no subscriptionEndsAt date is provided, default to 30 days from now
-    const targetDate = subscriptionEndsAt ? new Date(subscriptionEndsAt) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    const now = new Date();
-    const diffDays = Math.ceil((targetDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    const dateFormatted = targetDate.toLocaleDateString('he-IL');
-
-    if (tenantStatus === 'TRIAL') {
-      const trialDays = Math.max(0, diffDays > 0 ? diffDays : 0);
-      return {
-        icon: <i className="fas fa-sparkles text-purple-600 text-sm animate-pulse"></i>,
-        text: `גרסת ניסיון (TRIAL) • נותרו עוד ${trialDays} ימים (${dateFormatted})`,
-        btnText: "שדרג לגרסה מלאה",
-        btnIcon: <i className="fas fa-crown text-amber-300"></i>,
-        badgeClass: "bg-purple-50 border-purple-300 text-purple-900",
-        btnClass: "bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-sm"
-      };
-    }
-
-    if (tenantStatus === 'UNPAID' || tenantStatus === 'BLOCKED') {
-      return {
-        icon: <i className="fas fa-exclamation-triangle text-red-500 text-sm"></i>,
-        text: "מנוי לא שולם / חסום",
-        btnText: "שלם וחדש מנוי",
-        btnIcon: <i className="fas fa-credit-card"></i>,
-        badgeClass: "bg-red-50 border-red-300 text-red-900",
-        btnClass: "bg-red-600 hover:bg-red-700 text-white shadow-sm"
-      };
-    }
-
-    if (diffDays <= 0) {
-      return {
-        icon: <i className="fas fa-times-circle text-red-500 text-sm"></i>,
-        text: `המנוי פג תוקף (${dateFormatted})`,
-        btnText: "חדש מנוי עכשיו",
-        btnIcon: <i className="fas fa-sync-alt"></i>,
-        badgeClass: "bg-red-50 border-red-300 text-red-900",
-        btnClass: "bg-red-600 hover:bg-red-700 text-white shadow-sm"
-      };
-    }
-
-    if (diffDays > 30) {
-      const months = Math.floor(diffDays / 30);
-      const remDays = diffDays % 30;
-      return {
-        icon: <i className="fas fa-calendar-check text-emerald-600 text-sm"></i>,
-        text: `תוקף מנוי: עוד ${months} חודש${months > 1 ? 'ים' : ''} ו-${remDays} ימים (${dateFormatted})`,
-        btnText: "הארך מנוי",
-        btnIcon: <i className="fas fa-sync-alt text-xs"></i>,
-        badgeClass: "bg-emerald-50 border-emerald-300 text-emerald-950",
-        btnClass: "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-      };
-    }
-
-    return {
-      icon: <i className="fas fa-clock text-amber-600 text-sm"></i>,
-      text: `תוקף מנוי: נותרו עוד ${diffDays} ימים (${dateFormatted})`,
-      btnText: "הארך מנוי",
-      btnIcon: <i className="fas fa-sync-alt text-xs"></i>,
-      badgeClass: "bg-amber-50 border-amber-300 text-amber-950",
-      btnClass: "bg-amber-600 hover:bg-amber-700 text-white shadow-sm"
-    };
-  }, [tenantStatus, subscriptionEndsAt, plan]);
-
   return (
     <header className="flex flex-col xl:flex-row justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 gap-4">
-      <div className="flex flex-col sm:flex-row items-center gap-3 w-full xl:w-auto">
-        <h1 className="text-xl sm:text-2xl font-black text-blue-700 bg-blue-50/50 px-4 py-2 rounded-xl border border-blue-100 shadow-sm flex items-center gap-3 whitespace-nowrap">
+      <div className="flex flex-col sm:flex-row items-center gap-4">
+        <h1 className="text-xl sm:text-2xl font-black text-blue-700 bg-blue-50/50 px-4 py-2 rounded-xl border border-blue-100 shadow-sm flex items-center gap-3">
           <i className="fas fa-building text-blue-500 opacity-80"></i>
           {tenantName}
         </h1>
-
-        {/* Subscription Banner Badge */}
-        <div className={`flex items-center justify-between sm:justify-start gap-3 border px-3.5 py-1.5 rounded-xl shadow-xs ${subscriptionInfo.badgeClass}`}>
-          <div className="flex items-center gap-2 text-xs sm:text-sm font-bold">
-            {subscriptionInfo.icon}
-            <span>{subscriptionInfo.text}</span>
-          </div>
-          {onOpenSubscriptionModal && (
-            <button
-              onClick={onOpenSubscriptionModal}
-              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shrink-0 ${subscriptionInfo.btnClass}`}
-            >
-              {subscriptionInfo.btnIcon}
-              <span>{subscriptionInfo.btnText}</span>
-            </button>
-          )}
-        </div>
       </div>
       <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap justify-center xl:justify-end">
         <Button variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50 font-bold px-4 h-10" onClick={() => setWorkerQrModalOpen(true)}>

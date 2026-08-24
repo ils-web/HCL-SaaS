@@ -38,6 +38,23 @@ async function isAuthenticated(req: Request) {
 
 export const DEFAULT_PLANS = [
   {
+    id: "plan_free",
+    code: "FREE",
+    name: "חינם מלא (Free VIP)",
+    priceMonth: 0,
+    priceYear: 0,
+    description: "גרסה מלאה ללא עלות וללא הגבלת זמן",
+    maxInspectors: 999,
+    maxTeams: 999,
+    features: [
+      "כל הפיצ'רים פתוחים ללא הגבלה",
+      "ללא הגבלת מפקחים וצוותים",
+      "ללא הגבלת זמן תוקף",
+      "הפקת דוחות ואינטגרציות מלאות"
+    ],
+    isPopular: false
+  },
+  {
     id: "plan_basic",
     code: "BASIC",
     name: "בסיסי (Basic)",
