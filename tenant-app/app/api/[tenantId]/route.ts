@@ -514,9 +514,16 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       }
     }
 
-    for (const tName of teams) {
+    const baseTime = Date.now();
+    for (let i = 0; i < teams.length; i++) {
+      const tName = teams[i];
       const ext = await prisma.team.findFirst({ where: { tenantId, name: tName } });
-      if(!ext) await prisma.team.create({ data: { tenantId, name: tName } });
+      const sequentialTime = new Date(baseTime + i * 1000);
+      if (!ext) {
+        await prisma.team.create({ data: { tenantId, name: tName, createdAt: sequentialTime } });
+      } else {
+        await prisma.team.update({ where: { id: ext.id }, data: { createdAt: sequentialTime } });
+      }
     }
     return NextResponse.json({ status: 'success' });
   }

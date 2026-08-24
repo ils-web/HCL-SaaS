@@ -671,19 +671,56 @@ export function AdminModals({
 
       {/* Teams Management Modal */}
       <Modal isOpen={teamsModalOpen} onClose={() => setTeamsModalOpen(false)} title="ניהול צוותים">
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar p-1">
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar p-1" dir="rtl">
+          <p className="text-xs text-gray-500 mb-2">באפשרותך לשנות את סדר הצוותים (והלשוניות) באמצעות החצים למעלה/למטה:</p>
           {teams.length === 0 ? (
             <div className="text-center text-gray-400 p-4">אין צוותים מוגדרים</div>
           ) : (
             teams.map((t, idx) => (
               <div key={idx} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-200 gap-2">
-                <span className="font-bold text-gray-800">{t.name}</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-1">
+                    <button
+                      type="button"
+                      disabled={idx === 0}
+                      className={`w-7 h-7 flex items-center justify-center rounded bg-white border border-gray-200 shadow-xs transition-colors ${idx === 0 ? "opacity-30 cursor-not-allowed text-gray-300" : "hover:bg-blue-50 text-blue-600 hover:border-blue-300"}`}
+                      onClick={() => {
+                        if (idx > 0) {
+                          const newT = [...teams];
+                          const [item] = newT.splice(idx, 1);
+                          newT.splice(idx - 1, 0, item);
+                          setTeams(newT);
+                        }
+                      }}
+                      title="הזז למעלה"
+                    >
+                      <i className="fas fa-chevron-up text-xs"></i>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={idx === teams.length - 1}
+                      className={`w-7 h-7 flex items-center justify-center rounded bg-white border border-gray-200 shadow-xs transition-colors ${idx === teams.length - 1 ? "opacity-30 cursor-not-allowed text-gray-300" : "hover:bg-blue-50 text-blue-600 hover:border-blue-300"}`}
+                      onClick={() => {
+                        if (idx < teams.length - 1) {
+                          const newT = [...teams];
+                          const [item] = newT.splice(idx, 1);
+                          newT.splice(idx + 1, 0, item);
+                          setTeams(newT);
+                        }
+                      }}
+                      title="הזז למטה"
+                    >
+                      <i className="fas fa-chevron-down text-xs"></i>
+                    </button>
+                  </div>
+                  <span className="font-bold text-gray-800 text-sm mr-2">{t.name}</span>
+                </div>
                 {t.name !== 'QR' && t.name !== 'כללי' && (
                   <Button variant="danger" className="p-2 h-auto" onClick={() => {
                     const newT = [...teams];
                     newT.splice(idx, 1);
                     setTeams(newT);
-                  }}><i className="fas fa-trash-alt"></i></Button>
+                  }} title="מחק צוות"><i className="fas fa-trash-alt"></i></Button>
                 )}
               </div>
             ))
