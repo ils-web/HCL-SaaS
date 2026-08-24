@@ -66,7 +66,19 @@ export function AdminHeader({
           </svg>
           רענן נתונים
         </Button>
-        <Button variant="danger" className="h-10" onClick={() => { localStorage.clear(); window.location.href = '/' }}>
+        <Button 
+          variant="danger" 
+          className="h-10" 
+          onClick={async () => {
+            try {
+              await fetch('/api/auth', { method: 'DELETE' });
+            } catch(e) {}
+            localStorage.clear();
+            sessionStorage.clear();
+            document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0";
+            window.location.replace('/index.html');
+          }}
+        >
           התנתק
         </Button>
       </div>

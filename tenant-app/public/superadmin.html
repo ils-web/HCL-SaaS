@@ -569,12 +569,28 @@
             tbody.innerHTML = '';
             tenants.forEach(t => {
                 let statusColor = "bg-green-100 text-green-700";
-                if(t.status === "BLOCKED") statusColor = "bg-red-100 text-red-700";
-                if(t.status === "UNPAID") statusColor = "bg-orange-100 text-orange-700";
-                if(t.status === "TRIAL") statusColor = "bg-purple-100 text-purple-700";
+                let statusLabel = t.status || 'ACTIVE';
+                
+                if(t.status === "FREE") {
+                    statusColor = "bg-amber-100 text-amber-900 border border-amber-300";
+                    statusLabel = "👑 FREE";
+                } else if(t.status === "BLOCKED") {
+                    statusColor = "bg-red-100 text-red-700";
+                    statusLabel = "חסום (BLOCKED)";
+                } else if(t.status === "UNPAID") {
+                    statusColor = "bg-orange-100 text-orange-700";
+                    statusLabel = "לא שולם (UNPAID)";
+                } else if(t.status === "TRIAL") {
+                    statusColor = "bg-purple-100 text-purple-700";
+                    statusLabel = "ניסיון (TRIAL)";
+                } else if(t.status === "ACTIVE") {
+                    statusLabel = "פעיל (ACTIVE)";
+                }
 
                 let expiryBadge = '<span class="text-gray-400 text-xs">לא הוגדר</span>';
-                if(t.subscriptionEndsAt) {
+                if(t.status === "FREE") {
+                    expiryBadge = '<span class="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md font-black text-xs">👑 ללא הגבלת זמן</span>';
+                } else if(t.subscriptionEndsAt) {
                     const end = new Date(t.subscriptionEndsAt);
                     const now = new Date();
                     const diffDays = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
@@ -592,16 +608,18 @@
                     expiryBadge = '<span class="bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-md font-bold text-xs">גרסת ניסיון (TRIAL)</span>';
                 }
 
+                const createdDate = t.createdAt ? new Date(t.createdAt).toLocaleDateString('he-IL') : '-';
+
                 tbody.innerHTML += `
                     <tr class="hover:bg-gray-50 transition-colors">
                         <td class="p-4 font-bold text-gray-900">${t.name}</td>
-                        <td class="p-4 text-xs text-gray-500 font-mono">${t.id.substring(0,8)}...</td>
+                        <td class="p-4 text-xs text-gray-500 font-mono">${(t.id || '').substring(0,8)}...</td>
                         <td class="p-4"><span class="px-2.5 py-1 rounded-md font-bold text-xs ${statusColor}">${statusLabel}</span></td>
                         <td class="p-4 font-bold text-indigo-700 text-xs">${t.plan || 'BASIC'} (${t.price || 0}₪)</td>
                         <td class="p-4">${expiryBadge}</td>
                         <td class="p-4 font-bold text-gray-600">${t.maxInspectors || 1}</td>
                         <td class="p-4 text-gray-600 font-medium">${t._count ? t._count.tasks : 0} משימות</td>
-                        <td class="p-4 text-gray-500">${new Date(t.createdAt).toLocaleDateString('he-IL')}</td>
+                        <td class="p-4 text-gray-500">${createdDate}</td>
                         <td class="p-4 text-center space-x-2 space-x-reverse">
                             <button onclick="editTenant('${t.id}')" class="text-blue-600 hover:text-blue-800 p-2" title="עריכה והארכת מנוי"><i class="fas fa-edit"></i></button>
                             <button onclick="openResetPwdModal('${t.id}')" class="text-yellow-500 hover:text-yellow-600 p-2" title="איפוס סיסמה"><i class="fas fa-key"></i></button>
