@@ -672,20 +672,12 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   if (action === 'MOVE_TASK') {
     const { taskId, teamName } = body;
     const dbTask = await prisma.task.findFirst({ where: { tenantId, id: taskId } });
-    if (dbTask) {
-      let teamId = null;
-      if (teamName !== 'QR' && teamName !== 'כללי') {
-         let team = await prisma.team.findFirst({ where: { tenantId, name: teamName } });
-         if (!team) team = await prisma.team.create({ data: { tenantId, name: teamName } });
-         teamId = team.id;
-      } else if (teamName === 'QR') {
-         let team = await prisma.team.findFirst({ where: { tenantId, name: 'QR' } });
-         if (!team) team = await prisma.team.create({ data: { tenantId, name: 'QR' } });
-         teamId = team.id;
-      }
+    if (dbTask && teamName) {
+      let team = await prisma.team.findFirst({ where: { tenantId, name: teamName } });
+      if (!team) team = await prisma.team.create({ data: { tenantId, name: teamName } });
       await prisma.task.update({
         where: { id: taskId },
-        data: { teamId }
+        data: { teamId: team.id }
       });
     }
     const teamsDb = await prisma.team.findMany({ where: { tenantId }, orderBy: { createdAt: 'asc' } });

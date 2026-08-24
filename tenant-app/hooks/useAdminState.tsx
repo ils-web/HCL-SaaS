@@ -323,7 +323,7 @@ export function useAdminState() {
        const ids = bodyData.tasks ? bodyData.tasks.map((t:any)=>t.id) : [id];
        setTasks(tasks.map((t:any) => ids.includes(t.id) ? { ...t, status: "פתוח" } : t));
     } else if (actionType === "MOVE_TASK") {
-       setTasks(tasks.map((t:any) => t.id === id ? { ...t, worker: bodyData.teamName } : t));
+       setTasks(tasks.map((t:any) => t.id === id ? { ...t, sheet: bodyData.teamName, team: bodyData.teamName } : t));
     } else if (actionType === "EDIT_DEFECT") {
        setTasks(tasks.map((t:any) => t.id === id ? { ...t, defect: bodyData.newDefect } : t));
     }
@@ -404,13 +404,31 @@ export function useAdminState() {
   }
 
   const handlePrintSelected = () => {
-    if (selectedTasks.size === 0) return toast("לא נבחרו משימות", "error")
+    let effectiveSelection = selectedTasks;
+    if (effectiveSelection.size === 0) {
+      const openFiltered = filtered.filter(t => t.status === "פתוח");
+      if (openFiltered.length > 0) {
+        effectiveSelection = new Set(openFiltered.map(t => t.id));
+        setSelectedTasks(effectiveSelection);
+      } else {
+        return toast("לא נבחרו משימות פתוחות להדפסה", "error");
+      }
+    }
     setPrintMode("print")
     setPrintModalOpen(true)
   }
   
   const handleSendToApp = () => {
-    if (selectedTasks.size === 0) return toast("לא נבחרו משימות", "error")
+    let effectiveSelection = selectedTasks;
+    if (effectiveSelection.size === 0) {
+      const openFiltered = filtered.filter(t => t.status === "פתוח");
+      if (openFiltered.length > 0) {
+        effectiveSelection = new Set(openFiltered.map(t => t.id));
+        setSelectedTasks(effectiveSelection);
+      } else {
+        return toast("לא נבחרו משימות פתוחות לשליחה", "error");
+      }
+    }
     setPrintMode("app")
     setPrintModalOpen(true)
   }
@@ -418,7 +436,16 @@ export function useAdminState() {
   const executeOutputSequence = async (eOrSkip?: React.MouseEvent | boolean) => {
     const skipConfirmation = typeof eOrSkip === "boolean" ? eOrSkip : false;
     if (!tenantId || isOutputProcessing) return
-    const allSelectedList = tasks.filter(t => selectedTasks.has(t.id))
+    
+    let allSelectedList = tasks.filter(t => selectedTasks.has(t.id))
+    
+    // Strict Brigade and Department Isolation:
+    if (currentTab !== "ALL") {
+      allSelectedList = allSelectedList.filter(t => t.sheet === currentTab)
+    }
+    if (filterDept !== "ALL") {
+      allSelectedList = allSelectedList.filter(t => t.dept === filterDept || (t as any).department === filterDept)
+    }
     
     // Only 'פתוח' (NEW) tasks should be marked in-progress or assigned to worker app.
     const validToUpdate = allSelectedList.filter(t => t.status === "פתוח")
@@ -431,7 +458,7 @@ export function useAdminState() {
     }
 
     if (validToUpdate.length === 0) {
-      toast("אין משימות חדשות להפקה", "error")
+      toast("אין משימות חדשות להפקה בצוות/מחלקה זו", "error")
       setPrintModalOpen(false)
       return
     }

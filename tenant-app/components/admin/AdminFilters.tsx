@@ -59,11 +59,11 @@ export function AdminFilters({
             <i className="fas fa-chart-bar ml-2"></i>דוחות
           </Button>
           <div className="flex bg-orange-500 rounded-lg shadow overflow-hidden h-10">
-            <button className="px-5 py-2 text-white font-bold hover:bg-orange-600 flex items-center transition-colors h-full" onClick={() => { setPrintMode("print"); setPrintModalOpen(true); }}>
+            <button className="px-5 py-2 text-white font-bold hover:bg-orange-600 flex items-center transition-colors h-full" onClick={handlePrintSelected}>
               <i className="fas fa-print ml-2"></i>הדפס
             </button>
           </div>
-          <Button className="bg-purple-600 hover:bg-purple-700 text-white font-bold h-10" onClick={() => { setPrintMode("app"); setPrintModalOpen(true); }}>
+          <Button className="bg-purple-600 hover:bg-purple-700 text-white font-bold h-10" onClick={handleSendToApp}>
             <i className="fas fa-mobile-alt ml-2"></i>WorkerApp
           </Button>
           <Button className="bg-green-600 hover:bg-green-700 text-white font-bold h-10" onClick={handleManagerReportPrint}>
