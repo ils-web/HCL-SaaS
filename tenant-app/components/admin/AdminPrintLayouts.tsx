@@ -56,26 +56,26 @@ export function AdminPrintLayouts({
               [data-sonner-toaster], .Toastify, #toast-container, div[role="status"], div[role="region"][aria-label="Notifications"] { display: none !important; }
               @page { margin: 0; size: A4 portrait; }
               body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-              .print-page { width: 210mm; height: 296mm; margin: 0 auto; padding: 10mm; box-sizing: border-box; display: flex; flex-direction: column; background: white; overflow: hidden; page-break-after: always; break-after: page; }
+              .print-page { width: 210mm; height: 296mm; margin: 0 auto; padding: 8mm 10mm; box-sizing: border-box; display: flex; flex-direction: column; background: white; overflow: hidden; page-break-after: always; break-after: page; }
               .print-page:last-child { page-break-after: auto; break-after: auto; }
-              .print-page-header { font-size: 19px; font-weight: bold; text-align: center; border-bottom: 3px solid #000; padding-bottom: 5px; margin-bottom: 8px; height: 40px; display: flex; flex-direction: column; justify-content: center; color: black; }
-              .print-page-header-sub { font-size: 13px; font-weight: normal; color: #555; margin-top: 2px; }
-              .print-cards-grid { display: flex; flex-wrap: wrap; justify-content: space-between; align-content: flex-start; flex-grow: 1; height: calc(100% - 50px); }
-              .print-card { width: 49%; height: 48%; margin-bottom: 2%; border: 2px solid #000; border-radius: 10px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; page-break-inside: avoid; break-inside: avoid; overflow: hidden; background: white; color: black; }
-              .print-card-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ccc; padding-bottom: 4px; margin-bottom: 8px; color: black; }
+              .print-page-header { font-size: 19px; font-weight: bold; text-align: center; border-bottom: 3px solid #000; padding-bottom: 4px; margin-bottom: 6px; height: 38px; display: flex; flex-direction: column; justify-content: center; color: black; }
+              .print-page-header-sub { font-size: 12px; font-weight: normal; color: #555; margin-top: 1px; }
+              .print-cards-grid { display: flex; flex-wrap: wrap; justify-content: space-between; align-content: flex-start; flex-grow: 1; height: calc(100% - 44px); }
+              .print-card { width: 49%; height: 48.5%; margin-bottom: 1.5%; border: 2px solid #000; border-radius: 10px; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; page-break-inside: avoid; break-inside: avoid; overflow: hidden; background: white; color: black; }
+              .print-card-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #ccc; padding-bottom: 4px; margin-bottom: 6px; color: black; }
               .print-card-body { display: flex; gap: 10px; flex-grow: 1; align-items: stretch; overflow: hidden; }
-              .print-photo { width: 62%; height: 100%; max-height: 100%; object-fit: cover; object-position: center; border: 2px solid #cbd5e1; border-radius: 8px; }
-              .print-info { width: 38%; display: flex; flex-direction: column; color: black; overflow: hidden; padding: 0 4px; }
-              .defect-title { font-size: 18px; font-weight: 900; margin-bottom: 6px; line-height: 1.2; word-break: break-word; overflow-wrap: break-word; hyphens: auto; }
-              .defect-comment { font-size: 14px; color: #374151; line-height: 1.2; }
-              .signature-box { border-top: 2px dashed #000; margin-top: 8px; padding-top: 6px; display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; color: black;}
+              .print-photo { width: 68%; height: 100%; max-height: 100%; object-fit: cover; object-position: center; border: 1.5px solid #cbd5e1; border-radius: 8px; }
+              .print-info { width: 32%; display: flex; flex-direction: column; color: black; overflow: hidden; padding: 0 4px; }
+              .defect-title { font-size: 17px; font-weight: 900; margin-bottom: 4px; line-height: 1.2; word-break: break-word; overflow-wrap: break-word; hyphens: auto; }
+              .defect-comment { font-size: 13.5px; color: #1f2937; line-height: 1.25; word-break: break-word; }
+              .signature-box { border-top: 2px dashed #000; margin-top: 6px; padding-top: 5px; display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; color: black;}
             }
           `}} />
           
           {printCardsData.map((page: any, pIdx: number) => (
             <div key={pIdx} className="print-page">
               <div className="print-page-header">
-                <div>סיור: {page.tabName} | מחלקה: {page.tasks[0]?.department || page.tasks[0]?.dept || ''} | תאריך: {page.tasks[0]?.dateStr?.split(' ')[0]}</div>
+                <div>צוות: {page.tabName} | מחלקה: {page.tasks[0]?.department || page.tasks[0]?.dept || ''} | תאריך: {page.tasks[0]?.dateStr?.split(' ')[0]}</div>
                 <div className="print-page-header-sub">הודפס בתאריך: {page.printedTime}</div>
               </div>
               
