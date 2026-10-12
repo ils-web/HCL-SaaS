@@ -153,28 +153,46 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
     });
 
     const tasks = tasksDb.map(t => {
-      const isQr = t.customDefectName?.includes('דיווח מהמחלקה') || t.customDefectName?.includes('תקלה חדשה') || t.inspectorName?.includes('צוות');
+      const isQr = Boolean(
+        t.team?.name === 'QR' ||
+        t.department?.name === 'QR' ||
+        t.inspectorName?.includes('(QR)') ||
+        t.inspectorName?.includes('צוות') ||
+        t.customDefectName?.includes('דיווח') ||
+        t.customDefectName?.includes('תקלה חדשה') ||
+        t.room?.includes(' / ')
+      );
+
+      let resolvedDept = t.department?.name || 'כללי';
+      let resolvedRoom = t.room;
+      if (resolvedDept === 'QR' && t.room && t.room.includes(' / ')) {
+        const parts = t.room.split(' / ');
+        resolvedDept = parts[0];
+        resolvedRoom = parts.slice(1).join(' / ') || parts[0];
+      }
+
       return {
-      id: t.id,
-      sheet: t.team?.name || (isQr ? 'QR' : 'כללי'),
-      dept: t.department?.name || 'כללי',
-      department: t.department?.name || 'כללי',
-      room: t.room,
-      system: t.system?.name || t.customDefectName || 'אחר',
-      defect: t.system?.name || t.customDefectName || 'אחר',
-      action: t.actionType === 'REPAIR' ? 'Ремонт' : (t.actionType === 'REPLACE' ? 'Замена' : ''),
-      inspector: t.inspectorName || 'מנהל',
-      notes: t.notes || '',
-      comment: t.notes || '',
-      photo: t.photoUrl || '',
-      afterPhoto: t.afterPhotoUrl || '',
-      isSentToApp: t.isSentToApp || false,
-      status: t.status === 'COMPLETED' ? 'הושלם' : (t.status === 'IN_PROGRESS' ? 'בעבודה' : (t.status === 'CLOSED' ? 'סגור' : 'פתוח')),
-      worker: t.worker?.name || '',
-      team: t.team?.name || '',
-      timestamp: t.createdAt.getTime(),
-      dateStr: `${String(t.createdAt.getDate()).padStart(2, '0')}/${String(t.createdAt.getMonth() + 1).padStart(2, '0')}/${t.createdAt.getFullYear()} ${String(t.createdAt.getHours()).padStart(2, '0')}:${String(t.createdAt.getMinutes()).padStart(2, '0')}`,
-    };
+        id: t.id,
+        isQr,
+        sheet: t.team?.name || (isQr ? 'QR' : 'כללי'),
+        dept: resolvedDept,
+        department: resolvedDept,
+        room: resolvedRoom,
+        system: t.system?.name || t.customDefectName || 'אחר',
+        defect: t.system?.name || t.customDefectName || 'אחר',
+        action: t.actionType === 'REPAIR' ? 'Ремонт' : (t.actionType === 'REPLACE' ? 'Замена' : ''),
+        inspector: t.inspectorName || 'מנהל',
+        notes: t.notes || '',
+        comment: t.notes || '',
+        photo: t.photoUrl || '',
+        afterPhoto: t.afterPhotoUrl || '',
+        isSentToApp: t.isSentToApp || false,
+        status: t.status === 'COMPLETED' ? 'הושלם' : (t.status === 'IN_PROGRESS' ? 'בעבודה' : (t.status === 'CLOSED' ? 'סגור' : 'פתוח')),
+        worker: t.worker?.name || '',
+        team: t.team?.name || '',
+        timestamp: t.createdAt.getTime(),
+        dateStr: `${String(t.createdAt.getDate()).padStart(2, '0')}/${String(t.createdAt.getMonth() + 1).padStart(2, '0')}/${t.createdAt.getFullYear()} ${String(t.createdAt.getHours()).padStart(2, '0')}:${String(t.createdAt.getMinutes()).padStart(2, '0')}`,
+      };
     });
 
     const filteredTasks = tasks.filter(t => !t.defect.includes('הכל תקין'));
@@ -259,12 +277,31 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
     });
     
     const tasks = tasksDb.map(t => {
-      const isQr = t.customDefectName?.includes('דיווח מהמחלקה') || t.customDefectName?.includes('תקלה חדשה') || t.inspectorName?.includes('צוות');
+      const isQr = Boolean(
+        t.team?.name === 'QR' ||
+        t.department?.name === 'QR' ||
+        t.inspectorName?.includes('(QR)') ||
+        t.inspectorName?.includes('צוות') ||
+        t.customDefectName?.includes('דיווח') ||
+        t.customDefectName?.includes('תקלה חדשה') ||
+        t.room?.includes(' / ')
+      );
+
+      let resolvedDept = t.department?.name || 'כללי';
+      let resolvedRoom = t.room;
+      if (resolvedDept === 'QR' && t.room && t.room.includes(' / ')) {
+        const parts = t.room.split(' / ');
+        resolvedDept = parts[0];
+        resolvedRoom = parts.slice(1).join(' / ') || parts[0];
+      }
+
       return {
         id: t.id,
+        isQr,
         sheet: t.team?.name || (isQr ? 'QR' : 'כללי'),
-        dept: t.department?.name || 'כללי',
-        room: t.room,
+        dept: resolvedDept,
+        department: resolvedDept,
+        room: resolvedRoom,
         system: t.system?.name || t.customDefectName || 'אחר',
         defect: t.system?.name || t.customDefectName || 'אחר',
         inspector: t.inspectorName || 'מנהל',
@@ -431,16 +468,13 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       }
     }
 
-    let dept = await prisma.department.findFirst({ where: { tenantId, name: "QR" } });
-    if (!dept) dept = await prisma.department.create({ data: { tenantId, name: "QR" } });
+    const realDeptName = (department && department !== "Unknown" && department !== "לא ידוע") ? department : "כללי";
+    let dept = await prisma.department.findFirst({ where: { tenantId, name: realDeptName } });
+    if (!dept) dept = await prisma.department.create({ data: { tenantId, name: realDeptName } });
     
-    const originalDept = department || "כללי";
-    const newRoomString = `${originalDept} / ${room || ""}`.replace(/ \/ $/, "");
-
-    let finalTeamId = null;
     let qrTeam = await prisma.team.findFirst({ where: { tenantId, name: 'QR' } });
     if (!qrTeam) qrTeam = await prisma.team.create({ data: { tenantId, name: 'QR' } });
-    finalTeamId = qrTeam.id;
+    const finalTeamId = qrTeam.id;
 
     let sysName = defect || sheetName || 'אחר';
     let sys = await prisma.system.findFirst({ where: { tenantId, name: sysName } });
@@ -453,12 +487,12 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         departmentId: dept.id,
         systemId: sys ? sys.id : null,
         customDefectName: sys ? null : sysName,
-        room: newRoomString,
+        room: String(room || "כללי"),
         actionType: 'REPAIR', 
         status: 'NEW',
         notes: translatedComment,
         photoUrl: finalPhotoUrl || null,
-        inspectorName: reporterName ? `צוות: ${reporterName}` : 'צוות: לא הוגדר שם',
+        inspectorName: reporterName ? `צוות (QR): ${reporterName}` : 'צוות (QR): דיווח מהשטח',
         teamId: finalTeamId
       }
     });

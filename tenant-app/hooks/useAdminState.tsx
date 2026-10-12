@@ -12,9 +12,24 @@ const fetcher = (url: string) => fetch(url).then(res => res.json())
 export function useAdminState() {
   const router = useRouter()
   const [tenantId, setTenantId] = React.useState<string | null>(null)
-  const { data: tasksData, mutate: mutateTasks, isLoading: tasksLoading } = useSWR(tenantId ? `/api/${tenantId}?action=getOpenTasks` : null, fetcher, { refreshInterval: 30000 })
+  const { data: tasksData, mutate: mutateTasks, isLoading: tasksLoading } = useSWR(tenantId ? `/api/${tenantId}?action=getOpenTasks` : null, fetcher, { refreshInterval: 5000 })
   
   const tasks: Task[] = tasksData?.tasks || []
+
+  // Notify on new QR tasks
+  const prevTasksCountRef = React.useRef<number>(0)
+  React.useEffect(() => {
+    if (tasks.length > 0) {
+      if (prevTasksCountRef.current > 0 && tasks.length > prevTasksCountRef.current) {
+        const newQr = tasks.find(t => t.isQr && (t.status === "פתוח" || t.status === "NEW"));
+        if (newQr) {
+          toast(`🚨 התקבלה קריאת QR חדשה מהשטח! (${newQr.defect} - ${newQr.room})`, "info");
+        }
+      }
+      prevTasksCountRef.current = tasks.length;
+    }
+  }, [tasks])
+
   const setTasks = (newTasks: Task[] | ((prev: Task[]) => Task[])) => {
     if (typeof newTasks === 'function') {
       mutateTasks((currentData: any) => ({ ...currentData, tasks: newTasks(currentData?.tasks || []) }), false);
@@ -293,12 +308,26 @@ export function useAdminState() {
     )
   }
 
-  // Sort: QR tasks first
+  // Sort: QR tasks ALWAYS at the top!
   filtered.sort((a, b) => {
-    const aIsQr = (a.defect.includes("דיווח") || a.defect.includes("תקלה חדשה") || a.inspector.includes("צוות")) ? 1 : 0
-    const bIsQr = (b.defect.includes("דיווח") || b.defect.includes("תקלה חדשה") || b.inspector.includes("צוות")) ? 1 : 0
-    return bIsQr - aIsQr
-  })
+    const aIsQr = (a.isQr || a.sheet === "QR" || a.dept === "QR" || a.defect.includes("דיווח") || a.defect.includes("תקלה חדשה") || a.inspector.includes("(QR)") || a.inspector.includes("צוות")) ? 1 : 0;
+    const bIsQr = (b.isQr || b.sheet === "QR" || b.dept === "QR" || b.defect.includes("דיווח") || b.defect.includes("תקלה חדשה") || b.inspector.includes("(QR)") || b.inspector.includes("צוות")) ? 1 : 0;
+    
+    // 1. QR tasks ALWAYS first
+    if (bIsQr !== aIsQr) {
+      return bIsQr - aIsQr;
+    }
+    
+    // 2. Uncompleted before completed
+    const aDone = (a.status === "הושלם" || a.status === "סגור") ? 1 : 0;
+    const bDone = (b.status === "הושלם" || b.status === "סגור") ? 1 : 0;
+    if (aDone !== bDone) {
+      return aDone - bDone;
+    }
+    
+    // 3. Newest first (descending timestamp)
+    return (b.timestamp || 0) - (a.timestamp || 0);
+  });
 
   // Handlers
   const handleToggleCheck = (id: string) => {

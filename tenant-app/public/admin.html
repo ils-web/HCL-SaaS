@@ -1505,9 +1505,13 @@
 
             // Sort QR tasks to the top
             filtered.sort((a, b) => {
-                const aIsQr = (a.defect.includes("דיווח מהמחלקה") || a.defect.includes("תקלה חדשה") || a.inspector.includes("צוות")) ? 1 : 0;
-                const bIsQr = (b.defect.includes("דיווח מהמחלקה") || b.defect.includes("תקלה חדשה") || b.inspector.includes("צוות")) ? 1 : 0;
-                return bIsQr - aIsQr;
+                const aIsQr = (a.isQr || a.sheet === 'QR' || a.dept === 'QR' || a.defect.includes("דיווח") || a.defect.includes("תקלה חדשה") || a.inspector.includes("(QR)") || a.inspector.includes("צוות")) ? 1 : 0;
+                const bIsQr = (b.isQr || b.sheet === 'QR' || b.dept === 'QR' || b.defect.includes("דיווח") || b.defect.includes("תקלה חדשה") || b.inspector.includes("(QR)") || b.inspector.includes("צוות")) ? 1 : 0;
+                if (bIsQr !== aIsQr) return bIsQr - aIsQr;
+                const aDone = (a.status === 'הושלם' || a.status === 'סגור') ? 1 : 0;
+                const bDone = (b.status === 'הושלם' || b.status === 'סגור') ? 1 : 0;
+                if (aDone !== bDone) return aDone - bDone;
+                return (b.timestamp || 0) - (a.timestamp || 0);
             });
 
             
@@ -1530,27 +1534,31 @@
                     else if(diffHours >= 24) ageClass = 'border-orange-400 bg-orange-50 ring-1 ring-orange-200';
                     else if(diffHours >= 12) ageClass = 'border-yellow-400 bg-yellow-50';
                 } const cleanSheetName = escapeStr(task.sheet).replace(/_/g, ' ');
-                const isQr = (task.defect.includes("דיווח מהמחלקה") || task.defect.includes("תקלה חדשה") || task.inspector.includes("צוות"));
+                const isQr = Boolean(task.isQr || task.sheet === 'QR' || task.dept === 'QR' || task.defect.includes("דיווח") || task.defect.includes("תקלה חדשה") || task.inspector.includes("(QR)") || task.inspector.includes("צוות"));
                 let reporterName = '';
                 if (isQr) {
-                    if (task.inspector.startsWith("צוות: ")) {
+                    if (task.inspector.startsWith("צוות (QR): ")) {
+                        reporterName = task.inspector.replace("צוות (QR): ", "");
+                    } else if (task.inspector.startsWith("צוות: ")) {
                         reporterName = task.inspector.replace("צוות: ", "");
                     } else if (task.inspector.startsWith("צוות")) {
                         reporterName = "דיווח עובד";
+                    } else {
+                        reporterName = task.inspector;
                     }
                 }
                 const realIdx = allTasks.indexOf(task);
 
                 
                 if (viewMode === 'table') {
-                    tableHTML += `<tr id="task-card-${realIdx}" class="hover:bg-gray-50 transition-colors ${isCompleted ? 'bg-green-50/50' : (isPrinted ? 'bg-orange-50/30' : (ageClass ? ageClass.split(' ')[1] : ''))}">
+                    tableHTML += `<tr id="task-card-${realIdx}" class="hover:bg-gray-50 transition-colors ${isCompleted ? 'bg-green-50/50' : (isPrinted ? 'bg-orange-50/30' : (isQr ? 'bg-purple-50/80 border-r-4 border-r-purple-600 font-medium' : (ageClass ? ageClass.split(' ')[1] : '')))}">
                         <td class="p-3"><input type="checkbox" checked class="task-checkbox w-5 h-5 rounded border-gray-300 text-indigo-600 cursor-pointer" data-index="${realIdx}" onclick="handleCheckboxClick(event, ${realIdx})"></td>
                         <td class="p-3 text-xs text-gray-500 whitespace-nowrap">${task.dateStr}</td>
                         <td class="p-3 font-bold">${task.dept}</td>
                         <td class="p-3 font-bold text-indigo-700">${task.room}</td>
-                        <td class="p-3 font-bold">${task.defect} ${isQr ? '<span class="text-pink-600 ml-1" title="QR"><i class="fas fa-qrcode"></i></span>' : ''} ${task.isSentToApp ? '<span class="text-blue-500 ml-1" title="נשלח ל-WorkerApp"><i class="fas fa-mobile-alt"></i></span>' : ''}</td>
+                        <td class="p-3 font-bold">${isQr ? '<span class="inline-flex items-center gap-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[11px] font-black px-2 py-0.5 rounded-md shadow-sm ml-1 animate-pulse"><i class="fas fa-qrcode text-[10px]"></i> QR</span>' : ''}${task.defect} ${task.isSentToApp ? '<span class="text-blue-500 ml-1" title="נשלח ל-WorkerApp"><i class="fas fa-mobile-alt"></i></span>' : ''}</td>
                         <td class="p-3 text-gray-500 max-w-[200px] truncate" title="${task.comment || ''}">${task.comment || ''}</td>
-                        <td class="p-3">${isCompleted ? `<span class="text-green-700 font-bold text-xs bg-green-200 px-2 py-1 rounded"><i class="fas fa-check-double"></i> ממתין לאישור</span>` : (isPrinted ? `<span class="text-orange-700 font-bold text-xs bg-orange-100 px-2 py-1 rounded"><i class="fas fa-hammer"></i></span>` : `<span class="text-green-700 font-bold text-xs bg-green-100 px-2 py-1 rounded">פתוח</span>`)}</td>
+                        <td class="p-3">${isCompleted ? `<span class="text-green-700 font-bold text-xs bg-green-200 px-2 py-1 rounded"><i class="fas fa-check-double"></i> ממתין לאישור</span>` : (isPrinted ? `<span class="text-orange-700 font-bold text-xs bg-orange-100 px-2 py-1 rounded"><i class="fas fa-hammer"></i></span>` : (isQr ? `<span class="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-bold">קריאת QR</span>` : `<span class="text-green-700 font-bold text-xs bg-green-100 px-2 py-1 rounded">פתוח</span>`))}</td>
                         <td class="p-3 font-bold text-xs text-orange-900">${task.worker || ''}</td>
                         <td class="p-3 text-center">
                             <button id="btn-${realIdx}" onclick="closeSingleTask(${realIdx})" class="bg-green-50 text-green-600 border border-green-500 px-3 py-1 rounded-lg font-bold text-xs hover:bg-green-100"><i class="fas fa-check"></i> אישור</button>
@@ -1559,7 +1567,7 @@
                 } else {
                     screen.innerHTML += `
 
-                <div class="bg-white p-5 rounded-2xl shadow-sm border flex flex-col md:flex-row gap-5 mb-4 relative ${isCompleted ? 'border-green-400 bg-green-50 ring-2 ring-green-200' : (isPrinted ? 'border-orange-300 bg-orange-50/50' : (isQr ? 'border-pink-400 bg-pink-50 ring-2 ring-pink-200' : ageClass))}" id="task-card-${realIdx}">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border flex flex-col md:flex-row gap-5 mb-4 relative ${isCompleted ? 'border-green-400 bg-green-50 ring-2 ring-green-200' : (isPrinted ? 'border-orange-300 bg-orange-50/50' : (isQr ? 'border-2 border-purple-500 bg-gradient-to-r from-purple-50/90 via-white to-pink-50/70 shadow-lg ring-2 ring-purple-300' : ageClass))}" id="task-card-${realIdx}">
                     <div class="absolute top-4 left-4 md:static md:flex md:items-center">
                         <input type="checkbox" checked class="task-checkbox w-7 h-7 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shadow-sm" data-index="${realIdx}" onclick="handleCheckboxClick(event, ${realIdx})">
                     </div>
@@ -1580,10 +1588,13 @@
                         </div>` : ''}
                     </div>
                     <div class="flex-grow pr-10 md:pr-0">
-                        <div class="inline-block bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-black mb-2 border border-blue-200 shadow-sm">
-                            <i class="fas fa-users ml-1"></i> צוות משויך: ${cleanSheetName}
+                        <div class="flex flex-wrap gap-2 mb-2 items-center">
+                            ${isQr ? `<div class="inline-flex items-center gap-1.5 bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-black shadow-md ring-1 ring-purple-300"><i class="fas fa-qrcode"></i> קריאת QR מהשטח${reporterName && reporterName !== 'לא ידוע' && reporterName !== 'דיווח מהשטח' ? ` | מדווח: ${reporterName}` : ''}</div>` : ''}
+                            <div class="inline-block bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-black border border-blue-200 shadow-sm">
+                                <i class="fas fa-users ml-1"></i> צוות משויך: ${cleanSheetName}
+                            </div>
+                            ${task.isSentToApp ? `<div class="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-xs font-black border border-blue-200 shadow-sm"><i class="fas fa-mobile-alt ml-1"></i> WorkerApp</div>` : ''}
                         </div>
-                        ${isQr ? `<div class="inline-block bg-pink-100 text-pink-700 px-3 py-1 rounded-lg text-xs font-black mb-2 border border-pink-200 shadow-sm mr-2"><i class="fas fa-qrcode ml-1"></i> QR${reporterName && reporterName !== 'לא ידוע' ? ` | ${reporterName}` : ''}</div>` : ''}
                         ${task.isSentToApp ? `<div class="inline-block bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-xs font-black mb-2 border border-blue-200 shadow-sm mr-2"><i class="fas fa-mobile-alt ml-1"></i> WorkerApp</div>` : ''}
                         <div class="flex items-center gap-3">
                             <h3 class="text-xl font-bold">${task.dept} | חדר: ${task.room} <span class="text-sm font-normal px-2 bg-gray-100 rounded">${actT}</span></h3>

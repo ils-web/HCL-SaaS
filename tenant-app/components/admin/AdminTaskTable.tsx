@@ -62,16 +62,18 @@ export function AdminTaskTable({
         {activeTabs.map(tab => {
           const tabOpenCount = tasks.filter(t => t.sheet === tab && t.status !== "סגור").length;
           const hasNewTasks = tasks.some(t => t.sheet === tab && t.status === "פתוח");
+          const isQrTab = tab === "QR";
           return (
           <button
             key={tab}
             onClick={() => setCurrentTab(tab)}
             className={`relative px-6 py-3 rounded-xl font-black text-sm whitespace-nowrap transition-all shadow-sm ${
               currentTab === tab 
-                ? "bg-blue-600 text-white shadow-md transform -translate-y-0.5" 
-                : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
+                ? (isQrTab ? "bg-purple-600 text-white shadow-md transform -translate-y-0.5" : "bg-blue-600 text-white shadow-md transform -translate-y-0.5")
+                : (isQrTab ? "bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-300 font-black" : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200")
             }`}
           >
+            {isQrTab && <i className="fas fa-qrcode ml-1.5"></i>}
             {tab.replace(/_/g, " ")} ({tabOpenCount})
             {hasNewTasks && (
               <span className="absolute top-1 right-1 flex h-3 w-3 -mt-1 -mr-1">
@@ -113,8 +115,18 @@ export function AdminTaskTable({
               {filtered.map(task => {
                 const isCompleted = task.status === "הושלם"
                 const isPrinted = task.status === "בעבודה" || task.status === "מודפס"
-                const rowClass = isCompleted ? "bg-green-50/50" : (isPrinted ? "bg-orange-50/30" : "")
-                const isQr = task.defect.includes("דיווח מהמחלקה") || task.defect.includes("תקלה חדשה") || task.inspector.includes("צוות")
+                const isQr = Boolean(
+                  task.isQr ||
+                  task.sheet === 'QR' ||
+                  task.dept === 'QR' ||
+                  task.defect?.includes("דיווח") ||
+                  task.defect?.includes("תקלה חדשה") ||
+                  task.inspector?.includes("(QR)") ||
+                  task.inspector?.includes("צוות")
+                )
+                const rowClass = isCompleted 
+                  ? "bg-green-50/50" 
+                  : (isPrinted ? "bg-orange-50/30" : (isQr ? "bg-purple-50/80 border-r-4 border-r-purple-600 font-medium" : ""))
 
                 return (
                   <tr key={task.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${rowClass}`}>
@@ -130,8 +142,12 @@ export function AdminTaskTable({
                     <td className="p-3 font-bold text-sm">{task.dept}</td>
                     <td className="p-3 font-bold text-indigo-700 text-sm">{task.room}</td>
                     <td className="p-3 font-bold text-sm text-gray-900">
+                      {isQr && (
+                        <span className="inline-flex items-center gap-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white text-[11px] font-black px-2 py-0.5 rounded-md shadow-sm ml-2 animate-pulse">
+                          <i className="fas fa-qrcode text-[10px]"></i> QR
+                        </span>
+                      )}
                       {task.defect}
-                      {isQr && <span className="text-pink-600 ml-1" title="QR"><i className="fas fa-qrcode"></i></span>}
                     </td>
                     <td className="p-3 text-gray-500 text-sm max-w-[200px] truncate" title={task.comment || ''}>{task.comment || ''}</td>
                     <td className="p-3">

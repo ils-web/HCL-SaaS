@@ -6,6 +6,7 @@ import { Checkbox } from "./Checkbox"
 
 export interface Task {
   id: string
+  isQr?: boolean
   sheet: string
   dept: string
   room: string
@@ -20,6 +21,7 @@ export interface Task {
   dateStr: string
   printedTime: string | null
   isSentToApp: boolean
+  timestamp?: number
 }
 
 interface TaskCardProps {
@@ -53,13 +55,25 @@ export function TaskCard({
   const isCompleted = task.status === "הושלם"
   const isClosed = task.status === "סגור"
   
-  const isQr = task.defect.includes("דיווח מהמחלקה") || task.defect.includes("תקלה חדשה") || task.inspector.includes("צוות")
+  const isQr = Boolean(
+    task.isQr ||
+    task.sheet === 'QR' ||
+    task.dept === 'QR' ||
+    task.defect?.includes("דיווח") ||
+    task.defect?.includes("תקלה חדשה") ||
+    task.inspector?.includes("(QR)") ||
+    task.inspector?.includes("צוות")
+  );
   let reporterName = ""
   if (isQr) {
-    if (task.inspector.startsWith("צוות: ")) {
+    if (task.inspector.startsWith("צוות (QR): ")) {
+      reporterName = task.inspector.replace("צוות (QR): ", "")
+    } else if (task.inspector.startsWith("צוות: ")) {
       reporterName = task.inspector.replace("צוות: ", "")
     } else if (task.inspector.startsWith("צוות")) {
       reporterName = "דיווח עובד"
+    } else {
+      reporterName = task.inspector
     }
   }
 
@@ -109,7 +123,7 @@ export function TaskCard({
         {
           "border-green-400 bg-green-50 ring-2 ring-green-200": isCompleted,
           "border-orange-300 bg-orange-50/50": isPrinted && !isCompleted,
-          "border-pink-400 bg-pink-50 ring-2 ring-pink-200": isQr && !isPrinted && !isCompleted,
+          "border-2 border-purple-500 bg-gradient-to-r from-purple-50/90 via-white to-pink-50/70 shadow-lg ring-2 ring-purple-300": isQr && !isPrinted && !isCompleted,
         },
         (!isCompleted && !isPrinted && !isQr) ? ageClass : "",
         "hover:z-50",
@@ -161,15 +175,20 @@ export function TaskCard({
       </div>
 
       <div className="flex-grow pr-10 md:pr-0 min-w-0 overflow-hidden break-words">
-        <div className="flex flex-wrap gap-2 mb-2">
+        <div className="flex flex-wrap gap-2 mb-2 items-center">
+          {isQr && (
+            <div className="inline-flex items-center gap-1.5 bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 text-white px-3.5 py-1.5 rounded-xl text-xs font-black shadow-md ring-2 ring-purple-300/60">
+              <span className="w-2 h-2 rounded-full bg-yellow-300 animate-ping"></span>
+              <i className="fas fa-qrcode text-sm"></i>
+              <span>קריאת QR מהשטח</span>
+              {reporterName && reporterName !== "לא ידוע" && reporterName !== "לא הוגדר שם" && reporterName !== "דיווח מהשטח" ? (
+                <span className="bg-white/20 px-2 py-0.5 rounded-lg text-[11px] font-bold">מדווח: {reporterName}</span>
+              ) : null}
+            </div>
+          )}
           <div className="inline-flex items-center bg-blue-50 text-blue-700 px-3 py-1 rounded-lg text-xs font-black border border-blue-200 shadow-sm">
             צוות משויך: {cleanSheetName}
           </div>
-          {isQr && (
-            <div className="inline-flex items-center bg-pink-100 text-pink-700 px-3 py-1 rounded-lg text-xs font-black border border-pink-200 shadow-sm">
-              QR {reporterName && reporterName !== "לא ידוע" ? `| ${reporterName}` : ""}
-            </div>
-          )}
           {task.isSentToApp && (
             <div className="inline-flex items-center bg-indigo-100 text-indigo-700 px-3 py-1 rounded-lg text-xs font-black border border-indigo-200 shadow-sm">
               WorkerApp
