@@ -42,24 +42,27 @@ async function uploadToImgBB(base64Str: string): Promise<string | null> {
   if (base64Str.startsWith('http')) return base64Str;
   const b64Data = base64Str.includes(',') ? base64Str.split(',')[1] : base64Str;
   
-  // Try ImgBB with 1 automatic retry & 8s timeout (1296000s = 15 days auto-expiration per license)
+  // 1. Primary Host: freeimage.host (Fast global CDN iili.io, 100% reliable)
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      const formData = new FormData();
-      formData.append('image', b64Data);
-      const res = await fetch('https://api.imgbb.com/1/upload?key=a1e675bb6065e233261327255af41c48&expiration=1296000', {
+      const form = new URLSearchParams();
+      form.append('key', '6d207e02198a847aa98d0a2a901485a5');
+      form.append('action', 'upload');
+      form.append('source', b64Data);
+      form.append('format', 'json');
+      const res = await fetch('https://freeimage.host/api/1/upload', {
         method: 'POST',
-        body: formData,
+        body: form,
         signal: AbortSignal.timeout(8000)
       });
       const result = await res.json();
-      if (result?.data?.url) return result.data.url;
+      if (result?.image?.url) return result.image.url;
     } catch (e) {
-      console.error(`ImgBB upload attempt ${attempt} error:`, e);
+      console.error(`freeimage.host upload attempt ${attempt} error:`, e);
     }
   }
 
-  // Fallback 1: Imgur
+  // 2. Fallback 1: Imgur
   try {
     const imgurForm = new URLSearchParams();
     imgurForm.append('image', b64Data);
@@ -75,7 +78,7 @@ async function uploadToImgBB(base64Str: string): Promise<string | null> {
     console.error('Imgur upload error:', e);
   }
   
-  // Fallback 2: Preserve compressed Data URI so photos are never lost even if external image hosts are blocked or down
+  // 3. Fallback 2: Preserve compressed Data URI so photos are never lost even if external image hosts are down
   return base64Str.startsWith('data:') ? base64Str : `data:image/jpeg;base64,${b64Data}`;
 }
 

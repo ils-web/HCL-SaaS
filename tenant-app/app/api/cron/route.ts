@@ -6,8 +6,24 @@ import { prisma } from '@/lib/prisma';
 export async function GET(req: Request) {
   try {
     const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000);
     const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
     
+    // Auto-clear photos older than 15 days per license agreement
+    await prisma.task.updateMany({
+      where: {
+        createdAt: { lt: fifteenDaysAgo },
+        OR: [
+          { photoUrl: { not: null } },
+          { afterPhotoUrl: { not: null } }
+        ]
+      },
+      data: {
+        photoUrl: null,
+        afterPhotoUrl: null
+      }
+    });
+
     // Auto-clean tasks older than 180 days to prevent DB bloat
     const deletedOldTasks = await prisma.task.deleteMany({
       where: {

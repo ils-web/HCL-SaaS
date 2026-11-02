@@ -16,6 +16,7 @@ interface AdminHeaderProps {
   setTeamsModalOpen: (val: boolean) => void
   setConfigModalOpen: (val: boolean) => void
   setIntegrationsModalOpen: (val: boolean) => void
+  setCreateTaskModalOpen?: (val: boolean) => void
 }
 
 export function AdminHeader({
@@ -30,6 +31,7 @@ export function AdminHeader({
   setTeamsModalOpen,
   setConfigModalOpen,
   setIntegrationsModalOpen,
+  setCreateTaskModalOpen,
 }: AdminHeaderProps) {
   return (
     <header className="flex flex-col xl:flex-row justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-gray-200 mb-6 gap-4">
@@ -39,11 +41,19 @@ export function AdminHeader({
           {tenantName}
         </h1>
       </div>
-      <div className="flex items-center gap-3 w-full xl:w-auto flex-wrap justify-center xl:justify-end">
-        <Button variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50 font-bold px-4 h-10" onClick={() => setWorkerQrModalOpen(true)}>
+      <div className="flex items-center gap-2.5 w-full xl:w-auto flex-wrap justify-center xl:justify-end">
+        {setCreateTaskModalOpen && (
+          <Button
+            className="bg-emerald-600 hover:bg-emerald-700 text-white font-black px-4 h-10 shadow-sm whitespace-nowrap"
+            onClick={() => setCreateTaskModalOpen(true)}
+          >
+            <i className="fas fa-plus-circle ml-2"></i>הוסף משימה
+          </Button>
+        )}
+        <Button variant="outline" className="text-blue-600 border-blue-600 hover:bg-blue-50 font-bold px-3.5 h-10 whitespace-nowrap" onClick={() => setWorkerQrModalOpen(true)}>
           <i className="fas fa-qrcode ml-2"></i>Report QR
         </Button>
-        <Button variant="outline" className="text-purple-600 border-purple-600 hover:bg-purple-50 font-bold px-4 h-10" onClick={() => setQrModalOpen(true)}>
+        <Button variant="outline" className="text-purple-600 border-purple-600 hover:bg-purple-50 font-bold px-3.5 h-10 whitespace-nowrap" onClick={() => setQrModalOpen(true)}>
           <i className="fas fa-mobile-alt ml-2"></i>Inspektor QR
         </Button>
 

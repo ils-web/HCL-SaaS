@@ -73,6 +73,7 @@ export default function AdminReactPage() {
         setTeamsModalOpen={setTeamsModalOpen}
         setConfigModalOpen={setConfigModalOpen}
         setIntegrationsModalOpen={setIntegrationsModalOpen}
+        setCreateTaskModalOpen={setCreateTaskModalOpen}
       />
 
       {/* Main Content Area */}

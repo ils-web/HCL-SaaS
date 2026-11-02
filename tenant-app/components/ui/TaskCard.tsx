@@ -107,14 +107,32 @@ export function TaskCard({
 
   // Image helpers
   const getImgUrl = (url: string | null) => {
-    if (!url) return "https://placehold.co/100x100?text=No+Photo"
+    if (!url || url.includes("placehold")) return null
     if (url.startsWith("http") || url.startsWith("data:")) return url
     return `/uploads/${url}`
   }
 
-  const img = getImgUrl(task.photo)
-  const afterImg = task.afterPhoto ? getImgUrl(task.afterPhoto) : null
-  const hasRealPhoto = task.photo && !task.photo.includes("placehold")
+  // Check if task is older than 15 days (ImgBB auto-deletes after 15 days per license)
+  const isOver15Days = React.useMemo(() => {
+    if (task.timestamp) {
+      return (Date.now() - task.timestamp) > 15 * 24 * 60 * 60 * 1000
+    }
+    return false
+  }, [task.timestamp])
+
+  const rawImg = getImgUrl(task.photo)
+  const rawAfterImg = task.afterPhoto ? getImgUrl(task.afterPhoto) : null
+
+  const [imgBroken, setImgBroken] = React.useState(false)
+  const [afterImgBroken, setAfterImgBroken] = React.useState(false)
+
+  React.useEffect(() => {
+    setImgBroken(false)
+    setAfterImgBroken(false)
+  }, [task.photo, task.afterPhoto])
+
+  const showMainPhoto = Boolean(rawImg && !imgBroken && !(isOver15Days && rawImg.includes("ibb.co")))
+  const showAfterPhoto = Boolean(rawAfterImg && !afterImgBroken && !(isOver15Days && rawAfterImg.includes("ibb.co")))
 
   return (
     <div
@@ -140,35 +158,60 @@ export function TaskCard({
       </div>
 
       <div className="relative z-10 w-24 h-24 shrink-0">
-        <img
-          src={img}
-          className="w-full h-full object-cover rounded-xl border bg-white"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = "https://placehold.co/100x100?text=No+Photo"
-          }}
-          alt="Task Photo"
-        />
-        {hasRealPhoto && (
-          <div className="absolute -top-2 -right-2 group/img cursor-pointer">
-            <svg className="w-6 h-6 relative z-20 bg-white rounded-full p-1 text-gray-500 shadow border hover:text-indigo-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-            </svg>
-            <div className="hidden group-hover/img:block absolute top-full md:bottom-full md:top-auto -right-4 mb-2 z-[100] p-2 bg-white rounded-2xl shadow-2xl border w-[300px] h-[300px] origin-bottom-right">
-              <img src={img} className="w-full h-full object-contain rounded-xl" alt="Task Photo Zoom" />
+        {showMainPhoto && rawImg ? (
+          <>
+            <img
+              src={rawImg}
+              className="w-full h-full object-cover rounded-xl border bg-white"
+              onLoad={(e) => {
+                const el = e.currentTarget
+                // ImgBB returns a 180x180 placeholder image when an image is deleted/expired
+                if (rawImg.includes("ibb.co") && el.naturalWidth === 180 && el.naturalHeight === 180) {
+                  setImgBroken(true)
+                }
+              }}
+              onError={() => setImgBroken(true)}
+              alt="Task Photo"
+            />
+            <div className="absolute -top-2 -right-2 group/img cursor-pointer">
+              <svg className="w-6 h-6 relative z-20 bg-white rounded-full p-1 text-gray-500 shadow border hover:text-indigo-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+              </svg>
+              <div className="hidden group-hover/img:block absolute top-full md:bottom-full md:top-auto -right-4 mb-2 z-[100] p-2 bg-white rounded-2xl shadow-2xl border w-[300px] h-[300px] origin-bottom-right">
+                <img src={rawImg} className="w-full h-full object-contain rounded-xl" alt="Task Photo Zoom" />
+              </div>
             </div>
+          </>
+        ) : (
+          <div className="w-full h-full rounded-xl border border-gray-200 bg-gray-50/90 flex flex-col items-center justify-center text-gray-400 p-1.5 text-center select-none">
+            <i className="fas fa-camera text-xl mb-1 opacity-40"></i>
+            <span className="text-[10px] font-bold leading-tight text-gray-400">
+              {isOver15Days && rawImg ? "נמחק (15 יום)" : "אין תמונה"}
+            </span>
           </div>
         )}
 
-        {isCompleted && afterImg && (
+        {isCompleted && showAfterPhoto && rawAfterImg && (
           <div className="absolute -bottom-2 -left-2 w-12 h-12 rounded-lg border-2 border-green-500 shadow-md group/afterimg cursor-pointer bg-white">
-            <img src={afterImg} className="w-full h-full object-cover rounded-md" alt="After Photo" />
+            <img
+              src={rawAfterImg}
+              className="w-full h-full object-cover rounded-md"
+              onLoad={(e) => {
+                const el = e.currentTarget
+                if (rawAfterImg.includes("ibb.co") && el.naturalWidth === 180 && el.naturalHeight === 180) {
+                  setAfterImgBroken(true)
+                }
+              }}
+              onError={() => setAfterImgBroken(true)}
+              alt="After Photo"
+            />
             <div className="absolute -top-2 -right-2 z-20 bg-green-500 text-white rounded-full p-1 shadow">
                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                </svg>
             </div>
             <div className="hidden group-hover/afterimg:block absolute top-full md:bottom-full md:top-auto left-0 mb-2 z-[100] p-2 bg-white rounded-2xl shadow-2xl border w-[300px] h-[300px] origin-bottom-left">
-              <img src={afterImg} className="w-full h-full object-contain rounded-xl" alt="After Photo Zoom" />
+              <img src={rawAfterImg} className="w-full h-full object-contain rounded-xl" alt="After Photo Zoom" />
             </div>
           </div>
         )}
@@ -232,47 +275,52 @@ export function TaskCard({
       </div>
 
       {isPrinted && !isCompleted && (
-        <div className="hidden md:flex flex-col justify-center border-r-2 border-orange-200 pr-5 w-40 shrink-0">
-          <span className="text-xs text-orange-800 font-bold">נמסר לטיפול:</span>
-          <span className="font-black text-lg text-indigo-950">{task.worker || "לא צוות עובד"}</span>
-          <span className="text-[11px] text-orange-900 font-bold mt-1 flex items-center gap-1" dir="ltr">
+        <div className="hidden md:flex flex-col justify-center items-start border-r-2 border-orange-200 pr-5 w-48 shrink-0 text-right">
+          <div className="flex items-center justify-between w-full gap-2">
+            <div>
+              <span className="text-xs text-orange-800 font-bold block">נמסר לטיפול:</span>
+              <span className="font-black text-base text-indigo-950 leading-tight">{task.worker || "לא צוות עובד"}</span>
+            </div>
             {task.isSentToApp ? (
-              <div className="bg-blue-100 p-1.5 rounded-md border border-blue-200 shadow-sm" title="נשלח לאפליקציה">
+              <div className="bg-blue-100 p-1.5 rounded-lg border border-blue-200 shadow-xs shrink-0" title="נשלח לאפליקציה">
                 <svg className="w-4 h-4 text-blue-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                 </svg>
               </div>
             ) : (
-              <div className="bg-orange-100 p-1.5 rounded-md border border-orange-200 shadow-sm" title="הודפס">
+              <div className="bg-orange-100 p-1.5 rounded-lg border border-orange-200 shadow-xs shrink-0" title="הודפס">
                 <svg className="w-4 h-4 text-orange-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                 </svg>
               </div>
             )}
-            <span className="ml-1">{task.printedTime || ""}</span>
-          </span>
-          <div className="mt-3 flex flex-col gap-1.5 w-full">
+          </div>
+          {task.printedTime && (
+            <span className="text-[11px] text-orange-900 font-bold mt-0.5">{task.printedTime}</span>
+          )}
+          <div className="mt-2.5 flex flex-col gap-1.5 w-full">
+            <button
+              onClick={() => onApprove?.(task.id)}
+              className="w-full bg-green-50 text-green-700 border border-green-500 px-2.5 py-1.5 rounded-lg font-bold text-xs hover:bg-green-100 transition-colors flex justify-center items-center gap-1.5"
+            >
+              <i className="fas fa-check"></i> סגור משימה
+            </button>
             <div className="flex gap-1.5 w-full">
               <button
-                onClick={() => onApprove?.(task.id)}
-                className="flex-grow bg-green-50 text-green-600 border border-green-500 px-2 py-1.5 rounded-lg font-bold text-xs hover:bg-green-100 transition-colors flex justify-center items-center gap-1.5"
+                onClick={() => onReturnToOpen?.(task.id)}
+                className="flex-grow bg-orange-50 text-orange-700 border border-orange-300 px-2 py-1.5 rounded-lg font-bold text-xs hover:bg-orange-100 transition-colors flex justify-center items-center gap-1"
+                title="החזר לתיקון או שנה עובד"
               >
-                <i className="fas fa-check"></i> סגור משימה
+                <i className="fas fa-undo-alt"></i> החזר / שנה
               </button>
               <button
                 onClick={() => onDelete?.(task.id)}
-                className="bg-red-50 text-red-600 border border-red-200 w-8 flex justify-center items-center rounded-lg font-bold hover:bg-red-100 transition-colors"
+                className="bg-red-50 text-red-600 border border-red-200 w-8 shrink-0 flex justify-center items-center rounded-lg font-bold hover:bg-red-100 transition-colors"
                 title="מחק משימה לצמיתות"
               >
                 <i className="fas fa-trash-alt"></i>
               </button>
             </div>
-            <button
-              onClick={() => onReturnToOpen?.(task.id)}
-              className="w-full bg-orange-50 text-orange-700 border border-orange-300 px-2 py-1.5 rounded-lg font-bold text-xs hover:bg-orange-100 transition-colors flex justify-center items-center gap-1.5"
-            >
-              <i className="fas fa-undo-alt"></i> החזר / שנה עובד
-            </button>
           </div>
         </div>
       )}

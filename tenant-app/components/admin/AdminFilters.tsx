@@ -54,43 +54,41 @@ export function AdminFilters({
   return (
     <>
       {/* Main Action Bar */}
-      <div className="bg-white py-3 px-5 rounded-2xl shadow-sm border border-gray-200 flex flex-col xl:flex-row justify-between items-center gap-4">
+      <div className="bg-white py-3 px-4 rounded-2xl shadow-sm border border-gray-200 flex flex-col lg:flex-row justify-between items-center gap-3">
         {/* Right Side: Action Buttons */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap lg:flex-nowrap items-center gap-2.5 w-full lg:w-auto justify-center lg:justify-start">
           {setCreateTaskModalOpen && (
             <Button
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-black h-10 shadow-sm px-4"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-black h-10 shadow-sm px-3.5 whitespace-nowrap"
               onClick={() => setCreateTaskModalOpen(true)}
             >
-              <i className="fas fa-plus-circle ml-2"></i>משימה חדשה
+              <i className="fas fa-plus-circle ml-1.5"></i>משימה חדשה
             </Button>
           )}
-          <Button variant="outline" className="text-blue-600 font-bold border-blue-200 hover:bg-blue-50 h-10" onClick={() => setReportsModalOpen(true)}>
-            <i className="fas fa-chart-bar ml-2"></i>דוחות
+          <Button variant="outline" className="text-blue-600 font-bold border-blue-200 hover:bg-blue-50 h-10 px-3.5 whitespace-nowrap" onClick={() => setReportsModalOpen(true)}>
+            <i className="fas fa-chart-bar ml-1.5"></i>דוחות
           </Button>
-          <div className="flex bg-orange-500 rounded-lg shadow overflow-hidden h-10">
-            <button className="px-5 py-2 text-white font-bold hover:bg-orange-600 flex items-center transition-colors h-full" onClick={handlePrintSelected}>
-              <i className="fas fa-print ml-2"></i>הדפס
+          <div className="flex bg-orange-500 rounded-lg shadow overflow-hidden h-10 shrink-0">
+            <button className="px-4 py-2 text-white font-bold hover:bg-orange-600 flex items-center transition-colors h-full whitespace-nowrap" onClick={handlePrintSelected}>
+              <i className="fas fa-print ml-1.5"></i>הדפס
             </button>
           </div>
-          <Button className="bg-purple-600 hover:bg-purple-700 text-white font-bold h-10" onClick={handleSendToApp}>
-            <i className="fas fa-mobile-alt ml-2"></i>WorkerApp
+          <Button className="bg-purple-600 hover:bg-purple-700 text-white font-bold h-10 px-3.5 whitespace-nowrap" onClick={handleSendToApp}>
+            <i className="fas fa-mobile-alt ml-1.5"></i>WorkerApp
           </Button>
-          <Button className="bg-green-600 hover:bg-green-700 text-white font-bold h-10" onClick={handleManagerReportPrint}>
-            <i className="fas fa-table ml-2"></i>דוח מנהל
+          <Button className="bg-green-600 hover:bg-green-700 text-white font-bold h-10 px-3.5 whitespace-nowrap" onClick={handleManagerReportPrint}>
+            <i className="fas fa-table ml-1.5"></i>דוח מנהל
           </Button>
         </div>
 
-        <div className="flex-grow"></div>
-
         {/* Left Side: Filters */}
-        <div className="flex flex-wrap gap-4 items-center" dir="rtl">
-          <div className="w-64 lg:w-80 z-30 flex items-center gap-2">
-            <label className="text-sm font-bold text-gray-700 whitespace-nowrap">מחלקה:</label>
+        <div className="flex flex-wrap lg:flex-nowrap gap-2.5 items-center w-full lg:w-auto justify-center lg:justify-end" dir="rtl">
+          <div className="w-44 xl:w-52 z-30 flex items-center gap-1.5">
+            <label className="text-xs font-bold text-gray-700 whitespace-nowrap">מחלקה:</label>
             <Select 
               value={filterDept}
               onChange={(e) => setFilterDept(e.target.value)}
-              className="w-full h-10 rounded-xl border-gray-300 font-medium"
+              className="w-full h-10 rounded-xl border-gray-300 font-medium text-sm"
               dir="rtl"
             >
               <option value="ALL">כל המחלקות</option>
@@ -99,22 +97,22 @@ export function AdminFilters({
               ))}
             </Select>
           </div>
-          <div className="w-48 z-40 flex items-center gap-2">
-            <label className="text-sm font-bold text-gray-700 whitespace-nowrap">תאריך:</label>
+          <div className="w-40 xl:w-44 z-40 flex items-center gap-1.5">
+            <label className="text-xs font-bold text-gray-700 whitespace-nowrap">תאריך:</label>
             <DatePicker 
               value={filterDate}
               onChange={setFilterDate}
               taskDates={taskDates}
             />
           </div>
-          <Button variant="outline" className="text-red-600 border-red-200 bg-red-50 hover:bg-red-100 h-10" onClick={() => { setFilterDept("ALL"); setFilterDate(undefined); }}>
+          <Button variant="outline" className="text-red-600 border-red-200 bg-red-50 hover:bg-red-100 h-10 px-3 whitespace-nowrap shrink-0" onClick={() => { setFilterDept("ALL"); setFilterDate(undefined); }}>
             נקה סינון
           </Button>
         </div>
       </div>
 
       {/* Mass Actions */}
-      <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap gap-3 items-center">
+      <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-200 flex flex-wrap gap-2.5 items-center">
         <Button variant="outline" className="w-28 flex-shrink-0" onClick={handleSelectAll}>
           {selectedTasksSize === filteredLength && filteredLength > 0 ? "בטל בחירה" : "בחר הכל"}
         </Button>
@@ -123,7 +121,7 @@ export function AdminFilters({
           {viewMode === "cards" ? <><i className="fas fa-list ml-2"></i> תצוגת רשימה</> : <><i className="fas fa-th-large ml-2"></i> תצוגת כרטיסיות</>}
         </Button>
 
-        <div className="w-px h-8 bg-gray-200 mx-2"></div>
+        <div className="w-px h-8 bg-gray-200 mx-1"></div>
         
         <Button onClick={handlePrintSelected}>
           <svg className="w-4 h-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -140,9 +138,6 @@ export function AdminFilters({
         <Button variant="outline" className="text-green-600 border-green-200 hover:bg-green-50" onClick={handleCloseMass}>
           <i className="fas fa-check ml-2"></i> סגור נבחרים ({selectedTasksSize})
         </Button>
-
-        <div className="flex-grow"></div>
-        
         <Button variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50 bg-orange-50" onClick={handleReturnToOpenMass}>
           <i className="fas fa-undo ml-2"></i> חזור לפתוח
         </Button>
