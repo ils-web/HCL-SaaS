@@ -301,12 +301,22 @@
 
             const reader = new FileReader();
             reader.onload = function(e) {
-                currentPhotoBase64 = e.target.result;
-                const prev = document.getElementById('photoPreview');
-                prev.src = currentPhotoBase64;
-                prev.classList.remove('hidden');
-                document.getElementById('photoIcon').className = "fas fa-check-circle text-green-500 text-2xl mb-1";
-                document.getElementById('photoText').innerText = "תמונה נבחרה";
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const scale = Math.min(1000 / img.width, 1000 / img.height, 1);
+                    canvas.width = Math.round(img.width * scale);
+                    canvas.height = Math.round(img.height * scale);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    currentPhotoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+                    const prev = document.getElementById('photoPreview');
+                    prev.src = currentPhotoBase64;
+                    prev.classList.remove('hidden');
+                    document.getElementById('photoIcon').className = "fas fa-check-circle text-green-500 text-2xl mb-1";
+                    document.getElementById('photoText').innerText = "תמונה נבחרה";
+                };
+                img.src = e.target.result;
             };
             reader.readAsDataURL(file);
         }
@@ -325,17 +335,30 @@
 
             try {
                 if (currentPhotoBase64) {
-                    const formData = new FormData();
-                    formData.append('image', currentPhotoBase64.split(',')[1]);
-                    const upRes = await fetch('https://api.imgbb.com/1/upload?key=a1e675bb6065e233261327255af41c48&expiration=1296000', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const upData = await upRes.json();
-                    if (upData.success) {
-                        finalPhotoUrl = upData.data.url;
-                    } else {
-                        throw new Error("ImgBB error");
+                    for (let attempt = 1; attempt <= 2; attempt++) {
+                        try {
+                            const formData = new FormData();
+                            formData.append('image', currentPhotoBase64.split(',')[1]);
+                            const controller = new AbortController();
+                            const timeoutId = setTimeout(() => controller.abort(), 8000);
+                            const upRes = await fetch('https://api.imgbb.com/1/upload?key=a1e675bb6065e233261327255af41c48&expiration=1296000', {
+                                method: 'POST',
+                                body: formData,
+                                signal: controller.signal
+                            });
+                            clearTimeout(timeoutId);
+                            const upData = await upRes.json();
+                            if (upData && upData.success && upData.data && upData.data.url) {
+                                finalPhotoUrl = upData.data.url;
+                                break;
+                            }
+                        } catch (imgErr) {
+                            console.warn(`Worker ImgBB attempt ${attempt} failed, falling back to server:`, imgErr);
+                        }
+                    }
+                    // Fallback to sending compressed base64 so server handles ImgBB/Imgur/DataURI
+                    if (!finalPhotoUrl) {
+                        finalPhotoUrl = currentPhotoBase64;
                     }
                 }
 

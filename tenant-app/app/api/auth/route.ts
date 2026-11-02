@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { SignJWT } from 'jose';
 
-const prisma = new PrismaClient();
+// Using shared prisma singleton
 const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD || "super123";
 
 const getJwtSecret = () => {

@@ -1,37 +1,42 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { getGlobalConfig } from '@/app/api/superadmin/route';
 
 export const dynamic = 'force-dynamic';
 
-const prisma = new PrismaClient();
+// Using shared prisma singleton
 
 async function uploadToImgBB(base64Str: string): Promise<string | null> {
-  if (!base64Str || base64Str.startsWith('http')) return base64Str || null;
+  if (!base64Str) return null;
+  if (base64Str.startsWith('http')) return base64Str;
   const b64Data = base64Str.includes(',') ? base64Str.split(',')[1] : base64Str;
   
-  // Try ImgBB first
-  try {
-    const formData = new FormData();
-    formData.append('image', b64Data);
-    const res = await fetch('https://api.imgbb.com/1/upload?key=a1e675bb6065e233261327255af41c48&expiration=3888000', {
-      method: 'POST',
-      body: formData
-    });
-    const result = await res.json();
-    if (result?.data?.url) return result.data.url;
-  } catch (e) {
-    console.error('ImgBB upload error:', e);
+  // Try ImgBB with 1 automatic retry & 8s timeout (1296000s = 15 days auto-expiration per license)
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const formData = new FormData();
+      formData.append('image', b64Data);
+      const res = await fetch('https://api.imgbb.com/1/upload?key=a1e675bb6065e233261327255af41c48&expiration=1296000', {
+        method: 'POST',
+        body: formData,
+        signal: AbortSignal.timeout(8000)
+      });
+      const result = await res.json();
+      if (result?.data?.url) return result.data.url;
+    } catch (e) {
+      console.error(`ImgBB upload attempt ${attempt} error:`, e);
+    }
   }
 
-  // Fallback to Imgur
+  // Fallback 1: Imgur
   try {
     const imgurForm = new URLSearchParams();
     imgurForm.append('image', b64Data);
     const res = await fetch('https://api.imgur.com/3/image', {
       method: 'POST',
       headers: { 'Authorization': 'Client-ID 546c25a59c58ad7' },
-      body: imgurForm
+      body: imgurForm,
+      signal: AbortSignal.timeout(8000)
     });
     const result = await res.json();
     if (result?.data?.link) return result.data.link;
@@ -39,7 +44,8 @@ async function uploadToImgBB(base64Str: string): Promise<string | null> {
     console.error('Imgur upload error:', e);
   }
   
-  return null;
+  // Fallback 2: Preserve compressed Data URI so photos are never lost even if external image hosts are blocked or down
+  return base64Str.startsWith('data:') ? base64Str : `data:image/jpeg;base64,${b64Data}`;
 }
 
 async function sendTelegram(text: string, customBotToken?: string | null, customChatId?: string | null) {
@@ -73,17 +79,19 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
     return NextResponse.json({ error: 'Tenant not found or inactive' }, { status: 404 });
   }
   
-  if (!['ACTIVE', 'TRIAL', 'UNPAID'].includes(tenant.status)) {
+  if (!['ACTIVE', 'FREE', 'TRIAL', 'UNPAID'].includes(tenant.status)) {
     return NextResponse.json({ error: `Tenant is ${tenant.status}` }, { status: 403 });
   }
 
   if (action === 'getSettings') {
-    const workersDb = await prisma.user.findMany({ where: { tenantId, role: 'WORKER' } });
-    const teamsDb = await prisma.team.findMany({ where: { tenantId }, orderBy: { createdAt: 'asc' } });
-    const areas = await prisma.area.findMany({
-      where: { tenantId },
-      include: { systems: { include: { autoAssignTeam: true } } }
-    });
+    const [workersDb, teamsDb, areas] = await Promise.all([
+      prisma.user.findMany({ where: { tenantId, role: 'WORKER' } }),
+      prisma.team.findMany({ where: { tenantId }, orderBy: { createdAt: 'asc' } }),
+      prisma.area.findMany({
+        where: { tenantId },
+        include: { systems: { include: { autoAssignTeam: true } } }
+      })
+    ]);
 
     const workers = workersDb.map(w => ({ id: w.id, name: w.name, teamId: w.teamId }));
     const teams = teamsDb.map(t => t.name);
@@ -372,7 +380,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     const { action } = body;
 
     const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-    if (!tenant || !['ACTIVE', 'TRIAL', 'UNPAID'].includes(tenant.status)) {
+    if (!tenant || !['ACTIVE', 'FREE', 'TRIAL', 'UNPAID'].includes(tenant.status)) {
       return NextResponse.json({ error: 'Invalid tenant' }, { status: 403 });
     }
 
@@ -720,17 +728,12 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
 
   if (action === 'UNMARK_PRINTED') {
-    const tasks = body.tasks || [];
-    for (const t of tasks) {
-      const dbTask = await prisma.task.findFirst({
-        where: { tenantId, id: t.id }
+    const ids = (body.tasks || []).map((t: any) => t.id).filter(Boolean);
+    if (ids.length > 0) {
+      await prisma.task.updateMany({
+        where: { tenantId, id: { in: ids } },
+        data: { status: 'NEW', workerId: null, isSentToApp: false }
       });
-      if (dbTask) {
-        await prisma.task.update({
-          where: { id: dbTask.id },
-          data: { status: 'NEW', workerId: null, isSentToApp: false }
-        });
-      }
     }
     return NextResponse.json({ status: 'success' });
   }
@@ -808,16 +811,12 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       const w = await prisma.user.findFirst({ where: { tenantId, name: worker, role: 'WORKER' } });
       if (w) workerId = w.id;
     }
-    for (const t of tasks || []) {
-      const dbTask = await prisma.task.findFirst({
-        where: { tenantId, id: t.id }
+    const ids = (tasks || []).map((t: any) => t.id).filter(Boolean);
+    if (ids.length > 0) {
+      await prisma.task.updateMany({
+        where: { tenantId, id: { in: ids } },
+        data: { status: 'IN_PROGRESS', workerId }
       });
-      if (dbTask) {
-        await prisma.task.update({
-          where: { id: dbTask.id },
-          data: { status: 'IN_PROGRESS', workerId }
-        });
-      }
     }
     return NextResponse.json({ status: 'success' });
   }
@@ -981,7 +980,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       status: 'COMPLETED',
       workerId: workerId // mark that this worker completed it
     };
-    if (afterPhotoUrl) updateData.afterPhotoUrl = afterPhotoUrl;
+    if (afterPhotoUrl) updateData.afterPhotoUrl = await uploadToImgBB(afterPhotoUrl);
     
     if (comment) {
       const task = await prisma.task.findUnique({ where: { id: taskId } });
@@ -1010,12 +1009,26 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     });
     
     const tasks = tasksDb.map(t => {
-      const isQr = t.customDefectName?.includes('דיווח מהמחלקה') || t.customDefectName?.includes('תקלה חדשה') || t.inspectorName?.includes('צוות');
+      const isQr = Boolean(
+        t.customDefectName?.includes('דיווח מהמחלקה') ||
+        t.customDefectName?.includes('תקלה חדשה') ||
+        t.inspectorName?.includes('(QR)') ||
+        t.inspectorName?.includes('צוות') ||
+        t.department?.name === 'QR'
+      );
+      let resolvedDept = t.department?.name || 'כללי';
+      let resolvedRoom = t.room;
+      if (resolvedDept === 'QR' && resolvedRoom.includes(' / ')) {
+        const parts = resolvedRoom.split(' / ');
+        resolvedDept = parts[0];
+        resolvedRoom = parts.slice(1).join(' / ');
+      }
       return {
         id: t.id,
+        isQr,
         sheet: t.team?.name || (isQr ? 'QR' : 'כללי'),
-        dept: t.department?.name || 'כללי',
-        room: t.room,
+        dept: resolvedDept,
+        room: resolvedRoom,
         system: t.system?.name || t.customDefectName || 'אחר',
         defect: t.system?.name || t.customDefectName || 'אחר',
         inspector: t.inspectorName || 'מנהל',

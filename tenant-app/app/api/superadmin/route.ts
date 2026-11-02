@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { jwtVerify } from 'jose';
 
-const prisma = new PrismaClient();
+// Using shared prisma singleton
 
 const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD || "super123";
 
@@ -330,6 +330,12 @@ export async function POST(req: Request) {
       case 'UPDATE_TENANT':
         const { id, updates } = body;
         const cleanUpdates: any = { ...updates };
+        if (cleanUpdates.status === 'FREE') {
+          cleanUpdates.status = 'ACTIVE';
+          cleanUpdates.plan = 'FREE';
+          cleanUpdates.price = 0;
+          cleanUpdates.subscriptionEndsAt = null;
+        }
         if (cleanUpdates.subscriptionEndsAt !== undefined) {
           cleanUpdates.subscriptionEndsAt = cleanUpdates.subscriptionEndsAt ? new Date(cleanUpdates.subscriptionEndsAt) : null;
         }

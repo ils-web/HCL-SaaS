@@ -571,7 +571,8 @@
                 let statusColor = "bg-green-100 text-green-700";
                 let statusLabel = t.status || 'ACTIVE';
                 
-                if(t.status === "FREE") {
+                const isFreeVip = t.status === "FREE" || (t.status === "ACTIVE" && t.plan === "FREE");
+                if(isFreeVip) {
                     statusColor = "bg-amber-100 text-amber-900 border border-amber-300";
                     statusLabel = "👑 FREE";
                 } else if(t.status === "BLOCKED") {
@@ -588,7 +589,7 @@
                 }
 
                 let expiryBadge = '<span class="text-gray-400 text-xs">לא הוגדר</span>';
-                if(t.status === "FREE") {
+                if(isFreeVip) {
                     expiryBadge = '<span class="bg-amber-50 text-amber-800 border border-amber-200 px-2 py-0.5 rounded-md font-black text-xs">👑 ללא הגבלת זמן</span>';
                 } else if(t.subscriptionEndsAt) {
                     const end = new Date(t.subscriptionEndsAt);
@@ -856,7 +857,7 @@
             document.getElementById('tEmail').value = t.contactEmail || "";
             document.getElementById('tPhone').value = t.contactPhone || "";
             document.getElementById('tInspectors').value = t.maxInspectors || 1;
-            document.getElementById('tStatus').value = t.status;
+            document.getElementById('tStatus').value = (t.status === "ACTIVE" && t.plan === "FREE") ? "FREE" : t.status;
             document.getElementById('tPrice').value = t.price || 0;
             if(t.plan) document.getElementById('tPlan').value = t.plan;
             

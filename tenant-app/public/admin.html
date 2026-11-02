@@ -1196,7 +1196,9 @@
 
 
         function fixImageUrl(url) {
-            if(!url) return ""; let id = "";
+            if(!url) return "";
+            if(url.startsWith('data:')) return url;
+            let id = "";
             if(url.includes('id=')) id = url.split('id=')[1].split('&')[0];
             else if(url.includes('/d/')) id = url.split('/d/')[1].split('/')[0];
             return id ? `https://drive.google.com/thumbnail?id=${id}&sz=w1000` : url;

@@ -108,7 +108,7 @@ export function TaskCard({
   // Image helpers
   const getImgUrl = (url: string | null) => {
     if (!url) return "https://placehold.co/100x100?text=No+Photo"
-    if (url.startsWith("http")) return url
+    if (url.startsWith("http") || url.startsWith("data:")) return url
     return `/uploads/${url}`
   }
 
