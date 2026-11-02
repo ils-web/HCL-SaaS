@@ -10,106 +10,297 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
-        .glass-header { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-        .task-card { animation: slideIn 0.4s ease-out; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background-color: #eef2f6; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+        .glass-header { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+        .task-card { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
         /* Fullscreen Viewer */
-        #fullscreenViewer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
+        #fullscreenViewer { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.92); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
         #fullscreenViewer.active { display: flex; animation: fadeIn 0.2s ease-out; }
-        #fsImage { max-width: 95%; max-height: 80%; object-fit: contain; border-radius: 8px; }
+        #fsImage { max-width: 95%; max-height: 82%; object-fit: contain; border-radius: 12px; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         /* Loader */
-        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #4f46e5; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        .loader { border: 3px solid #e2e8f0; border-top: 3px solid #4f46e5; border-radius: 50%; width: 28px; height: 28px; animation: spin 0.9s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         /* Modal */
-        #completionModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 50; justify-content: center; align-items: flex-end; }
+        #completionModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); z-index: 50; justify-content: center; align-items: flex-end; }
         #completionModal.active { display: flex; animation: fadeIn 0.2s; }
-        .modal-content { background: white; width: 100%; border-radius: 20px 20px 0 0; padding: 20px; transform: translateY(100%); transition: transform 0.3s ease-out; }
-        #completionModal.active .modal-content { transform: translateY(0); }
+        .modal-content { background: white; width: 100%; max-width: 540px; border-radius: 24px 24px 0 0; padding: 22px; max-height: 90vh; overflow-y: auto; }
     </style>
 </head>
 <body class="pb-24">
 
     <!-- Header -->
-    <header class="glass-header fixed top-0 w-full z-40 border-b border-gray-200 shadow-sm px-4 pt-12 pb-4 flex justify-between items-center">
-        <div>
-            <h1 id="uiTitle" class="text-2xl font-black text-indigo-900 tracking-tight">משימות</h1>
-            <p id="uiWorkerName" class="text-sm font-semibold text-gray-500">טוען...</p>
+    <header class="glass-header fixed top-0 w-full z-40 border-b border-slate-200 shadow-sm px-4 pt-4 pb-3">
+        <div class="max-w-lg mx-auto flex justify-between items-center gap-2">
+            <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                    <h1 id="uiTitle" class="text-xl font-black text-indigo-950 tracking-tight truncate">משימות</h1>
+                    <span id="tasksCountBadge" class="hidden bg-indigo-600 text-white text-xs font-black px-2.5 py-0.5 rounded-full shadow-xs">0</span>
+                </div>
+                <p id="uiWorkerName" class="text-xs font-bold text-slate-500 truncate mt-0.5">טוען...</p>
+            </div>
+
+            <!-- Language Switcher + Bell + Refresh -->
+            <div class="flex items-center gap-1.5 shrink-0">
+                <div class="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-black" dir="ltr">
+                    <button onclick="switchLanguage('he')" id="langBtn-he" class="px-2 py-1 rounded-md transition-all">HE</button>
+                    <button onclick="switchLanguage('ru')" id="langBtn-ru" class="px-2 py-1 rounded-md transition-all">RU</button>
+                    <button onclick="switchLanguage('ar')" id="langBtn-ar" class="px-2 py-1 rounded-md transition-all">AR</button>
+                    <button onclick="switchLanguage('en')" id="langBtn-en" class="px-2 py-1 rounded-md transition-all">EN</button>
+                </div>
+                <button onclick="fetchTasks(true)" class="w-9 h-9 rounded-xl bg-slate-100 text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 flex items-center justify-center transition-colors border border-slate-200" title="Refresh">
+                    <i id="refreshIcon" class="fas fa-sync-alt text-sm"></i>
+                </button>
+                <button onclick="requestNotificationPermission()" class="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 hover:text-indigo-600 flex items-center justify-center transition-colors border border-slate-200">
+                    <i id="notifIcon" class="fas fa-bell text-base"></i>
+                </button>
+            </div>
         </div>
-        <button onclick="requestNotificationPermission()" class="text-gray-400 hover:text-indigo-600 transition-colors">
-            <i id="notifIcon" class="fas fa-bell text-xl"></i>
-        </button>
     </header>
 
     <!-- Main Content -->
-    <main class="pt-28 px-4" id="tasksContainer">
-        <div class="flex justify-center mt-10"><div class="loader"></div></div>
+    <main class="pt-24 px-3 max-w-lg mx-auto" id="tasksContainer">
+        <div class="flex justify-center mt-14"><div class="loader"></div></div>
     </main>
 
     <!-- Completion Modal -->
     <div id="completionModal">
         <div class="modal-content shadow-2xl">
-            <div class="flex justify-between items-center mb-4">
-                <h2 id="modalTitle" class="text-xl font-bold text-gray-800">סיום משימה</h2>
-                <button onclick="closeCompletionModal()" class="text-gray-400 hover:text-gray-600 text-2xl"><i class="fas fa-times"></i></button>
+            <div class="flex justify-between items-start mb-3 border-b border-slate-100 pb-3">
+                <div>
+                    <h2 id="modalTitle" class="text-xl font-black text-slate-800">סיום משימה</h2>
+                    <p id="modalTaskSubtitle" class="text-xs font-bold text-indigo-600 mt-0.5"></p>
+                </div>
+                <button onclick="closeCompletionModal()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center"><i class="fas fa-times"></i></button>
             </div>
             
             <div class="mb-4">
-                <label id="modalCommentLbl" class="block text-sm font-bold text-gray-700 mb-2">הערה (אופציונלי)</label>
-                <textarea id="completionComment" class="w-full border border-gray-300 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none" rows="2"></textarea>
+                <label id="modalCommentLbl" class="block text-sm font-bold text-slate-700 mb-1.5">הערת ביצוע (אופציונלי)</label>
+                <!-- Quick Chips -->
+                <div id="quickChipsContainer" class="flex flex-wrap gap-1.5 mb-2"></div>
+                <textarea id="completionComment" class="w-full border border-slate-300 p-3 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm font-medium bg-slate-50 focus:bg-white" rows="2"></textarea>
             </div>
 
-            <div class="mb-6">
-                <label id="modalPhotoLbl" class="block text-sm font-bold text-gray-700 mb-2">תמונה לאחר ביצוע</label>
-                <div id="photoUploadBox" class="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors" onclick="document.getElementById('fileInput').click()">
-                    <i id="photoIcon" class="fas fa-camera text-gray-400 text-3xl mb-2"></i>
-                    <p id="photoText" class="text-gray-500 font-semibold text-sm">לחץ לצילום / העלאה</p>
-                    <img id="photoPreview" class="hidden mt-2 max-h-32 mx-auto rounded-lg shadow-sm" />
+            <div class="mb-5">
+                <label id="modalPhotoLbl" class="block text-sm font-bold text-slate-700 mb-1.5">תמונה לאחר ביצוע</label>
+                <div id="photoUploadBox" class="border-2 border-dashed border-indigo-200 rounded-2xl p-4 text-center cursor-pointer bg-indigo-50/40 hover:bg-indigo-50 transition-colors" onclick="document.getElementById('fileInput').click()">
+                    <i id="photoIcon" class="fas fa-camera text-indigo-500 text-3xl mb-1.5"></i>
+                    <p id="photoText" class="text-indigo-900 font-bold text-sm">לחץ לצילום תמונת סיום</p>
+                    <img id="photoPreview" class="hidden mt-3 max-h-40 mx-auto rounded-xl shadow-md border border-white" />
                 </div>
                 <input type="file" id="fileInput" class="hidden" accept="image/*" capture="environment" onchange="handlePhotoSelect(event)">
             </div>
 
-            <button id="submitCompletionBtn" onclick="submitTaskCompletion()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-indigo-700 active:bg-indigo-800 transition-colors flex justify-center items-center">
-                <span id="submitBtnTxt">סיום משימה</span>
+            <button id="submitCompletionBtn" onclick="submitTaskCompletion()" class="w-full bg-emerald-600 text-white font-black py-4 rounded-xl shadow-lg hover:bg-emerald-700 active:bg-emerald-800 transition-colors flex justify-center items-center gap-2 text-base">
+                <i class="fas fa-check-circle"></i>
+                <span id="submitBtnTxt">אשר וסיים משימה</span>
             </button>
         </div>
     </div>
 
     <!-- Fullscreen Viewer -->
     <div id="fullscreenViewer" onclick="closeFullscreen()">
-        <button class="absolute top-8 right-6 text-white text-3xl opacity-80"><i class="fas fa-times"></i></button>
+        <button class="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/20 text-white text-xl flex items-center justify-center"><i class="fas fa-times"></i></button>
         <img id="fsImage" src="" alt="Fullscreen">
     </div>
 
     <script>
-        // Dictionary
         const dict = {
-            'he': { title: 'משימות', notFound: 'לא נמצא עובד. סרוק את קוד ה-QR שוב.', noTasks: 'אין משימות פתוחות! 🎉', room: 'חדר', dept: 'מחלקה', area: 'אזור', system: 'מערכת', defect: 'תקלה', action: 'פעולה', replace: 'החלפה', repair: 'תיקון', markDone: 'סיום משימה', commentLbl: 'הערה (אופציונלי)', photoLbl: 'תמונה לאחר ביצוע', photoBox: 'לחץ לצילום', submit: 'סיום', loading: 'שומר...', error: 'שגיאה', newTasks: 'משימה חדשה התקבלה!', reqNotif: 'אפשר התראות לקבלת עדכונים' },
-            'ru': { title: 'Задачи', notFound: 'Рабочий не найден. Отсканируйте QR-код заново.', noTasks: 'Нет открытых задач! 🎉', room: 'Комната', dept: 'Отделение', area: 'Зона', system: 'Система', defect: 'Поломка', action: 'Действие', replace: 'Замена', repair: 'Ремонт', markDone: 'Завершить', commentLbl: 'Комментарий (необяз.)', photoLbl: 'Фото результата', photoBox: 'Нажмите, чтобы сделать фото', submit: 'Готово', loading: 'Сохранение...', error: 'Ошибка', newTasks: 'Получена новая задача!', reqNotif: 'Включите уведомления' },
-            'ar': { title: 'مهام', notFound: 'لم يتم العثور على عامل. امسح الرمز ضوئيا مرة أخرى.', noTasks: 'لا توجد مهام مفتوحة! 🎉', room: 'غرفة', dept: 'قسم', area: 'منطقة', system: 'نظام', defect: 'عطل', action: 'عمل', replace: 'استبدال', repair: 'إصلاح', markDone: 'إنهاء المهمة', commentLbl: 'ملاحظة (اختياري)', photoLbl: 'صورة النتيجة', photoBox: 'اضغط لالتقاط صورة', submit: 'إنهاء', loading: 'جاري الحفظ...', error: 'خطأ', newTasks: 'مهمة جديدة!', reqNotif: 'السماح بالإشعارات' },
-            'en': { title: 'Tasks', notFound: 'Worker not found. Scan QR again.', noTasks: 'No open tasks! 🎉', room: 'Room', dept: 'Department', area: 'Area', system: 'System', defect: 'Defect', action: 'Action', replace: 'Replace', repair: 'Repair', markDone: 'Mark Done', commentLbl: 'Comment (optional)', photoLbl: 'After Photo', photoBox: 'Tap to take photo', submit: 'Finish', loading: 'Saving...', error: 'Error', newTasks: 'New task received!', reqNotif: 'Allow notifications' }
+            'he': {
+                title: 'המשימות שלי',
+                notFound: 'לא נמצא עובד. סרוק את קוד ה-QR שוב.',
+                noTasks: 'אין משימות פתוחות כרגע! עבודה מצוינת 🎉',
+                noTasksSub: 'ברגע שתתקבל משימה חדשה, היא תופיע כאן אוטומטית.',
+                locationHeader: 'מיקום המשימה',
+                room: 'חדר / מיקום',
+                dept: 'מחלקה',
+                area: 'אזור',
+                system: 'מערכת',
+                whatToDo: 'מה צריך לבצע',
+                defect: 'תקלה / משימה',
+                notesTitle: 'פירוט והערות חשובות',
+                reworkBanner: 'הוחזר לתיקון / השלמה ע"י מנהל!',
+                reworkInstruction: 'הנחיית המנהל לתיקון:',
+                qrUrgent: 'קריאת QR מהשטח',
+                reportedBy: 'דווח ע"י',
+                action: 'סוג פעולה',
+                replace: 'החלפה',
+                repair: 'תיקון',
+                tapPhoto: 'לחץ להגדלת התמונה',
+                markDone: 'סיום משימה ודיווח ביצוע',
+                commentLbl: 'מה בוצע? הערה למנהל (אופציונלי)',
+                commentPlaceholder: 'לדוגמה: הוחלף חלק, נבדק והכל תקין...',
+                photoLbl: 'צילום תמונה לאחר התיקון',
+                photoBox: 'לחץ כאן לצילום תמונה',
+                photoSelected: 'תמונה צורפה בהצלחה (לחץ להחלפה)',
+                submit: 'שלח דיווח וסיים משימה',
+                loading: 'שומר ושולח...',
+                error: 'שגיאה בשמירה, נסה שוב',
+                newTasks: 'התקבלה משימה חדשה!',
+                reworkAlert: 'משימה הוחזרה לתיקון ע"י המנהל!',
+                reqNotif: 'התראות הופעלו בהצלחה',
+                quickChips: ['בוצע במלואו והכל תקין ✅', 'הוחלף לחלק חדש 🔄', 'נוקה ונבדק 👍']
+            },
+            'ru': {
+                title: 'Мои задачи',
+                notFound: 'Сотрудник не найден. Отсканируйте свой QR-код заново.',
+                noTasks: 'Нет открытых задач! Отличная работа 🎉',
+                noTasksSub: 'Как только появится новая задача, она автоматически отобразится здесь.',
+                locationHeader: 'Куда идти (Местоположение)',
+                room: 'Комната / Помещение',
+                dept: 'Отделение / Отдел',
+                area: 'Зона',
+                system: 'Система',
+                whatToDo: 'Что нужно сделать',
+                defect: 'Неисправность / Задача',
+                notesTitle: 'Описание и важные замечания',
+                reworkBanner: 'ВОЗВРАЩЕНО НА ДОРАБОТКУ РУКОВОДИТЕЛЕМ!',
+                reworkInstruction: 'Комментарий руководителя (что исправить):',
+                qrUrgent: 'Срочная заявка по QR',
+                reportedBy: 'От кого',
+                action: 'Действие',
+                replace: 'Замена',
+                repair: 'Ремонт',
+                tapPhoto: 'Нажмите, чтобы увеличить фото',
+                markDone: 'Завершить задачу',
+                commentLbl: 'Что было сделано? Комментарий (необязательно)',
+                commentPlaceholder: 'Например: заменил деталь, проверил — всё работает...',
+                photoLbl: 'Фото результата работы',
+                photoBox: 'Нажмите, чтобы сделать фото',
+                photoSelected: 'Фото прикреплено (нажмите, чтобы переснять)',
+                submit: 'Отправить отчёт и завершить',
+                loading: 'Сохранение...',
+                error: 'Ошибка отправки, попробуйте ещё раз',
+                newTasks: 'Получена новая задача!',
+                reworkAlert: 'Задача возвращена на доработку!',
+                reqNotif: 'Уведомления включены',
+                quickChips: ['Выполнено полностью, всё исправно ✅', 'Произведена замена детали 🔄', 'Очищено и проверено 👍']
+            },
+            'ar': {
+                title: 'مهامي',
+                notFound: 'لم يتم العثور على العامل. امسح رمز QR مرة أخرى.',
+                noTasks: 'لا توجد مهام مفتوحة حالياً! عمل رائع 🎉',
+                noTasksSub: 'ستظهر المهام الجديدة هنا تلقائياً فور وصولها.',
+                locationHeader: 'الموقع (أين تذهب)',
+                room: 'غرفة / موقع',
+                dept: 'قسم / جناح',
+                area: 'منطقة',
+                system: 'نظام',
+                whatToDo: 'المطلوب تنفيذه',
+                defect: 'العطل / المهمة',
+                notesTitle: 'التفاصيل والملاحظات الهامة',
+                reworkBanner: 'أُعيدت للتعديل / الاستكمال من المدير!',
+                reworkInstruction: 'ملاحظة المدير للتعديل:',
+                qrUrgent: 'بلاغ فوري QR',
+                reportedBy: 'بواسطة',
+                action: 'الإجراء',
+                replace: 'استبدال',
+                repair: 'إصلاح',
+                tapPhoto: 'اضغط لتكبير الصورة',
+                markDone: 'إنهاء المهمة وإرسال التقرير',
+                commentLbl: 'ماذا تم عمله؟ ملاحظة (اختياري)',
+                commentPlaceholder: 'مثال: تم الإصلاح والفحص بنجاح...',
+                photoLbl: 'صورة بعد التنفيذ',
+                photoBox: 'اضغط لالتقاط صورة',
+                photoSelected: 'تم إرفاق الصورة (اضغط للتغيير)',
+                submit: 'تأكيد وإنهاء المهمة',
+                loading: 'جاري الحفظ...',
+                error: 'حدث خطأ، حاول مرة أخرى',
+                newTasks: 'تم استلام مهمة جديدة!',
+                reworkAlert: 'تمت إعادة مهمة للتعديل!',
+                reqNotif: 'تم تفعيل الإشعارات',
+                quickChips: ['تم التنفيذ بالكامل ويعمل جيداً ✅', 'تم استبدال القطعة 🔄', 'تم التنظيف والفحص 👍']
+            },
+            'en': {
+                title: 'My Tasks',
+                notFound: 'Worker not found. Please scan your QR code again.',
+                noTasks: 'No open tasks right now! Great job 🎉',
+                noTasksSub: 'New tasks will appear here automatically as soon as they are assigned.',
+                locationHeader: 'Location (Where to go)',
+                room: 'Room / Location',
+                dept: 'Department',
+                area: 'Zone / Area',
+                system: 'System',
+                whatToDo: 'What Needs to Be Done',
+                defect: 'Defect / Task',
+                notesTitle: 'Description & Important Remarks',
+                reworkBanner: 'RETURNED FOR REWORK BY MANAGER!',
+                reworkInstruction: 'Manager Rework Instructions:',
+                qrUrgent: 'Urgent QR Request',
+                reportedBy: 'Reported by',
+                action: 'Action',
+                replace: 'Replace',
+                repair: 'Repair',
+                tapPhoto: 'Tap to enlarge photo',
+                markDone: 'Complete Task',
+                commentLbl: 'What was done? Comment (optional)',
+                commentPlaceholder: 'E.g. replaced part, tested and working...',
+                photoLbl: 'After Completion Photo',
+                photoBox: 'Tap to take photo',
+                photoSelected: 'Photo attached (tap to retake)',
+                submit: 'Submit & Complete Task',
+                loading: 'Saving...',
+                error: 'Error saving, please try again',
+                newTasks: 'New task received!',
+                reworkAlert: 'Task returned for rework!',
+                reqNotif: 'Notifications enabled',
+                quickChips: ['Completed and tested ✅', 'Part replaced 🔄', 'Cleaned and verified 👍']
+            }
         };
 
-        const navLang = navigator.language.slice(0, 2);
-        const lang = dict[navLang] ? navLang : 'he'; // fallback to Hebrew
-        const t = dict[lang];
+        const browserLang = (navigator.language || 'he').slice(0, 2).toLowerCase();
+        let currentLang = localStorage.getItem('worker_lang') || (dict[browserLang] ? browserLang : 'he');
+        if (!dict[currentLang]) currentLang = 'he';
+        let t = dict[currentLang];
 
-        if(lang === 'ru' || lang === 'en') {
-            document.documentElement.dir = 'ltr';
-            document.documentElement.lang = lang;
-        } else {
-            document.documentElement.dir = 'rtl';
-            document.documentElement.lang = lang;
+        function applyLanguageUI() {
+            t = dict[currentLang] || dict['he'];
+            const isRtl = (currentLang === 'he' || currentLang === 'ar');
+            document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+            document.documentElement.lang = currentLang;
+
+            ['he', 'ru', 'ar', 'en'].forEach(l => {
+                const btn = document.getElementById('langBtn-' + l);
+                if (!btn) return;
+                if (l === currentLang) {
+                    btn.className = 'px-2 py-1 rounded-md bg-indigo-600 text-white shadow-xs transition-all';
+                } else {
+                    btn.className = 'px-2 py-1 rounded-md text-slate-600 hover:bg-slate-200 transition-all';
+                }
+            });
+
+            document.getElementById('uiTitle').innerText = t.title;
+            document.getElementById('modalTitle').innerText = t.markDone;
+            document.getElementById('modalCommentLbl').innerText = t.commentLbl;
+            document.getElementById('completionComment').placeholder = t.commentPlaceholder;
+            document.getElementById('modalPhotoLbl').innerText = t.photoLbl;
+            if (!currentPhotoBase64) {
+                document.getElementById('photoText').innerText = t.photoBox;
+            }
+            document.getElementById('submitBtnTxt').innerText = t.submit;
+
+            // Render quick chips
+            const chipsZone = document.getElementById('quickChipsContainer');
+            if (chipsZone && t.quickChips) {
+                chipsZone.innerHTML = t.quickChips.map(chip =>
+                    `<button type="button" onclick="appendQuickChip('${chip.replace(/'/g, "\\'")}')" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 font-bold px-2.5 py-1 rounded-full transition-colors">${chip}</button>`
+                ).join('');
+            }
         }
 
-        // Apply translations
-        document.getElementById('uiTitle').innerText = t.title;
-        document.getElementById('modalTitle').innerText = t.markDone;
-        document.getElementById('modalCommentLbl').innerText = t.commentLbl;
-        document.getElementById('modalPhotoLbl').innerText = t.photoLbl;
-        document.getElementById('photoText').innerText = t.photoBox;
-        document.getElementById('submitBtnTxt').innerText = t.submit;
+        function appendQuickChip(text) {
+            const inp = document.getElementById('completionComment');
+            inp.value = inp.value ? (inp.value.trim() + ' — ' + text) : text;
+        }
+
+        async function switchLanguage(newLang) {
+            if (!dict[newLang]) return;
+            currentLang = newLang;
+            localStorage.setItem('worker_lang', newLang);
+            applyLanguageUI();
+            await fetchTasks(true);
+        }
 
         // Params
         let tenantId = localStorage.getItem('worker_tenantId');
@@ -121,35 +312,32 @@
             workerId = params.get('workerId');
             localStorage.setItem('worker_tenantId', tenantId);
             localStorage.setItem('worker_workerId', workerId);
-            // clean url
             window.history.replaceState({}, document.title, "/worker.html");
         }
 
         const API_URL = tenantId ? `/api/${tenantId}` : '';
-        let currentTasksIds = [];
+        let currentStateKeys = [];
+        let cachedTasks = [];
         let pollingInterval = null;
         let workerInfo = null;
 
         let activeTaskId = null;
         let currentPhotoBase64 = null;
 
-        // Audio setup
-        const beepSound = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU'+'A'.repeat(500)); // Silent fallback, real sound below
-        const realBeep = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // Quick sharp notification beep
+        const realBeep = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
 
         async function init() {
+            applyLanguageUI();
             if (!tenantId || !workerId) {
-                document.getElementById('tasksContainer').innerHTML = `<p class="text-center text-red-500 font-bold mt-10">${t.notFound}</p>`;
+                document.getElementById('tasksContainer').innerHTML = `<div class="bg-red-50 border border-red-200 rounded-2xl p-6 text-center text-red-600 font-bold mt-10">${t.notFound}</div>`;
                 return;
             }
             await fetchTasks();
-            pollingInterval = setInterval(fetchTasks, 10000);
+            pollingInterval = setInterval(() => fetchTasks(false), 10000);
             
-            if ("Notification" in window) {
-                if (Notification.permission === "granted") {
-                    document.getElementById('notifIcon').classList.add('text-indigo-600');
-                    document.getElementById('notifIcon').classList.remove('text-gray-400');
-                }
+            if ("Notification" in window && Notification.permission === "granted") {
+                document.getElementById('notifIcon').classList.add('text-indigo-600');
+                document.getElementById('notifIcon').classList.remove('text-slate-400');
             }
         }
 
@@ -158,24 +346,26 @@
             Notification.requestPermission().then(permission => {
                 if (permission === "granted") {
                     document.getElementById('notifIcon').classList.add('text-indigo-600');
-                    document.getElementById('notifIcon').classList.remove('text-gray-400');
-                    alert(t.reqNotif + " - OK");
+                    document.getElementById('notifIcon').classList.remove('text-slate-400');
+                    alert(t.reqNotif);
                 }
             });
         }
 
-        async function fetchTasks() {
+        async function fetchTasks(showSpin = false) {
+            const refIcon = document.getElementById('refreshIcon');
+            if (showSpin && refIcon) refIcon.classList.add('fa-spin');
             try {
                 const res = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'GET_WORKER_TASKS', workerId })
+                    body: JSON.stringify({ action: 'GET_WORKER_TASKS', workerId, lang: currentLang })
                 });
                 const data = await res.json();
                 
                 if (data.status !== 'success') {
                     if (data.error === 'Worker not found') {
-                        document.getElementById('tasksContainer').innerHTML = `<p class="text-center text-red-500 font-bold mt-10">${t.notFound}</p>`;
+                        document.getElementById('tasksContainer').innerHTML = `<div class="bg-red-50 border border-red-200 rounded-2xl p-6 text-center text-red-600 font-bold mt-10">${t.notFound}</div>`;
                         clearInterval(pollingInterval);
                     }
                     return;
@@ -183,85 +373,196 @@
 
                 workerInfo = data.worker;
                 const brigade = workerInfo.teamName || '';
-                const tenantDisplay = data.tenantName ? ` | ${data.tenantName}` : '';
-                document.getElementById('uiWorkerName').innerText = `${workerInfo.name}${brigade ? ` (${brigade})` : ''}${tenantDisplay}`;
+                const tenantDisplay = data.tenantName ? ` • ${data.tenantName}` : '';
+                document.getElementById('uiWorkerName').innerText = `👷 ${workerInfo.name}${brigade ? ` (${brigade})` : ''}${tenantDisplay}`;
                 if (data.tenantName) {
                     document.title = `${data.tenantName} - ${t.title}`;
                 }
 
                 const tasks = data.tasks || [];
-                const newIds = tasks.map(tk => tk.id);
-                
-                // Check if there are completely NEW tasks
-                const hasNew = newIds.some(id => !currentTasksIds.includes(id));
-                if (hasNew && currentTasksIds.length > 0) {
-                    playBeepAndNotify();
+                cachedTasks = tasks;
+
+                // Update tasks count badge
+                const badge = document.getElementById('tasksCountBadge');
+                if (badge) {
+                    badge.innerText = String(tasks.length);
+                    if (tasks.length > 0) badge.classList.remove('hidden');
+                    else badge.classList.add('hidden');
                 }
 
-                currentTasksIds = newIds;
+                const newKeys = tasks.map(tk => tk.stateKey || tk.id);
+                const hasNewOrUpdated = newKeys.some(k => !currentStateKeys.includes(k));
+                if (hasNewOrUpdated && currentStateKeys.length > 0) {
+                    const hasRework = tasks.some(tk => tk.isRework && !currentStateKeys.includes(tk.stateKey || tk.id));
+                    playBeepAndNotify(hasRework ? t.reworkAlert : t.newTasks);
+                }
+
+                currentStateKeys = newKeys;
                 renderTasks(tasks);
 
             } catch (err) {
                 console.error(err);
+            } finally {
+                if (refIcon) refIcon.classList.remove('fa-spin');
             }
         }
 
-        function playBeepAndNotify() {
+        function playBeepAndNotify(msg) {
             realBeep.play().catch(e => console.log('Audio play prevented', e));
             if (("Notification" in window) && Notification.permission === "granted") {
-                new Notification(t.newTasks, { icon: '/icon-192.png' });
+                new Notification(msg || t.newTasks, { icon: '/icon-192.png' });
             } else if (navigator.vibrate) {
-                navigator.vibrate([200, 100, 200]);
+                navigator.vibrate([250, 120, 250]);
             }
+        }
+
+        function escapeHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // Helper to show translated text + original Hebrew sign name in brackets if they differ
+        function formatBilingualLocation(translated, original) {
+            const tr = (translated || '').trim();
+            const orig = (original || '').trim();
+            if (!tr) return escapeHtml(orig);
+            if (!orig || tr.toLowerCase() === orig.toLowerCase() || currentLang === 'he') {
+                return escapeHtml(tr);
+            }
+            return `${escapeHtml(tr)} <span class="text-xs font-semibold opacity-75" dir="rtl">(${escapeHtml(orig)})</span>`;
         }
 
         function renderTasks(tasks) {
             const container = document.getElementById('tasksContainer');
             if (tasks.length === 0) {
                 container.innerHTML = `
-                    <div class="flex flex-col items-center justify-center mt-20 opacity-50">
-                        <i class="fas fa-check-circle text-6xl text-gray-300 mb-4"></i>
-                        <h2 class="text-xl font-bold text-gray-400">${t.noTasks}</h2>
+                    <div class="bg-white rounded-3xl shadow-sm border border-slate-200 p-8 flex flex-col items-center justify-center mt-8 text-center">
+                        <div class="w-20 h-20 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center mb-4">
+                            <i class="fas fa-check-circle text-4xl"></i>
+                        </div>
+                        <h2 class="text-lg font-black text-slate-800 mb-1">${t.noTasks}</h2>
+                        <p class="text-xs font-medium text-slate-400">${t.noTasksSub}</p>
                     </div>`;
                 return;
             }
 
             let html = '';
             tasks.forEach(tk => {
-                let statusBg = tk.status === 'NEW' ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200';
-                let statusDot = tk.status === 'NEW' ? 'bg-red-500' : 'bg-amber-500';
+                const isRework = Boolean(tk.isRework);
+                const isQr = Boolean(tk.isQr);
+
+                let cardBorder = 'border-slate-200 bg-white';
+                if (isRework) {
+                    cardBorder = 'border-2 border-rose-500 bg-white ring-4 ring-rose-100';
+                } else if (isQr) {
+                    cardBorder = 'border-2 border-purple-500 bg-white ring-2 ring-purple-100';
+                }
+
+                const actionBadgeClass = tk.actionType === 1
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-indigo-600 text-white';
+                const actionLabel = tk.actionType === 1 ? t.replace : t.repair;
+                const actionIcon = tk.actionType === 1 ? 'fa-sync-alt' : 'fa-wrench';
+
+                const deptDisplay = formatBilingualLocation(tk.department, tk.origDepartment);
+                const roomDisplay = formatBilingualLocation(tk.room, tk.origRoom);
+
+                const showArea = tk.area && tk.area.trim() !== '';
+                const showSystem = tk.system && tk.system.trim() !== '' && tk.system !== tk.defect;
 
                 html += `
-                <div class="task-card bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4 ${statusBg} border">
-                    <div class="flex justify-between items-start mb-3">
+                <div class="task-card rounded-3xl shadow-md p-4 mb-4 ${cardBorder} overflow-hidden">
+                    
+                    <!-- Top Rework Alert Banner if returned by manager -->
+                    ${isRework ? `
+                    <div class="-mx-4 -mt-4 mb-3 bg-gradient-to-r from-rose-600 to-orange-500 text-white px-4 py-2.5 flex items-center gap-2 shadow-xs">
+                        <i class="fas fa-exclamation-triangle text-lg animate-bounce"></i>
+                        <span class="font-black text-xs tracking-wide uppercase">${t.reworkBanner}</span>
+                    </div>
+                    ` : ''}
+
+                    <!-- Top Status Row: Date, QR badge, Action Type -->
+                    <div class="flex flex-wrap justify-between items-center gap-2 mb-3">
                         <div class="flex items-center gap-2">
-                            <div class="w-3 h-3 rounded-full ${statusDot} animate-pulse"></div>
-                            <span class="text-xs font-bold text-gray-500">${tk.dateStr.split(',')[0]}</span>
+                            <span class="w-2.5 h-2.5 rounded-full ${isRework ? 'bg-rose-500' : (isQr ? 'bg-purple-600' : 'bg-amber-500')} animate-pulse"></span>
+                            <span class="text-xs font-bold text-slate-500"><i class="far fa-clock mx-1"></i>${escapeHtml(tk.dateStr)}</span>
+                            ${isQr ? `<span class="bg-purple-100 text-purple-800 border border-purple-300 text-xs font-black px-2 py-0.5 rounded-full"><i class="fas fa-qrcode mx-1"></i>${t.qrUrgent}</span>` : ''}
                         </div>
-                        <span class="text-xs font-bold px-2 py-1 bg-white rounded-lg border shadow-sm">${tk.department}</span>
+                        <span class="text-xs font-black px-3 py-1 rounded-full shadow-xs flex items-center gap-1.5 ${actionBadgeClass}">
+                            <i class="fas ${actionIcon}"></i> ${actionLabel}
+                        </span>
                     </div>
 
-                    <div class="flex gap-4">
-                        <div class="flex-1">
-                            <h3 class="text-lg font-black text-gray-800 mb-1">${t.room}: <span class="text-indigo-600">${tk.room}</span></h3>
-                            <p class="text-sm font-bold text-gray-600 mb-1">${t.area} / ${t.system}: <span class="text-gray-800">${tk.area} / ${tk.system}</span></p>
-                            <p class="text-sm font-bold text-gray-600 mb-3">${t.defect}: <span class="text-gray-800 bg-yellow-100 px-1 rounded">${tk.defect}</span></p>
-                            
-                            <div class="inline-block px-3 py-1 bg-gray-800 text-white text-xs font-bold rounded-lg mb-4">
-                                <i class="fas fa-wrench ml-1"></i> ${tk.actionType === 1 ? t.replace : t.repair}
+                    <!-- Manager Rework Note Callout -->
+                    ${(isRework && tk.reworkNote) ? `
+                    <div class="mb-3 bg-rose-50 border-2 border-rose-300 rounded-2xl p-3.5 text-rose-950 shadow-xs">
+                        <div class="text-xs font-black text-rose-700 mb-1 flex items-center gap-1.5">
+                            <i class="fas fa-user-tie"></i> ${t.reworkInstruction}
+                        </div>
+                        <div class="text-sm font-black whitespace-pre-line leading-snug">${escapeHtml(tk.reworkNote)}</div>
+                    </div>
+                    ` : ''}
+
+                    <!-- Location Block: Department & Room -->
+                    <div class="bg-slate-50 border border-slate-200/80 rounded-2xl p-3 mb-3">
+                        <div class="text-[11px] font-extrabold text-slate-400 uppercase mb-2 flex items-center gap-1.5">
+                            <i class="fas fa-map-marker-alt text-indigo-500"></i> ${t.locationHeader}
+                        </div>
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <div class="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                                <div class="text-[11px] font-bold text-slate-400">${t.dept}</div>
+                                <div class="text-sm font-black text-slate-800 mt-0.5 leading-tight">${deptDisplay}</div>
+                            </div>
+                            <div class="bg-indigo-50/70 p-2.5 rounded-xl border border-indigo-200 shadow-2xs">
+                                <div class="text-[11px] font-bold text-indigo-500">${t.room}</div>
+                                <div class="text-base font-black text-indigo-950 mt-0.5 leading-tight">${roomDisplay}</div>
                             </div>
                         </div>
-                        
-                        ${tk.photoUrl ? `
-                        <div class="w-24 h-24 shrink-0 rounded-xl overflow-hidden shadow-sm border border-gray-200 cursor-pointer" onclick="openFullscreen('${tk.photoUrl}')">
-                            <img src="${tk.photoUrl}" class="w-full h-full object-cover">
-                        </div>` : ''}
+                        ${(showArea || showSystem) ? `
+                        <div class="flex flex-wrap gap-2 mt-2.5 pt-2 border-t border-slate-200/60">
+                            ${showArea ? `<span class="text-xs font-bold bg-white text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200"><span class="text-slate-400">${t.area}:</span> ${escapeHtml(tk.area)}</span>` : ''}
+                            ${showSystem ? `<span class="text-xs font-bold bg-white text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200"><span class="text-slate-400">${t.system}:</span> ${escapeHtml(tk.system)}</span>` : ''}
+                        </div>
+                        ` : ''}
                     </div>
 
-                    ${tk.notes ? `<div class="bg-white/60 p-2 rounded-lg text-sm text-gray-700 italic mb-4">"${tk.notes}"</div>` : ''}
+                    <!-- What To Do Block: Defect + Complete Remarks -->
+                    <div class="bg-amber-50/70 border border-amber-200/90 rounded-2xl p-3.5 mb-3">
+                        <div class="text-[11px] font-extrabold text-amber-800 uppercase mb-1 flex items-center gap-1.5">
+                            <i class="fas fa-tools text-amber-600"></i> ${t.defect}
+                        </div>
+                        <div class="text-base font-black text-slate-900 leading-snug">
+                            ${escapeHtml(tk.defect)}
+                        </div>
+                        ${(tk.origDefect && tk.origDefect !== tk.defect && currentLang !== 'he') ? `
+                        <div class="text-xs font-semibold text-slate-500 mt-0.5" dir="rtl">${escapeHtml(tk.origDefect)}</div>
+                        ` : ''}
 
-                    <button onclick="openCompletionModal('${tk.id}')" class="w-full py-3 bg-indigo-50 text-indigo-700 font-black rounded-xl border border-indigo-200 shadow-sm hover:bg-indigo-100 active:bg-indigo-200 transition-colors">
-                        <i class="fas fa-check-double ml-1"></i> ${t.markDone}
+                        ${tk.notes ? `
+                        <div class="mt-3 pt-2.5 border-t border-amber-200/80">
+                            <div class="text-xs font-extrabold text-amber-900 mb-1 flex items-center gap-1.5">
+                                <i class="fas fa-comment-dots text-amber-600"></i> ${t.notesTitle}:
+                            </div>
+                            <div class="bg-white/90 p-2.5 rounded-xl border border-amber-200 text-sm font-bold text-slate-800 whitespace-pre-line leading-relaxed">${escapeHtml(tk.notes)}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Photo Preview (if attached) -->
+                    ${tk.photoUrl ? `
+                    <div class="mb-3 rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 relative cursor-pointer group" onclick="openFullscreen('${tk.photoUrl}')">
+                        <img src="${tk.photoUrl}" class="w-full h-44 object-cover opacity-95 group-hover:opacity-100 transition-opacity">
+                        <div class="absolute bottom-2 right-2 left-2 bg-black/65 backdrop-blur-xs text-white text-xs font-bold py-1.5 px-3 rounded-xl flex items-center justify-center gap-1.5">
+                            <i class="fas fa-search-plus"></i> ${t.tapPhoto}
+                        </div>
+                    </div>` : ''}
+
+                    <!-- Complete Action Button -->
+                    <button onclick="openCompletionModal('${tk.id}')" class="w-full py-3.5 bg-indigo-600 text-white font-black rounded-2xl shadow-md hover:bg-indigo-700 active:bg-indigo-800 transition-all flex justify-center items-center gap-2 text-sm">
+                        <i class="fas fa-check-double"></i> ${t.markDone}
                     </button>
                 </div>
                 `;
@@ -281,10 +582,15 @@
         // Completion Modal
         function openCompletionModal(id) {
             activeTaskId = id;
+            const tk = cachedTasks.find(x => x.id === id);
+            const sub = document.getElementById('modalTaskSubtitle');
+            if (sub && tk) {
+                sub.innerText = `${tk.department} • ${t.room}: ${tk.room} — ${tk.defect}`;
+            }
             document.getElementById('completionComment').value = '';
             document.getElementById('photoPreview').src = '';
             document.getElementById('photoPreview').classList.add('hidden');
-            document.getElementById('photoIcon').className = "fas fa-camera text-gray-400 text-3xl mb-2";
+            document.getElementById('photoIcon').className = "fas fa-camera text-indigo-500 text-3xl mb-1.5";
             document.getElementById('photoText').innerText = t.photoBox;
             currentPhotoBase64 = null;
             document.getElementById('completionModal').classList.add('active');
@@ -313,8 +619,8 @@
                     const prev = document.getElementById('photoPreview');
                     prev.src = currentPhotoBase64;
                     prev.classList.remove('hidden');
-                    document.getElementById('photoIcon').className = "fas fa-check-circle text-green-500 text-2xl mb-1";
-                    document.getElementById('photoText').innerText = "תמונה נבחרה";
+                    document.getElementById('photoIcon').className = "fas fa-check-circle text-emerald-500 text-2xl mb-1";
+                    document.getElementById('photoText').innerText = t.photoSelected;
                 };
                 img.src = e.target.result;
             };
@@ -325,11 +631,10 @@
             if (!activeTaskId) return;
 
             const btn = document.getElementById('submitCompletionBtn');
-            const originalTxt = document.getElementById('submitBtnTxt').innerText;
             const comment = document.getElementById('completionComment').value.trim();
 
             btn.disabled = true;
-            document.getElementById('submitBtnTxt').innerHTML = `<i class="fas fa-spinner fa-spin ml-2"></i> ${t.loading}`;
+            document.getElementById('submitBtnTxt').innerHTML = `<i class="fas fa-spinner fa-spin mx-2"></i> ${t.loading}`;
 
             let finalPhotoUrl = null;
 
@@ -356,7 +661,6 @@
                             console.warn(`Worker ImgBB attempt ${attempt} failed, falling back to server:`, imgErr);
                         }
                     }
-                    // Fallback to sending compressed base64 so server handles ImgBB/Imgur/DataURI
                     if (!finalPhotoUrl) {
                         finalPhotoUrl = currentPhotoBase64;
                     }
@@ -379,14 +683,14 @@
                 if (!res.ok) throw new Error("Server error");
                 
                 closeCompletionModal();
-                await fetchTasks();
+                await fetchTasks(true);
 
             } catch (e) {
                 console.error(e);
                 alert(t.error);
             } finally {
                 btn.disabled = false;
-                document.getElementById('submitBtnTxt').innerText = originalTxt;
+                document.getElementById('submitBtnTxt').innerText = t.submit;
             }
         }
 
@@ -402,24 +706,21 @@
         }
 
         window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent the mini-infobar from appearing on mobile
             e.preventDefault();
-            // Stash the event so it can be triggered later.
             deferredPrompt = e;
-            // Update UI notify the user they can install the PWA
             showInstallPromotion();
         });
 
         function showInstallPromotion() {
             const banner = document.createElement('div');
             banner.id = 'pwa-install-banner';
-            banner.className = 'fixed bottom-0 left-0 w-full bg-indigo-600 text-white p-4 flex justify-between items-center z-50 animate-bounce shadow-2xl rounded-t-xl';
+            banner.className = 'fixed bottom-0 left-0 w-full bg-indigo-600 text-white p-4 flex justify-between items-center z-50 shadow-2xl rounded-t-xl';
             banner.innerHTML = `
                 <div class="flex items-center gap-3">
                     <i class="fas fa-download text-2xl"></i>
                     <div>
-                        <div class="font-bold">התקן אפליקציה</div>
-                        <div class="text-xs opacity-80">לגישה מהירה גם ללא אינטרנט</div>
+                        <div class="font-bold">התקן אפליקציה / Install App</div>
+                        <div class="text-xs opacity-80">לגישה מהירה ונוחה</div>
                     </div>
                 </div>
                 <div class="flex gap-2">
@@ -433,8 +734,7 @@
                 banner.remove();
                 if (deferredPrompt) {
                     deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    console.log(`User response to the install prompt: ${outcome}`);
+                    await deferredPrompt.userChoice;
                     deferredPrompt = null;
                 }
             });

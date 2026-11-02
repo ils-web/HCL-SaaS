@@ -194,6 +194,11 @@ export function TaskCard({
               WorkerApp
             </div>
           )}
+          {task.comment?.includes("[הוחזר לתיקון") && (
+            <div className="inline-flex items-center gap-1 bg-rose-100 text-rose-800 px-3 py-1 rounded-lg text-xs font-black border border-rose-300 shadow-sm">
+              <i className="fas fa-undo-alt"></i> הוחזר לתיקון
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -204,8 +209,8 @@ export function TaskCard({
         <div className="flex items-center gap-2 mt-1">
           <p className="font-bold text-gray-800">{task.defect}</p>
         </div>
-        <div className="flex items-center gap-2 mt-1">
-          <p className="text-gray-700 font-semibold text-sm max-w-md truncate" title={task.comment || ""}>
+        <div className="flex items-start gap-2 mt-1">
+          <p className="text-gray-700 font-semibold text-sm max-w-lg whitespace-pre-line leading-snug" title={task.comment || ""}>
             {task.comment || "אין הערה"}
           </p>
           <button
@@ -246,19 +251,27 @@ export function TaskCard({
             )}
             <span className="ml-1">{task.printedTime || ""}</span>
           </span>
-          <div className="mt-3 flex gap-2 w-full">
+          <div className="mt-3 flex flex-col gap-1.5 w-full">
+            <div className="flex gap-1.5 w-full">
+              <button
+                onClick={() => onApprove?.(task.id)}
+                className="flex-grow bg-green-50 text-green-600 border border-green-500 px-2 py-1.5 rounded-lg font-bold text-xs hover:bg-green-100 transition-colors flex justify-center items-center gap-1.5"
+              >
+                <i className="fas fa-check"></i> סגור משימה
+              </button>
+              <button
+                onClick={() => onDelete?.(task.id)}
+                className="bg-red-50 text-red-600 border border-red-200 w-8 flex justify-center items-center rounded-lg font-bold hover:bg-red-100 transition-colors"
+                title="מחק משימה לצמיתות"
+              >
+                <i className="fas fa-trash-alt"></i>
+              </button>
+            </div>
             <button
-              onClick={() => onApprove?.(task.id)}
-              className="flex-grow bg-green-50 text-green-600 border border-green-500 px-2 py-1.5 rounded-lg font-bold text-xs hover:bg-green-100 transition-colors flex justify-center items-center gap-2"
+              onClick={() => onReturnToOpen?.(task.id)}
+              className="w-full bg-orange-50 text-orange-700 border border-orange-300 px-2 py-1.5 rounded-lg font-bold text-xs hover:bg-orange-100 transition-colors flex justify-center items-center gap-1.5"
             >
-              <i className="fas fa-check"></i> סגור משימה
-            </button>
-            <button
-              onClick={() => onDelete?.(task.id)}
-              className="bg-red-50 text-red-600 border border-red-200 w-8 flex justify-center items-center rounded-lg font-bold hover:bg-red-100 transition-colors"
-              title="מחק משימה לצמיתות"
-            >
-              <i className="fas fa-trash-alt"></i>
+              <i className="fas fa-undo-alt"></i> החזר / שנה עובד
             </button>
           </div>
         </div>
@@ -321,9 +334,9 @@ export function TaskCard({
           </button>
           <button
             onClick={() => onReturnToOpen?.(task.id)}
-            className="w-full bg-orange-50 text-orange-600 border border-orange-200 px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-orange-100 transition-colors flex justify-center items-center gap-2"
+            className="w-full bg-orange-500 text-white px-3 py-1.5 rounded-lg font-bold text-xs hover:bg-orange-600 transition-colors shadow-xs flex justify-center items-center gap-1.5"
           >
-            החזר לפתוח
+            <i className="fas fa-undo-alt"></i> החזר לתיקון
           </button>
           <button
             onClick={() => onDelete?.(task.id)}

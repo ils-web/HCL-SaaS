@@ -164,11 +164,21 @@ export function AdminTaskTable({
                     </td>
                     <td className="p-3 font-bold text-xs text-orange-900">{task.worker || ''}</td>
                     <td className="p-3 text-center">
-                      {isCompleted ? (
-                         <button onClick={() => handleApprove(task.id)} className="bg-green-50 text-green-600 border border-green-500 px-3 py-1 rounded-lg font-bold text-xs hover:bg-green-100"><i className="fas fa-check"></i> אושר</button>
-                      ) : (
-                         <button onClick={() => handleApprove(task.id)} className="bg-blue-50 text-blue-600 border border-blue-500 px-3 py-1 rounded-lg font-bold text-xs hover:bg-blue-100"><i className="fas fa-check"></i> סגור</button>
-                      )}
+                      <div className="flex items-center justify-center gap-1.5">
+                        {isCompleted ? (
+                          <>
+                            <button onClick={() => handleApprove(task.id)} className="bg-green-500 text-white px-2.5 py-1 rounded-lg font-bold text-xs hover:bg-green-600"><i className="fas fa-check"></i> אישור סופי</button>
+                            <button onClick={() => handleReturnToOpen(task.id)} className="bg-orange-500 text-white px-2.5 py-1 rounded-lg font-bold text-xs hover:bg-orange-600"><i className="fas fa-undo-alt"></i> החזר לתיקון</button>
+                          </>
+                        ) : (
+                          <>
+                            <button onClick={() => handleApprove(task.id)} className="bg-blue-50 text-blue-600 border border-blue-500 px-2.5 py-1 rounded-lg font-bold text-xs hover:bg-blue-100"><i className="fas fa-check"></i> סגור</button>
+                            {isPrinted && (
+                              <button onClick={() => handleReturnToOpen(task.id)} className="bg-orange-50 text-orange-700 border border-orange-300 px-2.5 py-1 rounded-lg font-bold text-xs hover:bg-orange-100"><i className="fas fa-undo-alt"></i> החזר/שנה</button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )

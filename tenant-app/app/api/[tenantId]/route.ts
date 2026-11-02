@@ -6,6 +6,37 @@ export const dynamic = 'force-dynamic';
 
 // Using shared prisma singleton
 
+const translationCache = new Map<string, string>();
+
+async function translateCached(text: string, targetLang: string): Promise<string> {
+  if (!text || !text.trim() || !targetLang) return text || '';
+  const clean = text.trim();
+  // Skip if purely numeric/symbols
+  if (/^[0-9\s.,!?:;()\-/"'\[\]#*+]+$/.test(clean)) return clean;
+  // Skip if target is Hebrew and text is already purely Hebrew + punctuation/numbers
+  if (targetLang === 'he' && /^[\u0590-\u05FF0-9\s.,!?:;()\-/"'\[\]#*+]+$/.test(clean)) return clean;
+  // Skip if target is Russian and text is already purely Cyrillic + punctuation/numbers
+  if (targetLang === 'ru' && /^[\u0400-\u04FF0-9\s.,!?:;()\-/"'\[\]#*+]+$/.test(clean)) return clean;
+
+  const cacheKey = `${targetLang}:${clean}`;
+  const cached = translationCache.get(cacheKey);
+  if (cached) return cached;
+
+  try {
+    const res = await fetch(
+      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(clean)}`,
+      { signal: AbortSignal.timeout(3500) }
+    );
+    const data = await res.json();
+    const translated = data?.[0]?.map((item: any) => item[0])?.join('') || clean;
+    if (translationCache.size > 3000) translationCache.clear();
+    translationCache.set(cacheKey, translated);
+    return translated;
+  } catch (e) {
+    return clean;
+  }
+}
+
 async function uploadToImgBB(base64Str: string): Promise<string | null> {
   if (!base64Str) return null;
   if (base64Str.startsWith('http')) return base64Str;
@@ -885,8 +916,9 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
 
   if (action === 'GET_WORKER_TASKS') {
-    const { workerId } = body;
+    const { workerId, lang } = body;
     if (!workerId) return NextResponse.json({ error: 'Missing workerId' }, { status: 400 });
+    const targetLang = ['he', 'ru', 'ar', 'en'].includes(lang) ? lang : 'he';
 
     const worker = await prisma.user.findUnique({ 
       where: { id: workerId },
@@ -904,7 +936,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     };
     
     if (worker.teamId) {
-      whereClause.OR.push({ teamId: worker.teamId });
+      whereClause.OR.push({ teamId: worker.teamId, workerId: null });
     }
 
     const tasksDb = await prisma.task.findMany({
@@ -918,22 +950,126 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       orderBy: { createdAt: 'desc' }
     });
 
-    const tasks = tasksDb.map(t => ({
-      id: t.id,
-      dateStr: new Date(t.createdAt).toLocaleString('ru-RU', { timeZone: 'Asia/Jerusalem' }),
-      department: t.department?.name || '',
-      room: t.room,
-      area: t.area?.name || '',
-      system: t.system?.name || '',
-      customDefectName: t.customDefectName || '',
-      defect: t.system?.name || t.customDefectName || '',
-      actionType: t.actionType === 'REPLACE' ? 1 : 2,
-      notes: t.notes || '',
-      photoUrl: t.photoUrl || '',
-      status: t.status,
-      team: t.team?.name || '',
-      workerId: t.workerId
+    const rawTeamName = worker.team?.name || '';
+    const trWorkerTeamName = targetLang !== 'he' && rawTeamName ? await translateCached(rawTeamName, targetLang) : rawTeamName;
+
+    const tasks = await Promise.all(tasksDb.map(async (t) => {
+      // 1. Resolve Department and Room (including legacy QR "Dept / Room" format)
+      let origDept = t.department?.name || '';
+      let origRoom = t.room || '';
+      if ((origDept === 'QR' || !origDept) && origRoom.includes(' / ')) {
+        const parts = origRoom.split(' / ');
+        origDept = parts[0];
+        origRoom = parts.slice(1).join(' / ');
+      }
+      if (!origDept) origDept = 'כללי';
+
+      const origArea = t.area?.name || '';
+      const origSystem = t.system?.name || '';
+      const origCustomDefect = t.customDefectName || '';
+      const origInspector = t.inspectorName || '';
+
+      // Combine system + customDefectName so neither is ever lost
+      let combinedDefectOrig = origSystem;
+      if (origCustomDefect) {
+        if (!combinedDefectOrig) {
+          combinedDefectOrig = origCustomDefect;
+        } else if (origCustomDefect !== origSystem && !origCustomDefect.includes('דיווח מהמחלקה')) {
+          combinedDefectOrig = `${origSystem} — ${origCustomDefect}`;
+        }
+      }
+      if (!combinedDefectOrig) combinedDefectOrig = 'משימת אחזקה';
+
+      const isQr = Boolean(
+        origCustomDefect.includes('דיווח מהמחלקה') ||
+        origCustomDefect.includes('תקלה חדשה') ||
+        origInspector.includes('(QR)') ||
+        origInspector.includes('צוות') ||
+        t.department?.name === 'QR'
+      );
+
+      // 2. Parse notes to separate Manager Rework instructions, Worker history, and Original description
+      const rawNotes = t.notes || '';
+      const lines = rawNotes.split('\n').map(l => l.trim()).filter(Boolean);
+      const reworkLines: string[] = [];
+      const generalLines: string[] = [];
+
+      for (const line of lines) {
+        if (line.startsWith('[הוחזר לתיקון') || line.startsWith('[ДОРАБОТКА')) {
+          const cleanRework = line.replace(/^\[.*?\]:\s*/, '').trim();
+          if (cleanRework) reworkLines.push(cleanRework);
+        } else {
+          const cleanGeneral = line
+            .replace(/^\[עובד\]:\s*/, '🛠️ ')
+            .replace(/^\[מנהל\]:\s*/, '👨‍💼 ');
+          generalLines.push(cleanGeneral);
+        }
+      }
+
+      const isRework = reworkLines.length > 0 || rawNotes.includes('[הוחזר לתיקון');
+      const origReworkNote = reworkLines.join('\n');
+      const origGeneralNotes = generalLines.join('\n');
+
+      // 3. Translate all fields into the worker's browser language in parallel
+      const [
+        trDept,
+        trRoom,
+        trArea,
+        trSystem,
+        trCustomDefect,
+        trDefect,
+        trGeneralNotes,
+        trReworkNote,
+        trInspector
+      ] = await Promise.all([
+        translateCached(origDept, targetLang),
+        translateCached(origRoom, targetLang),
+        origArea ? translateCached(origArea, targetLang) : Promise.resolve(''),
+        origSystem ? translateCached(origSystem, targetLang) : Promise.resolve(''),
+        origCustomDefect ? translateCached(origCustomDefect, targetLang) : Promise.resolve(''),
+        translateCached(combinedDefectOrig, targetLang),
+        origGeneralNotes ? translateCached(origGeneralNotes, targetLang) : Promise.resolve(''),
+        origReworkNote ? translateCached(origReworkNote, targetLang) : Promise.resolve(''),
+        origInspector ? translateCached(origInspector, targetLang) : Promise.resolve('')
+      ]);
+
+      return {
+        id: t.id,
+        stateKey: `${t.id}_${t.updatedAt.getTime()}`,
+        timestamp: t.createdAt.getTime(),
+        updatedAt: t.updatedAt.getTime(),
+        dateStr: new Date(t.createdAt).toLocaleString('ru-RU', { timeZone: 'Asia/Jerusalem' }),
+        department: trDept || origDept,
+        origDepartment: origDept,
+        room: trRoom || origRoom,
+        origRoom: origRoom,
+        area: trArea || origArea,
+        origArea: origArea,
+        system: trSystem || origSystem,
+        customDefectName: trCustomDefect || origCustomDefect,
+        defect: trDefect || combinedDefectOrig,
+        origDefect: combinedDefectOrig,
+        actionType: t.actionType === 'REPLACE' ? 1 : 2,
+        notes: trGeneralNotes,
+        origNotes: origGeneralNotes,
+        reworkNote: trReworkNote,
+        origReworkNote: origReworkNote,
+        isRework,
+        isQr,
+        inspector: trInspector || origInspector,
+        photoUrl: t.photoUrl || '',
+        status: t.status,
+        team: trWorkerTeamName || t.team?.name || '',
+        workerId: t.workerId
+      };
     }));
+
+    // Sort: 1. Rework tasks at top, 2. Urgent QR tasks next, 3. Newest first
+    tasks.sort((a, b) => {
+      if (Number(b.isRework) !== Number(a.isRework)) return Number(b.isRework) - Number(a.isRework);
+      if (Number(b.isQr) !== Number(a.isQr)) return Number(b.isQr) - Number(a.isQr);
+      return b.updatedAt - a.updatedAt;
+    });
 
     return NextResponse.json({ 
       status: 'success', 
@@ -943,9 +1079,119 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         id: worker.id, 
         name: worker.name, 
         teamId: worker.teamId, 
-        teamName: worker.team?.name || '' 
+        teamName: trWorkerTeamName || rawTeamName 
       } 
     });
+  }
+
+  if (action === 'ADMIN_CREATE_TASK') {
+    if (tenant.status === 'UNPAID') {
+      return NextResponse.json({ error: 'UNPAID_LIMIT', message: 'Необходимо оплатить сервис для продолжения работы.' }, { status: 403 });
+    }
+    const { department, room, teamName, defect, actionType, comment, photo, workerName } = body;
+    if (!room && !defect && !comment) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    const cleanDeptName = (department || 'כללי').trim();
+    let deptRecord = await prisma.department.findFirst({ where: { tenantId, name: cleanDeptName } });
+    if (!deptRecord) {
+      deptRecord = await prisma.department.create({ data: { tenantId, name: cleanDeptName } });
+    }
+
+    let workerRecord = null;
+    if (workerName && workerName.trim()) {
+      workerRecord = await prisma.user.findFirst({ where: { tenantId, name: workerName.trim(), role: 'WORKER' } });
+    }
+
+    let teamRecord = null;
+    if (teamName && teamName.trim()) {
+      teamRecord = await prisma.team.findFirst({ where: { tenantId, name: teamName.trim() } });
+      if (!teamRecord) {
+        teamRecord = await prisma.team.create({ data: { tenantId, name: teamName.trim() } });
+      }
+    } else if (workerRecord?.teamId) {
+      teamRecord = await prisma.team.findUnique({ where: { id: workerRecord.teamId } });
+    }
+
+    const finalPhotoUrl = photo ? await uploadToImgBB(photo) : null;
+
+    // Translate defect & comment to Hebrew if written in Russian/English/Arabic so DB stays consistent
+    const rawDefect = (defect || 'משימת מנהל').trim();
+    const rawComment = (comment || '').trim();
+    const [heDefect, heComment] = await Promise.all([
+      translateCached(rawDefect, 'he'),
+      rawComment ? translateCached(rawComment, 'he') : Promise.resolve('')
+    ]);
+
+    const finalDefect = heDefect && heDefect !== rawDefect ? `${heDefect} (${rawDefect})` : rawDefect;
+    const finalNotes = heComment && heComment !== rawComment ? `${heComment}\n(${rawComment})` : rawComment;
+
+    const newTask = await prisma.task.create({
+      data: {
+        tenantId,
+        departmentId: deptRecord.id,
+        room: String(room || 'כללי').trim(),
+        teamId: teamRecord ? teamRecord.id : null,
+        customDefectName: finalDefect,
+        actionType: Number(actionType) === 1 ? 'REPLACE' : 'REPAIR',
+        inspectorName: 'מנהל מערכת',
+        notes: finalNotes,
+        photoUrl: finalPhotoUrl,
+        status: workerRecord ? 'IN_PROGRESS' : 'NEW',
+        workerId: workerRecord ? workerRecord.id : null,
+        isSentToApp: Boolean(workerRecord)
+      }
+    });
+
+    return NextResponse.json({ status: 'success', task: newTask });
+  }
+
+  if (action === 'REWORK_TASK') {
+    const { taskId, workerName, returnToOpen, comment } = body;
+    if (!taskId) return NextResponse.json({ error: 'Missing taskId' }, { status: 400 });
+
+    const dbTask = await prisma.task.findFirst({ where: { tenantId, id: taskId } });
+    if (!dbTask) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+
+    let updatedNotes = dbTask.notes || '';
+    if (comment && comment.trim()) {
+      const cleanComment = comment.trim();
+      const heComment = await translateCached(cleanComment, 'he');
+      const formattedComment = heComment && heComment !== cleanComment ? `${heComment} (${cleanComment})` : cleanComment;
+      const reworkLine = `[הוחזר לתיקון ע"י מנהל]: ${formattedComment}`;
+      updatedNotes = updatedNotes ? `${updatedNotes}\n${reworkLine}` : reworkLine;
+    } else if (!updatedNotes.includes('[הוחזר לתיקון')) {
+      updatedNotes = updatedNotes ? `${updatedNotes}\n[הוחזר לתיקון ע"י מנהל]: נדרשת השלמה / בדיקה חוזרת` : `[הוחזר לתיקון ע"י מנהל]: נדרשת השלמה / בדיקה חוזרת`;
+    }
+
+    if (returnToOpen || !workerName) {
+      await prisma.task.update({
+        where: { id: dbTask.id },
+        data: {
+          status: 'NEW',
+          workerId: null,
+          isSentToApp: false,
+          afterPhotoUrl: null,
+          notes: updatedNotes
+        }
+      });
+    } else {
+      const worker = await prisma.user.findFirst({ where: { tenantId, name: workerName, role: 'WORKER' } });
+      await prisma.task.update({
+        where: { id: dbTask.id },
+        data: {
+          status: 'IN_PROGRESS',
+          workerId: worker ? worker.id : dbTask.workerId,
+          teamId: worker?.teamId || dbTask.teamId,
+          isSentToApp: true,
+          afterPhotoUrl: null,
+          notes: updatedNotes
+        }
+      });
+    }
+
+    return NextResponse.json({ status: 'success' });
   }
 
   if (action === 'SEND_TO_APP') {
@@ -985,7 +1231,10 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     if (comment) {
       const task = await prisma.task.findUnique({ where: { id: taskId } });
       if (task) {
-        updateData.notes = task.notes ? task.notes + '\n[עובד]: ' + comment : '[עובד]: ' + comment;
+        const cleanComment = comment.trim();
+        const heComment = await translateCached(cleanComment, 'he');
+        const formattedWorkerComment = heComment && heComment !== cleanComment ? `${heComment} (${cleanComment})` : cleanComment;
+        updateData.notes = task.notes ? task.notes + '\n[עובד]: ' + formattedWorkerComment : '[עובד]: ' + formattedWorkerComment;
       }
     }
 

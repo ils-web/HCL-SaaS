@@ -26,6 +26,7 @@ interface AdminFiltersProps {
   handleSendToApp: () => void
   handleCloseMass: () => void
   handleReturnToOpenMass: () => void
+  setCreateTaskModalOpen?: (val: boolean) => void
 }
 
 export function AdminFilters({
@@ -48,6 +49,7 @@ export function AdminFilters({
   handleSendToApp,
   handleCloseMass,
   handleReturnToOpenMass,
+  setCreateTaskModalOpen,
 }: AdminFiltersProps) {
   return (
     <>
@@ -55,6 +57,14 @@ export function AdminFilters({
       <div className="bg-white py-3 px-5 rounded-2xl shadow-sm border border-gray-200 flex flex-col xl:flex-row justify-between items-center gap-4">
         {/* Right Side: Action Buttons */}
         <div className="flex flex-wrap items-center gap-3">
+          {setCreateTaskModalOpen && (
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-black h-10 shadow-sm px-4"
+              onClick={() => setCreateTaskModalOpen(true)}
+            >
+              <i className="fas fa-plus-circle ml-2"></i>משימה חדשה
+            </Button>
+          )}
           <Button variant="outline" className="text-blue-600 font-bold border-blue-200 hover:bg-blue-50 h-10" onClick={() => setReportsModalOpen(true)}>
             <i className="fas fa-chart-bar ml-2"></i>דוחות
           </Button>

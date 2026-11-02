@@ -21,6 +21,7 @@ import { AdminModals } from "@/components/admin/AdminModals"
 import { AdminPrintLayouts } from "@/components/admin/AdminPrintLayouts"
 import { SubscriptionModal } from "@/components/admin/SubscriptionModal"
 import { SubscriptionWidget } from "@/components/ui/SubscriptionWidget"
+import { AdminTaskWorkflowModals } from "@/components/admin/AdminTaskWorkflowModals"
 
 export default function AdminReactPage() {
 
@@ -44,7 +45,9 @@ export default function AdminReactPage() {
     qrSettings, setQrSettings, saveQrSettings, exportTasksToCSV, handleCleanupTasks,
     tenantStatus, setTenantStatus, plan, setPlan, price, setPrice,
     subscriptionEndsAt, setSubscriptionEndsAt, plans, setPlans,
-    subscriptionModalOpen, setSubscriptionModalOpen
+    subscriptionModalOpen, setSubscriptionModalOpen,
+    createTaskModalOpen, setCreateTaskModalOpen,
+    reworkModalTask, setReworkModalTask
   } = adminState
   if (!tenantId && !loading) {
     return (
@@ -133,6 +136,7 @@ export default function AdminReactPage() {
             handleSendToApp={handleSendToApp}
             handleCloseMass={handleCloseMass}
             handleReturnToOpenMass={handleReturnToOpenMass}
+            setCreateTaskModalOpen={setCreateTaskModalOpen}
           />
 
           {/* Tabs */}
@@ -156,6 +160,19 @@ export default function AdminReactPage() {
 
         </div>
       </div>
+
+      <AdminTaskWorkflowModals
+        tenantId={tenantId}
+        createTaskModalOpen={createTaskModalOpen}
+        setCreateTaskModalOpen={setCreateTaskModalOpen}
+        reworkModalTask={reworkModalTask}
+        setReworkModalTask={setReworkModalTask}
+        workers={workers}
+        teams={teams}
+        activeDepts={activeDepts}
+        categories={categories}
+        onSuccess={() => loadTasks()}
+      />
 
       <AdminModals 
         tenantId={tenantId}

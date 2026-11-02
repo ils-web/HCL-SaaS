@@ -116,6 +116,8 @@ export function useAdminState() {
   const [subscriptionEndsAt, setSubscriptionEndsAt] = React.useState<string | null>(null)
   const [plans, setPlans] = React.useState<any[]>([])
   const [subscriptionModalOpen, setSubscriptionModalOpen] = React.useState(false)
+  const [createTaskModalOpen, setCreateTaskModalOpen] = React.useState(false)
+  const [reworkModalTask, setReworkModalTask] = React.useState<Task | null>(null)
   
   // Integrations State
   const [integrationsModalOpen, setIntegrationsModalOpen] = React.useState(false)
@@ -409,7 +411,14 @@ export function useAdminState() {
         handleAction(id, "DELETE_TASK", { taskId: id });
       });
     }
-    const handleReturnToOpen = (id: string) => handleAction(id, "UNMARK_PRINTED", { tasks: [{id}] })
+    const handleReturnToOpen = (id: string) => {
+      const targetTask = tasks.find(t => t.id === id)
+      if (targetTask) {
+        setReworkModalTask(targetTask)
+      } else {
+        handleAction(id, "UNMARK_PRINTED", { tasks: [{ id }] })
+      }
+    }
   const handleReturnToOpenMass = () => {
     if (selectedTasks.size === 0) return toast("לא נבחרו משימות", "error")
     confirmAction("להחזיר את כל המשימות הנבחרות לסטטוס פתוח?", () => {
@@ -725,6 +734,8 @@ export function useAdminState() {
     exportTasksToCSV, handleCleanupTasks,
     tenantStatus, setTenantStatus, plan, setPlan, price, setPrice,
     subscriptionEndsAt, setSubscriptionEndsAt, plans, setPlans,
-    subscriptionModalOpen, setSubscriptionModalOpen
+    subscriptionModalOpen, setSubscriptionModalOpen,
+    createTaskModalOpen, setCreateTaskModalOpen,
+    reworkModalTask, setReworkModalTask
   }
 }
