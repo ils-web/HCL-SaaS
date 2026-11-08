@@ -60,9 +60,9 @@ export function AdminTaskTable({
         </button>
 
         {activeTabs.map(tab => {
-          const tabOpenCount = tasks.filter(t => t.sheet === tab && t.status !== "סגור").length;
-          const hasNewTasks = tasks.some(t => t.sheet === tab && t.status === "פתוח");
           const isQrTab = tab === "QR";
+          const tabOpenCount = tasks.filter(t => (isQrTab ? (t.sheet === "QR" || t.isQr) : t.sheet === tab) && t.status !== "סגור").length;
+          const hasNewTasks = tasks.some(t => (isQrTab ? (t.sheet === "QR" || t.isQr) : t.sheet === tab) && t.status === "פתוח");
           return (
           <button
             key={tab}

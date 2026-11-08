@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
-const prisma = new PrismaClient();
-
-export async function GET(req: Request) {
+export async function GET() {
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ error: 'Only available in development' }, { status: 403 });
+  }
   try {
     const tenants = await prisma.tenant.findMany();
     const results = [];

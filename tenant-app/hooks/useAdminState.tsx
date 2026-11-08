@@ -21,9 +21,9 @@ export function useAdminState() {
   React.useEffect(() => {
     if (tasks.length > 0) {
       if (prevTasksCountRef.current > 0 && tasks.length > prevTasksCountRef.current) {
-        const newQr = tasks.find(t => t.isQr && (t.status === "פתוח" || t.status === "NEW"));
+        const newQr = tasks.find(t => t.isQr && (t.status === "פתוח" || t.status === "NEW" || t.status === "בעבודה"));
         if (newQr) {
-          toast(`🚨 התקבלה קריאת QR חדשה מהשטח! (${newQr.defect} - ${newQr.room})`, "info");
+          toast(`🚨 התקבלה קריאת QR חדשה מהשטח! (${newQr.defect} - ${newQr.room})${newQr.worker ? ` [נותב ל-${newQr.worker}]` : ""}`, "info");
         }
       }
       prevTasksCountRef.current = tasks.length;
@@ -38,7 +38,7 @@ export function useAdminState() {
     }
   }
 
-  const [workers, setWorkers] = React.useState<{id:string, name:string, teamId?:string}[]>([])
+  const [workers, setWorkers] = React.useState<{id:string, name:string, teamId?:string, isQrDuty?:boolean}[]>([])
   const [categories, setCategories] = React.useState<any>(null)
   const [systemTeams, setSystemTeams] = React.useState<Record<string, string>>({})
   const [teams, setTeams] = React.useState<any[]>([])
@@ -148,15 +148,25 @@ export function useAdminState() {
       const w = t.worker || "ללא שיוך"
       if (!stats[w]) stats[w] = { total: 0, done: 0 }
       stats[w].total++
-      if (t.status === "בוצע") stats[w].done++
+      if (t.status === "בוצע" || t.status === "הושלם") stats[w].done++
     })
-    return Object.entries(stats).map(([w, s]) => (
-      <div key={w} className="flex justify-between text-sm items-center border-b border-gray-100 pb-1">
-        <span className="font-semibold text-indigo-900">{w}</span>
-        <span className="bg-indigo-100 text-indigo-700 px-2 rounded-full text-xs font-bold">{s.done}/{s.total}</span>
-      </div>
-    ))
-  }, [tasks])
+    return Object.entries(stats).map(([w, s]) => {
+      const isDuty = workers.some(wk => wk.name === w && wk.isQrDuty)
+      return (
+        <div key={w} className="flex justify-between text-sm items-center border-b border-gray-100 pb-1">
+          <span className="font-semibold text-indigo-900 flex items-center gap-1.5">
+            {w}
+            {isDuty && (
+              <span className="bg-purple-600 text-white text-[10px] font-black px-1.5 py-0.5 rounded shadow-xs" title="אחראי קריאות QR בצוות">
+                ⚡ QR
+              </span>
+            )}
+          </span>
+          <span className="bg-indigo-100 text-indigo-700 px-2 rounded-full text-xs font-bold">{s.done}/{s.total}</span>
+        </div>
+      )
+    })
+  }, [tasks, workers])
 
   const warningStats = React.useMemo(() => {
     let notStarted = 0;
@@ -284,7 +294,7 @@ export function useAdminState() {
 
   let filtered = tasks.filter(t => t.status !== "סגור")
   if (currentTab !== "ALL") {
-    filtered = filtered.filter(t => t.sheet === currentTab)
+    filtered = filtered.filter(t => currentTab === "QR" ? (t.sheet === "QR" || t.isQr) : t.sheet === currentTab)
   }
   if (filterDept !== "ALL") {
     filtered = filtered.filter(t => t.dept === filterDept)
@@ -445,7 +455,7 @@ export function useAdminState() {
       const data = await res.json()
       if (data.status === "success") {
         toast("הגדרות פעילות QR נשמרו בהצלחה", "success")
-        setQrSettings(newSettings)
+        setQrSettings(data.qrSettings || newSettings)
       } else {
         toast("שגיאה בשמירת הגדרות", "error")
       }

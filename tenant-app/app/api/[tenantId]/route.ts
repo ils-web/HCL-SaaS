@@ -1,10 +1,112 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getGlobalConfig } from '@/app/api/superadmin/route';
+import { jwtVerify } from 'jose';
 
 export const dynamic = 'force-dynamic';
 
 // Using shared prisma singleton
+
+const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD || "super123";
+
+const getJwtSecret = () => {
+  const secret = process.env.JWT_SECRET || 'fallback-secret-key-for-development-only-change-me-in-production';
+  return new TextEncoder().encode(secret);
+};
+
+async function verifyAdminAuth(request: Request, tenantId: string): Promise<boolean> {
+  try {
+    let token = '';
+    const authHeader = request.headers.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
+    if (!token) {
+      const cookieHeader = request.headers.get('cookie') || '';
+      const match = cookieHeader.match(/(?:^|;\s*)auth_token=([^;]+)/);
+      if (match) token = decodeURIComponent(match[1]);
+    }
+    if (!token) return false;
+    if (token === SUPERADMIN_PASSWORD) return true;
+
+    const verified = await jwtVerify(token, getJwtSecret());
+    const payload = verified.payload as { role?: string; tenantId?: string };
+    if (payload.role === 'SUPERADMIN') return true;
+    if (payload.role === 'ADMIN' && payload.tenantId === tenantId) return true;
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+
+function deriveDefaultInspectorPin(tenantId: string): string {
+  let hash = 0;
+  for (let i = 0; i < tenantId.length; i++) {
+    hash = (hash * 31 + tenantId.charCodeAt(i)) % 9000;
+  }
+  return String(Math.abs(hash) + 1000).slice(0, 4);
+}
+
+function getNormalizedQrSettings(tenant: any) {
+  const raw = (tenant?.qrSettings && typeof tenant.qrSettings === 'object') ? (tenant.qrSettings as any) : {};
+  const defaultPin = deriveDefaultInspectorPin(tenant?.id || 'default');
+  return {
+    mode: raw.mode || '24/7',
+    start: raw.start || '08:00',
+    end: raw.end || '17:00',
+    autoAssignQrToWorker: raw.autoAssignQrToWorker !== undefined ? Boolean(raw.autoAssignQrToWorker) : true,
+    qrDutyWorkerIds: Array.isArray(raw.qrDutyWorkerIds) ? raw.qrDutyWorkerIds : [],
+    dutyWorkersByTeam: (raw.dutyWorkersByTeam && typeof raw.dutyWorkersByTeam === 'object') ? raw.dutyWorkersByTeam : {},
+    inspectorPin: raw.inspectorPin ? String(raw.inspectorPin).trim() : defaultPin,
+    requireInspectorPin: raw.requireInspectorPin !== undefined ? Boolean(raw.requireInspectorPin) : true,
+    inspectorDevices: Array.isArray(raw.inspectorDevices) ? raw.inspectorDevices : []
+  };
+}
+
+function matchTeamByQrCategory(categoryName: string, teamsDb: { id: string; name: string }[]) {
+  if (!categoryName || !teamsDb.length) return null;
+  const cleanCat = categoryName.trim().toLowerCase();
+  const cleanCatNoUnderscore = cleanCat.replace(/_/g, ' ');
+
+  // 1. Direct name or substring match
+  const direct = teamsDb.find(t => {
+    const tn = t.name.trim().toLowerCase();
+    return tn === cleanCat || tn === cleanCatNoUnderscore || tn.includes(cleanCatNoUnderscore) || cleanCatNoUnderscore.includes(tn);
+  });
+  if (direct && direct.name !== 'QR' && direct.name !== 'כללי') return direct;
+
+  // 2. Multilingual semantic keyword groups (Hebrew / English / Russian)
+  const keywordGroups: { triggers: string[]; teamMatchers: string[] }[] = [
+    {
+      triggers: ['חשמל', 'תאורה', 'שקע', 'electr', 'электр', 'свет', 'розетк'],
+      teamMatchers: ['חשמל', 'electr', 'אלקטר', 'электр']
+    },
+    {
+      triggers: ['מיזוג', 'מזגן', 'אוורור', 'חימום', 'air', 'ac', 'condit', 'кондиц', 'вентил', 'отопл'],
+      teamMatchers: ['מיזוג', 'מזגן', 'air', 'ac', 'condit', 'hvac', 'кондиц']
+    },
+    {
+      triggers: ['בינוי', 'דלת', 'חלון', 'קיר', 'תקרה', 'מיט', 'ריהוט', 'נגר', 'אינסטלצ', 'מים', 'נזיל', 'שירותים', 'renovat', 'build', 'door', 'plumb', 'ремонт', 'двер', 'сантех', 'мебел', 'кроват', 'стен'],
+      teamMatchers: ['בינוי', 'שיפוץ', 'אחזק', 'renovat', 'build', 'maint', 'נגר', 'אינסטל', 'ремонт', 'строй', 'сантех']
+    },
+    {
+      triggers: ['ניקיון', 'ניקוי', 'אשפה', 'לכלוך', 'clean', 'уборк', 'клининг', 'чист', 'мусор'],
+      teamMatchers: ['ניקיון', 'ניקוי', 'clean', 'משק', 'уборк', 'клининг']
+    }
+  ];
+
+  for (const group of keywordGroups) {
+    if (group.triggers.some(tr => cleanCat.includes(tr) || cleanCatNoUnderscore.includes(tr))) {
+      const matched = teamsDb.find(t => {
+        const tn = t.name.trim().toLowerCase();
+        return group.teamMatchers.some(m => tn.includes(m));
+      });
+      if (matched) return matched;
+    }
+  }
+
+  return direct || null;
+}
 
 const translationCache = new Map<string, string>();
 
@@ -118,6 +220,7 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
   }
 
   if (action === 'getSettings') {
+    const isAdminCaller = await verifyAdminAuth(request, tenantId);
     const [workersDb, teamsDb, areas] = await Promise.all([
       prisma.user.findMany({ where: { tenantId, role: 'WORKER' } }),
       prisma.team.findMany({ where: { tenantId }, orderBy: { createdAt: 'asc' } }),
@@ -127,7 +230,15 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
       })
     ]);
 
-    const workers = workersDb.map(w => ({ id: w.id, name: w.name, teamId: w.teamId }));
+    const normalizedQr = getNormalizedQrSettings(tenant);
+    const dutySet = new Set<string>(normalizedQr.qrDutyWorkerIds || []);
+
+    const workers = workersDb.map(w => ({
+      id: w.id,
+      name: w.name,
+      teamId: w.teamId,
+      isQrDuty: dutySet.has(w.id)
+    }));
     const teams = teamsDb.map(t => t.name);
     const teamsData = teamsDb.map(t => ({ id: t.id, name: t.name }));
     
@@ -142,8 +253,25 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
         }
       }
     }
-  
-    const qrSettings = (tenant as any).qrSettings || { mode: '24/7', start: '08:00', end: '17:00' };
+
+    // Public callers (report.html / inspector.html) only receive non-sensitive configuration
+    if (!isAdminCaller) {
+      return NextResponse.json({
+        tenantName: tenant.name,
+        tenantStatus: tenant.status,
+        categories,
+        teams,
+        teamsData,
+        systemTeams,
+        qrSettings: {
+          mode: normalizedQr.mode,
+          start: normalizedQr.start,
+          end: normalizedQr.end,
+          requireInspectorPin: normalizedQr.requireInspectorPin
+        }
+      });
+    }
+
     const globalConfig = await getGlobalConfig();
 
     let subscriptionEndsAt = tenant.subscriptionEndsAt;
@@ -161,7 +289,9 @@ export async function GET(request: Request, props: { params: Promise<{ tenantId:
     }
 
     return NextResponse.json({ 
-      workers, categories, teams, teamsData, systemTeams, qrSettings, 
+      workers, categories, teams, teamsData, systemTeams,
+      qrSettings: normalizedQr,
+      maxInspectors: tenant.status === 'FREE' ? 999 : (tenant.maxInspectors || 1),
       tenantName: tenant.name, 
       tenantStatus: tenant.status,
       plan: tenant.plan || 'BASIC',
@@ -418,8 +548,110 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       return NextResponse.json({ error: 'Invalid tenant' }, { status: 403 });
     }
 
+    const normalizedQr = getNormalizedQrSettings(tenant);
+
+    // Security Gate: Require Admin JWT for all administrative POST actions
+    const PUBLIC_OR_FIELD_ACTIONS = new Set([
+      'ADD_PERSONNEL_TASK',
+      'GET_WORKER_TASKS',
+      'WORKER_MARK_COMPLETED',
+      'VERIFY_INSPECTOR',
+      'FINISH_DEPT',
+      'REQUEST_SALES_CONTACT'
+    ]);
+    const isInspectorRoomCheck = Boolean(body.items && Array.isArray(body.items) && !action);
+
+    if (!isInspectorRoomCheck && (!action || !PUBLIC_OR_FIELD_ACTIONS.has(action))) {
+      const isAdmin = await verifyAdminAuth(request, tenantId);
+      if (!isAdmin) {
+        return NextResponse.json({ error: 'Unauthorized. Admin authentication required.' }, { status: 401 });
+      }
+    }
+
+    // Inspector PWA Authorization & Device Limit Check
+    const verifyInspectorDeviceAndPin = async (pinInput?: string, deviceId?: string, inspectorName?: string) => {
+      if (!normalizedQr.requireInspectorPin) {
+        return { ok: true };
+      }
+      const cleanPin = String(pinInput || '').trim();
+      if (!cleanPin || cleanPin !== String(normalizedQr.inspectorPin).trim()) {
+        return {
+          ok: false,
+          code: 'INVALID_INSPECTOR_PIN',
+          message: 'קוד גישה (PIN) למפקח שגוי או חסר / Неверный код доступа инспектора (PIN)'
+        };
+      }
+
+      if (deviceId) {
+        const maxAllowed = tenant.status === 'FREE' ? 999 : (tenant.maxInspectors || 1);
+        const devices: any[] = Array.isArray(normalizedQr.inspectorDevices) ? [...normalizedQr.inspectorDevices] : [];
+        const existingIdx = devices.findIndex((d: any) => d.deviceId === deviceId);
+
+        if (existingIdx >= 0) {
+          devices[existingIdx] = {
+            ...devices[existingIdx],
+            inspectorName: inspectorName || devices[existingIdx].inspectorName || 'מפקח',
+            lastSeen: new Date().toISOString()
+          };
+        } else {
+          if (devices.length >= maxAllowed) {
+            return {
+              ok: false,
+              code: 'MAX_INSPECTORS_LIMIT',
+              message: `הגעת למגבלת המפקחים בחבילה שלך (${maxAllowed}). מנהל המערכת יכול לאפס מכשירים בחלון "Inspektor QR".`
+            };
+          }
+          devices.push({
+            deviceId,
+            inspectorName: inspectorName || 'מפקח',
+            addedAt: new Date().toISOString(),
+            lastSeen: new Date().toISOString()
+          });
+        }
+
+        await prisma.tenant.update({
+          where: { id: tenantId },
+          data: {
+            qrSettings: {
+              ...normalizedQr,
+              inspectorDevices: devices
+            } as any
+          }
+        });
+      }
+
+      return { ok: true };
+    };
+
+    if (action === 'VERIFY_INSPECTOR') {
+      const { inspectorPin, deviceId, inspectorName } = body;
+      const check = await verifyInspectorDeviceAndPin(inspectorPin, deviceId, inspectorName);
+      if (!check.ok) {
+        return NextResponse.json({ status: 'error', error: check.code, message: check.message }, { status: 403 });
+      }
+      return NextResponse.json({ status: 'success', tenantName: tenant.name });
+    }
+
+    if (action === 'RESET_INSPECTOR_DEVICES') {
+      await prisma.tenant.update({
+        where: { id: tenantId },
+        data: {
+          qrSettings: {
+            ...normalizedQr,
+            inspectorDevices: []
+          } as any
+        }
+      });
+      return NextResponse.json({ status: 'success', inspectorDevices: [] });
+    }
+
   // Handle Inspector Room Defects (has items array, might not have explicit action)
   if (body.items && Array.isArray(body.items)) {
+    const authCheck = await verifyInspectorDeviceAndPin(body.inspectorPin, body.deviceId, body.inspector);
+    if (!authCheck.ok) {
+      return NextResponse.json({ error: authCheck.code, message: authCheck.message }, { status: 403 });
+    }
+
     if (tenant.status === 'TRIAL') {
       const taskCount = await prisma.task.count({ where: { tenantId } });
       if (taskCount >= 5) {
@@ -501,13 +733,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     
     let translatedComment = comment || '';
     if (translatedComment) {
-      try {
-        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=he&dt=t&q=${encodeURIComponent(translatedComment)}`);
-        const data = await res.json();
-        translatedComment = data[0].map((item: any) => item[0]).join('');
-      } catch (e) {
-        console.error('Translation error:', e);
-      }
+      translatedComment = await translateCached(translatedComment, 'he');
     }
 
     const realDeptName = (department && department !== "Unknown" && department !== "לא ידוע") ? department : "כללי";
@@ -516,11 +742,42 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     
     let qrTeam = await prisma.team.findFirst({ where: { tenantId, name: 'QR' } });
     if (!qrTeam) qrTeam = await prisma.team.create({ data: { tenantId, name: 'QR' } });
-    const finalTeamId = qrTeam.id;
 
-    let sysName = defect || sheetName || 'אחר';
-    let sys = await prisma.system.findFirst({ where: { tenantId, name: sysName } });
+    const sysName = defect || sheetName || 'אחר';
+    const [sys, teamsDb, workersDb] = await Promise.all([
+      prisma.system.findFirst({ where: { tenantId, name: sysName } }),
+      prisma.team.findMany({ where: { tenantId } }),
+      prisma.user.findMany({ where: { tenantId, role: 'WORKER' } })
+    ]);
 
+    // Resolve target brigade & automatic QR duty worker assignment
+    const matchedBrigade = sys?.autoAssignTeamId
+      ? teamsDb.find(t => t.id === sys.autoAssignTeamId)
+      : matchTeamByQrCategory(sheetName || sysName, teamsDb);
+
+    let assignedWorker: { id: string; name: string; teamId: string | null } | null = null;
+    const dutyIds = new Set<string>(normalizedQr.qrDutyWorkerIds || []);
+    const dutyWorkers = workersDb.filter(w => dutyIds.has(w.id));
+
+    if (normalizedQr.autoAssignQrToWorker && dutyWorkers.length > 0) {
+      // 1. Check if there is a designated QR duty worker in the matched brigade
+      if (matchedBrigade) {
+        assignedWorker = dutyWorkers.find(w => w.teamId === matchedBrigade.id) || null;
+      }
+      // 2. Fallback: Check if there is a designated QR duty worker in the 'QR' or 'כללי' brigade
+      if (!assignedWorker) {
+        const generalTeamIds = new Set(
+          teamsDb.filter(t => t.name === 'QR' || t.name === 'כללי').map(t => t.id)
+        );
+        assignedWorker = dutyWorkers.find(w => w.teamId && generalTeamIds.has(w.teamId)) || null;
+      }
+      // 3. Fallback: If the organization designated a single QR duty worker overall, route to them
+      if (!assignedWorker && dutyWorkers.length === 1) {
+        assignedWorker = dutyWorkers[0];
+      }
+    }
+
+    const finalTeamId = assignedWorker?.teamId || matchedBrigade?.id || qrTeam.id;
     const finalPhotoUrl = await uploadToImgBB(photoBase64);
 
     await prisma.task.create({
@@ -531,7 +788,9 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         customDefectName: sys ? null : sysName,
         room: String(room || "כללי"),
         actionType: 'REPAIR', 
-        status: 'NEW',
+        status: assignedWorker ? 'IN_PROGRESS' : 'NEW',
+        workerId: assignedWorker ? assignedWorker.id : null,
+        isSentToApp: Boolean(assignedWorker),
         notes: translatedComment,
         photoUrl: finalPhotoUrl || null,
         inspectorName: reporterName ? `צוות (QR): ${reporterName}` : 'צוות (QR): דיווח מהשטח',
@@ -544,11 +803,14 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     message += `🏢 *מחלקה:* ${department || "לא הוגדרה מחלקה"}\n`;
     message += `🚪 *חדר/מיקום:* ${room || "-"}\n`;
     message += `📋 *סיווג:* ${sheetName || "כללי"}\n`;
+    if (assignedWorker) {
+      message += `⚡ *נותב אוטומטית לעובד אחראי:* ${assignedWorker.name} (WorkerApp)\n`;
+    }
     message += `💬 *הערות:* ${translatedComment || "-"}\n`;
     if (finalPhotoUrl) message += `\n 📷 [תמונה מצורפת](<${finalPhotoUrl}>)`;
     await sendTelegram(message, tenant.telegramBotToken, tenant.telegramChatId);
 
-    return NextResponse.json({ status: 'success' });
+    return NextResponse.json({ status: 'success', assignedWorker: assignedWorker?.name || null });
   }
 
     if (action === 'DELETE_TASK') {
@@ -586,6 +848,10 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     }
 
   if (action === 'FINISH_DEPT') {
+    const authCheck = await verifyInspectorDeviceAndPin(body.inspectorPin, body.deviceId, body.inspector);
+    if (!authCheck.ok) {
+      return NextResponse.json({ error: authCheck.code, message: authCheck.message }, { status: 403 });
+    }
     const { reportText } = body;
     if (reportText) {
       await sendTelegram(reportText, tenant.telegramBotToken, tenant.telegramChatId);
@@ -602,7 +868,6 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     
     // Fetch all current teams
     const currentTeams = await prisma.team.findMany({ where: { tenantId } });
-    const currentTeamNames = currentTeams.map(t => t.name);
     
     for (const ct of currentTeams) {
       if (!teams.includes(ct.name) && ct.name !== 'QR') {
@@ -630,7 +895,8 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
 
   if (action === 'SAVE_WORKERS') {
-    const workersList: { id?: string, name: string, teamId?: string | null }[] = body.workers || [];
+    const workersList: { id?: string, name: string, teamId?: string | null, isQrDuty?: boolean }[] = body.workers || [];
+    const autoAssignQrToWorker = body.autoAssignQrToWorker;
     
     if (tenant.status === 'TRIAL' && workersList.length > 1) {
       return NextResponse.json({ error: 'TRIAL_LIMIT', message: 'У вас тестовая версия (TRIAL). Доступен только 1 сотрудник.' }, { status: 403 });
@@ -651,32 +917,61 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       }
     }
 
+    const savedDutyWorkerIds: string[] = [];
+    const savedDutyByTeam: Record<string, string> = {};
+
     // Upsert the remaining workers
     for (const wData of workersList) {
+      let savedWorkerId = wData.id || '';
+      const resolvedTeamId = wData.teamId || null;
+
       if (wData.id) {
         // Update existing
-        await prisma.user.update({
+        const updated = await prisma.user.update({
           where: { id: wData.id },
-          data: { name: wData.name, teamId: wData.teamId || null }
+          data: { name: wData.name, teamId: resolvedTeamId }
         });
+        savedWorkerId = updated.id;
       } else {
         // Find by name just in case
         const ext = await prisma.user.findFirst({ where: { tenantId, name: wData.name, role: 'WORKER' }});
         if (ext) {
-          await prisma.user.update({
+          const updated = await prisma.user.update({
             where: { id: ext.id },
-            data: { teamId: wData.teamId || null }
+            data: { teamId: resolvedTeamId }
           });
+          savedWorkerId = updated.id;
         } else {
           // Create new
-          await prisma.user.create({
-            data: { tenantId, name: wData.name, role: 'WORKER', teamId: wData.teamId || null }
+          const created = await prisma.user.create({
+            data: { tenantId, name: wData.name, role: 'WORKER', teamId: resolvedTeamId }
           });
+          savedWorkerId = created.id;
+        }
+      }
+
+      if (wData.isQrDuty && savedWorkerId) {
+        savedDutyWorkerIds.push(savedWorkerId);
+        if (resolvedTeamId) {
+          savedDutyByTeam[resolvedTeamId] = savedWorkerId;
         }
       }
     }
+
+    // Persist QR duty workers & auto-assign toggle inside tenant.qrSettings
+    const updatedQrSettings = {
+      ...normalizedQr,
+      qrDutyWorkerIds: savedDutyWorkerIds,
+      dutyWorkersByTeam: savedDutyByTeam,
+      ...(autoAssignQrToWorker !== undefined ? { autoAssignQrToWorker: Boolean(autoAssignQrToWorker) } : {})
+    };
+
+    await prisma.tenant.update({
+      where: { id: tenantId },
+      data: { qrSettings: updatedQrSettings as any }
+    });
     
-    return NextResponse.json({ status: 'success' });
+    return NextResponse.json({ status: 'success', qrSettings: updatedQrSettings });
   }
 
   if (action === 'SAVE_CATEGORIES') {
@@ -739,12 +1034,16 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   }
   
     if (action === 'SAVE_QR_SETTINGS') {
-      const qrSettings = body.qrSettings || { mode: '24/7', start: '08:00', end: '17:00' };
+      const incoming = body.qrSettings || {};
+      const mergedQrSettings = {
+        ...normalizedQr,
+        ...incoming
+      };
       await prisma.tenant.update({
         where: { id: tenantId },
-        data: { qrSettings: qrSettings as any }
+        data: { qrSettings: mergedQrSettings as any }
       });
-      return NextResponse.json({ status: 'success' });
+      return NextResponse.json({ status: 'success', qrSettings: mergedQrSettings });
     }
 
   if (action === 'SAVE_INTEGRATIONS') {
@@ -1224,6 +1523,14 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
   if (action === 'WORKER_MARK_COMPLETED') {
     const { taskId, workerId, afterPhotoUrl, comment } = body;
     if (!taskId || !workerId) return NextResponse.json({ error: 'Missing params' }, { status: 400 });
+
+    const [task, worker] = await Promise.all([
+      prisma.task.findUnique({ where: { id: taskId } }),
+      prisma.user.findUnique({ where: { id: workerId } })
+    ]);
+    if (!task || task.tenantId !== tenantId || !worker || worker.tenantId !== tenantId) {
+      return NextResponse.json({ error: 'Forbidden or not found' }, { status: 403 });
+    }
     
     const updateData: any = {
       status: 'COMPLETED',
@@ -1232,13 +1539,10 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     if (afterPhotoUrl) updateData.afterPhotoUrl = await uploadToImgBB(afterPhotoUrl);
     
     if (comment) {
-      const task = await prisma.task.findUnique({ where: { id: taskId } });
-      if (task) {
-        const cleanComment = comment.trim();
-        const heComment = await translateCached(cleanComment, 'he');
-        const formattedWorkerComment = heComment && heComment !== cleanComment ? `${heComment} (${cleanComment})` : cleanComment;
-        updateData.notes = task.notes ? task.notes + '\n[עובד]: ' + formattedWorkerComment : '[עובד]: ' + formattedWorkerComment;
-      }
+      const cleanComment = comment.trim();
+      const heComment = await translateCached(cleanComment, 'he');
+      const formattedWorkerComment = heComment && heComment !== cleanComment ? `${heComment} (${cleanComment})` : cleanComment;
+      updateData.notes = task.notes ? task.notes + '\n[עובד]: ' + formattedWorkerComment : '[עובד]: ' + formattedWorkerComment;
     }
 
     await prisma.task.update({

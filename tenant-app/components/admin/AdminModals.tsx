@@ -131,14 +131,26 @@ export function AdminModals({
   const [localQrMode, setLocalQrMode] = React.useState("24/7")
   const [localQrStart, setLocalQrStart] = React.useState("08:00")
   const [localQrEnd, setLocalQrEnd] = React.useState("17:00")
+  const [localAutoAssignQr, setLocalAutoAssignQr] = React.useState(true)
+  const [localRequireInspectorPin, setLocalRequireInspectorPin] = React.useState(true)
+  const [localInspectorPin, setLocalInspectorPin] = React.useState("2580")
 
   React.useEffect(() => {
-    if (workerQrModalOpen && qrSettings) {
+    if (qrSettings) {
       setLocalQrMode(qrSettings.mode || "24/7")
       setLocalQrStart(qrSettings.start || "08:00")
       setLocalQrEnd(qrSettings.end || "17:00")
+      if (qrSettings.autoAssignQrToWorker !== undefined) {
+        setLocalAutoAssignQr(Boolean(qrSettings.autoAssignQrToWorker))
+      }
+      if (qrSettings.requireInspectorPin !== undefined) {
+        setLocalRequireInspectorPin(Boolean(qrSettings.requireInspectorPin))
+      }
+      if (qrSettings.inspectorPin) {
+        setLocalInspectorPin(String(qrSettings.inspectorPin))
+      }
     }
-  }, [workerQrModalOpen, qrSettings])
+  }, [workerQrModalOpen, workersModalOpen, qrModalOpen, qrSettings])
 
   const [workerQrGeneratedUrl, setWorkerQrGeneratedUrl] = React.useState("")
   const [qrGeneratedUrl, setQrGeneratedUrl] = React.useState("")
@@ -451,7 +463,7 @@ export function AdminModals({
                 </div>
             </div>
 
-            <Button className="w-full mt-4 bg-gray-800 hover:bg-gray-900 text-white font-bold h-10" onClick={() => saveQrSettings({ mode: localQrMode, start: localQrStart, end: localQrEnd })}>
+            <Button className="w-full mt-4 bg-gray-800 hover:bg-gray-900 text-white font-bold h-10" onClick={() => saveQrSettings({ ...qrSettings, mode: localQrMode, start: localQrStart, end: localQrEnd })}>
               <i className="fas fa-save ml-2"></i> שמור הגדרות פעילות
             </Button>
           </div>
@@ -460,21 +472,107 @@ export function AdminModals({
       </Modal>
 
       {/* Inspector QR Modal */}
-      <Modal isOpen={qrModalOpen} onClose={() => setQrModalOpen(false)} title="אפליקציית מפקח (QR)">
-        <div className="space-y-4 text-center">
-          <p className="text-gray-600 mb-4 font-medium">יצירת קוד QR מהיר לאפליקציית מפקח (כללי לארגון)</p>
+      <Modal isOpen={qrModalOpen} onClose={() => setQrModalOpen(false)} title="אפליקציית מפקח (QR) ואבטחה">
+        <div className="space-y-4 text-center" dir="rtl">
+          <p className="text-gray-600 mb-2 font-medium text-sm">יצירת קוד QR מאובטח לאפליקציית מפקח והגדרת קוד גישה (PIN)</p>
+
+          {/* Inspector Security & PIN Settings */}
+          <div className="bg-indigo-50/70 border border-indigo-200 rounded-xl p-4 text-right space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <i className="fas fa-shield-alt text-indigo-600 text-lg"></i>
+                <span className="font-black text-indigo-950 text-sm">אבטחת כניסה לאפליקציית מפקח (PWA)</span>
+              </div>
+              <label className="inline-flex items-center gap-1.5 cursor-pointer text-xs font-bold text-indigo-800">
+                <input
+                  type="checkbox"
+                  checked={localRequireInspectorPin}
+                  onChange={e => setLocalRequireInspectorPin(e.target.checked)}
+                  className="w-4 h-4 rounded text-indigo-600 cursor-pointer"
+                />
+                דרוש קוד PIN
+              </label>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold text-gray-700 whitespace-nowrap">קוד גישה (PIN):</label>
+              <Input
+                value={localInspectorPin}
+                onChange={e => setLocalInspectorPin(e.target.value.replace(/\s+/g, '').slice(0, 8))}
+                placeholder="4 ספרות (למשל 2580)"
+                className="flex-1 text-center font-black tracking-widest text-base bg-white border-indigo-300"
+                dir="ltr"
+              />
+              <Button
+                className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 h-9 shrink-0"
+                onClick={() => {
+                  if (!localInspectorPin.trim()) return toast("נא להזין קוד גישה למפקח", "error");
+                  saveQrSettings({
+                    ...qrSettings,
+                    inspectorPin: localInspectorPin.trim(),
+                    requireInspectorPin: localRequireInspectorPin
+                  });
+                  if (qrGeneratedUrl) {
+                    const pinParam = localRequireInspectorPin ? `&pin=${encodeURIComponent(localInspectorPin.trim())}` : "";
+                    setQrGeneratedUrl(`${window.location.origin}/inspector.html?tenantId=${tenantId}${pinParam}`);
+                  }
+                }}
+              >
+                <i className="fas fa-save ml-1"></i> שמור קוד
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-indigo-200/70 text-xs">
+              <span className="text-gray-600 font-bold">
+                📱 מכשירי מפקחים פעילים:{" "}
+                <strong className="text-indigo-700">{(qrSettings?.inspectorDevices || []).length}</strong>
+              </span>
+              {(qrSettings?.inspectorDevices || []).length > 0 && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/${tenantId}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "RESET_INSPECTOR_DEVICES" })
+                      });
+                      const out = await res.json();
+                      if (out.status === "success") {
+                        setQrSettings({ ...qrSettings, inspectorDevices: [] });
+                        toast("רשימת מכשירי המפקחים אופסה בהצלחה", "success");
+                      }
+                    } catch (e) {
+                      toast("שגיאה באיפוס מכשירים", "error");
+                    }
+                  }}
+                  className="text-rose-600 hover:text-rose-800 font-bold underline cursor-pointer"
+                >
+                  אפס / נתק מכשירים
+                </button>
+              )}
+            </div>
+          </div>
           
           <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-12" onClick={() => {
-            setQrGeneratedUrl(window.location.origin + "/inspector.html?tenantId=" + tenantId);
+            const pinParam = localRequireInspectorPin && localInspectorPin.trim()
+              ? `&pin=${encodeURIComponent(localInspectorPin.trim())}`
+              : "";
+            setQrGeneratedUrl(`${window.location.origin}/inspector.html?tenantId=${tenantId}${pinParam}`);
           }}>
-            <i className="fas fa-qrcode ml-2"></i> הכן קוד QR למפקח
+            <i className="fas fa-qrcode ml-2"></i> הכן קוד QR מאובטח למפקח
           </Button>
 
           {qrGeneratedUrl && (
             <div className="flex flex-col items-center p-4 bg-gray-50 rounded-xl border mt-4">
-              <p className="text-gray-700 font-bold mb-2">סרוק את הקוד מטה:</p>
+              <p className="text-gray-700 font-bold mb-2">סרוק את הקוד מטה (כולל הרשאת גישה אוטומטית):</p>
               <img src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrGeneratedUrl)}`} alt="QR Code" className="w-48 h-48 border bg-white p-2 rounded shadow-sm" />
-              <a href={qrGeneratedUrl} target="_blank" className="mt-3 text-sm font-medium text-blue-600 hover:underline break-all text-center px-4">{qrGeneratedUrl}</a>
+              {localRequireInspectorPin && (
+                <div className="mt-2 bg-indigo-100 text-indigo-900 px-3 py-1 rounded-full text-xs font-black">
+                  🔐 קוד גישה (PIN) למפקח: <span dir="ltr" className="tracking-widest">{localInspectorPin}</span>
+                </div>
+              )}
+              <a href={qrGeneratedUrl} target="_blank" className="mt-2 text-xs font-medium text-blue-600 hover:underline break-all text-center px-4">{qrGeneratedUrl}</a>
               <div className="mt-4 flex gap-2 w-full">
                 <Button variant="outline" className="flex-1 font-bold border-blue-600 text-blue-600" onClick={() => window.open(qrGeneratedUrl, "_blank")}>פתח קישור</Button>
                 <Button variant="outline" className="flex-1 font-bold border-orange-500 text-orange-600" onClick={() => {
@@ -492,8 +590,9 @@ export function AdminModals({
                         .org-title { font-size: 28px; font-weight: 900; color: #065f46; margin: 0 0 6px 0; line-height: 1.2; }
                         .card-title { font-size: 20px; font-weight: 700; color: #475569; margin: 0 0 20px 0; }
                         .badge { display: inline-block; background: #ecfdf5; color: #059669; border: 2px dashed #6ee7b7; padding: 8px 24px; border-radius: 9999px; font-size: 22px; font-weight: 800; margin-bottom: 22px; }
-                        .qr-frame { background: #ffffff; border: 3px solid #e2e8f0; border-radius: 22px; padding: 16px; display: inline-block; margin-bottom: 22px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03); }
+                        .qr-frame { background: #ffffff; border: 3px solid #e2e8f0; border-radius: 22px; padding: 16px; display: inline-block; margin-bottom: 18px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03); }
                         .qr-frame img { display: block; width: 260px; height: 260px; border-radius: 12px; }
+                        .pin-box { background: #eef2ff; border: 2px solid #c7d2fe; color: #312e81; font-weight: 900; font-size: 18px; padding: 8px 18px; border-radius: 12px; margin-bottom: 16px; display: inline-block; }
                         .instructions-box { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 18px; padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; text-align: center; }
                         .lang-row { display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; font-size: 17px; color: #065f46; }
                         .footer-note { margin-top: 16px; font-size: 12px; color: #94a3b8; font-weight: 600; }
@@ -514,7 +613,8 @@ export function AdminModals({
                         <div class="badge">בדיקת מערכות וחדרים</div><br>
                         <div class="qr-frame">
                           <img src="https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(qrGeneratedUrl)}" alt="Inspector QR Code" />
-                        </div>
+                        </div><br>
+                        ${localRequireInspectorPin ? `<div class="pin-box">🔐 קוד גישה למפקח (PIN): <span dir="ltr">${localInspectorPin}</span></div>` : ''}
                         <div class="instructions-box">
                           <div class="lang-row">
                             <span>📲</span>
@@ -537,33 +637,77 @@ export function AdminModals({
       </Modal>
 
       {/* Workers Management Modal */}
-      <Modal isOpen={workersModalOpen} onClose={() => setWorkersModalOpen(false)} title="ניהול עובדים">
-        <div className="space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar p-1">
+      <Modal isOpen={workersModalOpen} onClose={() => setWorkersModalOpen(false)} title="ניהול עובדים וניתוב QR">
+        <div className="space-y-4 max-h-[72vh] overflow-y-auto custom-scrollbar p-1" dir="rtl">
+          {/* Auto-assign QR Reports Toggle Banner */}
+          <div className="bg-purple-50 border border-purple-200 rounded-xl p-3.5 text-right shadow-xs">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={localAutoAssignQr}
+                onChange={e => setLocalAutoAssignQr(e.target.checked)}
+                className="w-5 h-5 mt-0.5 rounded text-purple-600 focus:ring-purple-500 cursor-pointer shrink-0"
+              />
+              <div className="flex-1">
+                <div className="font-black text-purple-950 text-sm flex items-center gap-1.5">
+                  <i className="fas fa-bolt text-amber-500"></i>
+                  ניתוב אוטומטי של קריאות QR לעובד אחראי בצוות (WorkerApp)
+                </div>
+                <p className="text-xs text-purple-800/80 font-medium mt-1 leading-relaxed">
+                  סמן עובד בכל צוות כ-<strong>&quot;⚡ אחראי QR&quot;</strong>. כאשר מתקבלת קריאת QR מהשטח, היא תישלח אוטומטית לאפליקציית ה-WorkerApp שלו (ותמשיך להופיע בראש הפאנל עם תגית QR).
+                </p>
+              </div>
+            </label>
+          </div>
+
           {workers.length === 0 ? (
             <div className="text-center text-gray-400 p-4">אין עובדים ברשימה</div>
           ) : (
             workers.map((w, idx) => (
-              <div key={idx} className="flex flex-col bg-gray-50 p-4 rounded-xl border border-gray-200 gap-3">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm font-bold text-gray-600 w-16">שם:</label>
-                  <Input 
-                    className="flex-1 border-gray-300 rounded shadow-sm px-2 py-1 font-bold text-gray-700" 
-                    value={w.name} 
-                    onChange={e => {
-                      const newW = [...workers];
-                      newW[idx] = { ...newW[idx], name: e.target.value };
-                      setWorkers(newW);
-                    }} 
-                  />
+              <div
+                key={idx}
+                className={`flex flex-col p-4 rounded-xl border gap-3 transition-all ${
+                  w.isQrDuty
+                    ? "bg-purple-50/50 border-purple-400 ring-1 ring-purple-300 shadow-xs"
+                    : "bg-gray-50 border-gray-200"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1">
+                    <label className="text-sm font-bold text-gray-600 w-14">שם:</label>
+                    <Input 
+                      className="flex-1 border-gray-300 rounded shadow-sm px-2 py-1 font-bold text-gray-700 bg-white" 
+                      value={w.name} 
+                      onChange={e => {
+                        const newW = [...workers];
+                        newW[idx] = { ...newW[idx], name: e.target.value };
+                        setWorkers(newW);
+                      }} 
+                    />
+                  </div>
+                  {w.isQrDuty && (
+                    <span className="inline-flex items-center gap-1 bg-purple-600 text-white text-xs font-black px-2.5 py-1 rounded-full shadow-xs shrink-0">
+                      <i className="fas fa-bolt text-amber-300"></i> אחראי QR בצוות
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-sm font-bold text-gray-600 w-16">צוות:</label>
+                  <label className="text-sm font-bold text-gray-600 w-14">צוות:</label>
                   <Select 
-                    className="flex-1 border-gray-300 rounded shadow-sm px-2 py-1 text-sm font-bold" 
+                    className="flex-1 border-gray-300 rounded shadow-sm px-2 py-1 text-sm font-bold bg-white" 
                     value={w.teamId || ""}
                     onChange={e => {
+                      const newTeamId = e.target.value;
                       const newW = [...workers];
-                      newW[idx] = { ...newW[idx], teamId: e.target.value };
+                      // If this worker is QR duty, ensure only one QR duty worker per team
+                      if (newW[idx].isQrDuty && newTeamId) {
+                        newW.forEach((other, oIdx) => {
+                          if (oIdx !== idx && other.teamId === newTeamId) {
+                            newW[oIdx] = { ...other, isQrDuty: false };
+                          }
+                        });
+                      }
+                      newW[idx] = { ...newW[idx], teamId: newTeamId };
                       setWorkers(newW);
                     }}
                   >
@@ -573,37 +717,67 @@ export function AdminModals({
                     ))}
                   </Select>
                 </div>
-                <div className="flex gap-2 justify-end pt-2 border-t border-gray-200 mt-1">
-                  <Button variant="outline" className="text-blue-600 hover:text-blue-800 p-2 font-bold bg-blue-50 border-blue-200 h-auto" title="הדפס QR לאפליקציית עובד" onClick={() => {
-                    const url = window.location.origin + "/worker.html?tenantId=" + tenantId + "&workerId=" + w.id;
-                    printHtmlInIframe(`
-                      <html dir="rtl"><head><title>Print Worker QR</title>
-                      <style>
-                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
-                        .card { border: 4px solid #db2777; border-radius: 20px; display: inline-block; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-                        h1 { font-size: 36px; margin-bottom: 10px; color: #db2777; font-weight: 900; }
-                        p { font-size: 24px; color: #4b5563; font-weight: bold; margin-bottom: 30px; }
-                        .name-badge { display: inline-block; background: #fce7f3; color: #be185d; padding: 10px 20px; border-radius: 12px; font-size: 28px; font-weight: 900; margin-bottom: 30px; border: 2px dashed #f472b6; }
-                        .qr-container { padding: 20px; border: 3px solid #e5e7eb; border-radius: 16px; display: inline-block; background: #fff; }
-                      </style>
-                      </head>
-                      <body>
-                        <div class="card">
-                            <h1>אפליקציית עובד</h1>
-                            <p>סרוק כדי להתחבר למשימות שלך</p>
-                            <div class="name-badge">עובד: ${w.name}</div><br>
-                            <div class="qr-container">
-                              <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}" />
-                            </div>
-                        </div>
-                      </body></html>
-                    `);
-                  }}><i className="fas fa-qrcode ml-2"></i>QR עובד</Button>
-                  <Button variant="danger" className="p-2 h-auto" onClick={() => {
-                    const newW = [...workers];
-                    newW.splice(idx, 1);
-                    setWorkers(newW);
-                  }}><i className="fas fa-trash-alt"></i></Button>
+                <div className="flex flex-wrap gap-2 justify-between items-center pt-2 border-t border-gray-200 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newW = [...workers];
+                      const nextDuty = !Boolean(newW[idx].isQrDuty);
+                      const targetTeamId = newW[idx].teamId || "";
+                      // If enabling QR duty for this worker, unset other duty workers in the same brigade
+                      if (nextDuty && targetTeamId) {
+                        newW.forEach((other, oIdx) => {
+                          if (oIdx !== idx && (other.teamId || "") === targetTeamId) {
+                            newW[oIdx] = { ...other, isQrDuty: false };
+                          }
+                        });
+                      }
+                      newW[idx] = { ...newW[idx], isQrDuty: nextDuty };
+                      setWorkers(newW);
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-all cursor-pointer border ${
+                      w.isQrDuty
+                        ? "bg-purple-600 text-white border-purple-700 shadow-xs"
+                        : "bg-white text-gray-600 border-gray-300 hover:border-purple-400 hover:text-purple-700"
+                    }`}
+                    title="קבע כעובד שמקבל אוטומטית קריאות QR בצוות זה"
+                  >
+                    <i className={`fas fa-bolt ${w.isQrDuty ? "text-amber-300" : "text-gray-400"}`}></i>
+                    {w.isQrDuty ? "אחראי QR בצוות (פעיל)" : "קבע כאחראי QR בצוות"}
+                  </button>
+
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="text-blue-600 hover:text-blue-800 p-2 font-bold bg-blue-50 border-blue-200 h-auto text-xs" title="הדפס QR לאפליקציית עובד" onClick={() => {
+                      const url = window.location.origin + "/worker.html?tenantId=" + tenantId + "&workerId=" + w.id;
+                      printHtmlInIframe(`
+                        <html dir="rtl"><head><title>Print Worker QR</title>
+                        <style>
+                          body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin-top: 50px; background: white; color: #111827; }
+                          .card { border: 4px solid #db2777; border-radius: 20px; display: inline-block; padding: 40px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                          h1 { font-size: 36px; margin-bottom: 10px; color: #db2777; font-weight: 900; }
+                          p { font-size: 24px; color: #4b5563; font-weight: bold; margin-bottom: 30px; }
+                          .name-badge { display: inline-block; background: #fce7f3; color: #be185d; padding: 10px 20px; border-radius: 12px; font-size: 28px; font-weight: 900; margin-bottom: 30px; border: 2px dashed #f472b6; }
+                          .qr-container { padding: 20px; border: 3px solid #e5e7eb; border-radius: 16px; display: inline-block; background: #fff; }
+                        </style>
+                        </head>
+                        <body>
+                          <div class="card">
+                              <h1>אפליקציית עובד</h1>
+                              <p>סרוק כדי להתחבר למשימות שלך</p>
+                              <div class="name-badge">עובד: ${w.name}</div><br>
+                              <div class="qr-container">
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(url)}" />
+                              </div>
+                          </div>
+                        </body></html>
+                      `);
+                    }}><i className="fas fa-qrcode ml-1.5"></i>QR עובד</Button>
+                    <Button variant="danger" className="p-2 h-auto" onClick={() => {
+                      const newW = [...workers];
+                      newW.splice(idx, 1);
+                      setWorkers(newW);
+                    }}><i className="fas fa-trash-alt"></i></Button>
+                  </div>
                 </div>
               </div>
             ))
@@ -619,7 +793,7 @@ export function AdminModals({
                   const val = (e.target as HTMLInputElement).value.trim();
                   if(val) {
                     if(workers.find(wx => wx.name === val)) return toast("שם עובד כבר קיים", "error");
-                    setWorkers([...workers, { id: "", name: val }]);
+                    setWorkers([...workers, { id: "", name: val, isQrDuty: false }]);
                     (e.target as HTMLInputElement).value = "";
                   }
                 }
@@ -630,7 +804,7 @@ export function AdminModals({
               const val = inp.value.trim();
               if(val) {
                 if(workers.find(wx => wx.name === val)) return toast("שם עובד כבר קיים", "error");
-                setWorkers([...workers, { id: "", name: val }]);
+                setWorkers([...workers, { id: "", name: val, isQrDuty: false }]);
                 inp.value = "";
               }
             }}><i className="fas fa-plus"></i></Button>
@@ -643,7 +817,7 @@ export function AdminModals({
               let finalWorkers = [...workers];
               if(val) {
                 if(!finalWorkers.find(wx => wx.name === val)) {
-                  finalWorkers.push({ id: "", name: val });
+                  finalWorkers.push({ id: "", name: val, isQrDuty: false });
                 }
               }
               setLoading(true);
@@ -651,11 +825,16 @@ export function AdminModals({
                 const res = await fetch(`/api/${tenantId}`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ action: "SAVE_WORKERS", workers: finalWorkers })
+                  body: JSON.stringify({
+                    action: "SAVE_WORKERS",
+                    workers: finalWorkers,
+                    autoAssignQrToWorker: localAutoAssignQr
+                  })
                 });
                 const out = await res.json();
                 if(out.status === "success") {
-                  toast("רשימת העובדים נשמרה", "success");
+                  if (out.qrSettings) setQrSettings(out.qrSettings);
+                  toast("רשימת העובדים והגדרות ניתוב QR נשמרו", "success");
                   setWorkersModalOpen(false);
                   loadTasks();
                 } else {
