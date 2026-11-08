@@ -25,7 +25,7 @@ async function isAuthenticated(req: Request) {
   }
 
   if (!token) return false;
-  if (token === SUPERADMIN_PASSWORD || token === 'super123') return true;
+  if (token === SUPERADMIN_PASSWORD || (process.env.NODE_ENV !== 'production' && token === 'super123')) return true;
 
   try {
     const verified = await jwtVerify(token, getJwtSecret());

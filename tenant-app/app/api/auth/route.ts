@@ -4,6 +4,7 @@ import { SignJWT } from 'jose';
 
 // Using shared prisma singleton
 const SUPERADMIN_PASSWORD = process.env.SUPERADMIN_PASSWORD || "super123";
+const SUPERADMIN_USERNAME = process.env.SUPERADMIN_USERNAME || process.env.SUPERADMIN_EMAIL || "superadmin";
 
 const getJwtSecret = () => {
   const secret = process.env.JWT_SECRET || 'fallback-secret-key-for-development-only-change-me-in-production';
@@ -22,7 +23,12 @@ export async function POST(req: Request) {
     let userTenantId = '';
     let userId = '';
 
-    if (email === 'superadmin' && password === SUPERADMIN_PASSWORD) {
+    const normalizedInput = String(email).trim().toLowerCase();
+    const isSuperadminUser = 
+      (normalizedInput === SUPERADMIN_USERNAME.trim().toLowerCase() || normalizedInput === 'superadmin') && 
+      password === SUPERADMIN_PASSWORD;
+
+    if (isSuperadminUser) {
       userRole = 'SUPERADMIN';
       userId = 'superadmin-id';
       userTenantId = 'all';
