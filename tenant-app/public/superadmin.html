@@ -112,7 +112,7 @@
                         <thead class="bg-gray-50 border-b">
                             <tr>
                                 <th class="p-4 font-bold text-gray-600">שם לקוח</th>
-                                <th class="p-4 font-bold text-gray-600">ID</th>
+                                <th class="p-4 font-bold text-gray-600">פרטי כניסה (משתמש / סיסמה)</th>
                                 <th class="p-4 font-bold text-gray-600">סטטוס</th>
                                 <th class="p-4 font-bold text-gray-600">תוכנית</th>
                                 <th class="p-4 font-bold text-gray-600">תוקף מנוי</th>
@@ -307,17 +307,22 @@
                     <h4 class="text-md font-bold text-gray-800 mb-2">פרטי התחברות ללקוח (Admin Login)</h4>
                     <div class="space-y-3">
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">Email / אימייל להתחברות</label>
-                            <input type="email" id="tAdminEmail" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
+                            <label class="block text-sm font-bold text-gray-700 mb-1">שם משתמש / אימייל להתחברות</label>
+                            <input type="text" id="tAdminEmail" placeholder="לדוגמה: admin@company.com או שם משתמש" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500 text-left font-mono" dir="ltr">
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-1">סיסמה</label>
-                                <input type="password" id="tAdminPwd" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
+                                <div class="relative">
+                                    <input type="text" id="tAdminPwd" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500 text-left font-mono pr-10" dir="ltr">
+                                    <button type="button" onclick="const p = document.getElementById('tAdminPwd'); const c = document.getElementById('tAdminPwdConfirm'); const ic = document.getElementById('tAdminEye'); if(p.type==='password'){p.type='text'; c.type='text'; ic.className='fas fa-eye-slash text-indigo-600';}else{p.type='password'; c.type='password'; ic.className='fas fa-eye text-gray-400';}" class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                                        <i id="tAdminEye" class="fas fa-eye-slash text-indigo-600"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div>
                                 <label class="block text-sm font-bold text-gray-700 mb-1">אימות סיסמה</label>
-                                <input type="password" id="tAdminPwdConfirm" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
+                                <input type="text" id="tAdminPwdConfirm" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500 text-left font-mono" dir="ltr">
                             </div>
                         </div>
                     </div>
@@ -330,32 +335,39 @@
         </div>
     </div>
 
-    <!-- Reset Password Modal -->
+    <!-- Edit Credentials / Reset Password Modal -->
     <div id="resetPwdModal" class="fixed inset-0 bg-black/50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl flex flex-col">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col">
             <div class="flex justify-between items-center border-b pb-3 mb-4">
-                <h3 class="text-xl font-black text-gray-800">איפוס סיסמה</h3>
+                <div>
+                    <h3 class="text-xl font-black text-gray-800">פרטי גישה של הלקוח (Login)</h3>
+                    <p id="resetPwdTenantName" class="text-xs font-bold text-indigo-600 mt-0.5"></p>
+                </div>
                 <button onclick="closeResetPwdModal()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
             </div>
             
             <div class="space-y-4 mb-4">
                 <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">סיסמה חדשה</label>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">שם משתמש / אימייל לכניסה</label>
+                    <input type="text" id="resetAdminEmail" placeholder="admin@company.com" class="w-full p-3 bg-gray-50 border rounded-xl font-bold font-mono text-left outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">סיסמה</label>
                     <div class="relative">
-                        <input type="password" id="resetPwdNew" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500 pr-10" dir="ltr">
-                        <button type="button" onclick="const pwd = document.getElementById('resetPwdNew'); const icon = document.getElementById('resetEyeIcon'); if(pwd.type === 'password') { pwd.type = 'text'; icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); } else { pwd.type = 'password'; icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); }" class="absolute inset-y-0 right-0 pr-3 flex items-center text-indigo-400 hover:text-indigo-600 transition-colors">
-                            <i id="resetEyeIcon" class="fas fa-eye text-lg"></i>
+                        <input type="text" id="resetPwdNew" class="w-full p-3 bg-gray-50 border rounded-xl font-bold font-mono text-left outline-none focus:ring-2 focus:ring-indigo-500 pr-10" dir="ltr">
+                        <button type="button" onclick="const pwd = document.getElementById('resetPwdNew'); const conf = document.getElementById('resetPwdConfirm'); const icon = document.getElementById('resetEyeIcon'); if(pwd.type === 'password') { pwd.type = 'text'; conf.type = 'text'; icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); } else { pwd.type = 'password'; conf.type = 'password'; icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); }" class="absolute inset-y-0 right-0 pr-3 flex items-center text-indigo-500 hover:text-indigo-700 transition-colors">
+                            <i id="resetEyeIcon" class="fas fa-eye-slash text-lg"></i>
                         </button>
                     </div>
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">אימות סיסמה</label>
-                    <input type="password" id="resetPwdConfirm" class="w-full p-3 bg-gray-50 border rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
+                    <input type="text" id="resetPwdConfirm" class="w-full p-3 bg-gray-50 border rounded-xl font-bold font-mono text-left outline-none focus:ring-2 focus:ring-indigo-500" dir="ltr">
                 </div>
             </div>
 
             <div class="border-t pt-4">
-                <button onclick="submitResetPwd()" class="w-full bg-red-600 text-white py-3 rounded-xl font-bold hover:bg-red-500 shadow-md">אפס סיסמה</button>
+                <button onclick="submitResetPwd()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-500 shadow-md"><i class="fas fa-save ml-2"></i>שמור שם משתמש וסיסמה</button>
             </div>
         </div>
     </div>
@@ -610,11 +622,36 @@
                 }
 
                 const createdDate = t.createdAt ? new Date(t.createdAt).toLocaleDateString('he-IL') : '-';
+                const adminLogin = t.adminEmail || 'לא הוגדר';
+                const adminPwd = t.adminPassword || '---';
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-gray-50 transition-colors">
-                        <td class="p-4 font-bold text-gray-900">${t.name}</td>
-                        <td class="p-4 text-xs text-gray-500 font-mono">${(t.id || '').substring(0,8)}...</td>
+                        <td class="p-4">
+                            <div class="font-bold text-gray-900">${t.name}</div>
+                            <div class="text-[10px] text-gray-400 font-mono">ID: ${(t.id || '').substring(0,8)}...</div>
+                        </td>
+                        <td class="p-4">
+                            <div class="flex flex-col gap-1 bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs" dir="ltr">
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-slate-400 font-bold text-[10px]">USER:</span>
+                                    <span class="font-mono font-bold text-indigo-700 select-all">${adminLogin}</span>
+                                </div>
+                                <div class="flex items-center justify-between gap-2 border-t border-slate-100 pt-1">
+                                    <span class="text-slate-400 font-bold text-[10px]">PASS:</span>
+                                    <div class="flex items-center gap-1.5">
+                                        <span id="pwd-mask-${t.id}" class="font-mono font-bold text-slate-700 select-all">••••••</span>
+                                        <span id="pwd-real-${t.id}" class="font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 rounded select-all hidden">${adminPwd}</span>
+                                        <button onclick="toggleTablePwd('${t.id}')" class="text-slate-400 hover:text-indigo-600 px-1" title="הצג/הסתר סיסמה">
+                                            <i id="pwd-icon-${t.id}" class="fas fa-eye text-[11px]"></i>
+                                        </button>
+                                        <button onclick="openResetPwdModal('${t.id}')" class="text-amber-500 hover:text-amber-700 px-1" title="שנה שם משתמש / סיסמה">
+                                            <i class="fas fa-pen text-[10px]"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
                         <td class="p-4"><span class="px-2.5 py-1 rounded-md font-bold text-xs ${statusColor}">${statusLabel}</span></td>
                         <td class="p-4 font-bold text-indigo-700 text-xs">${t.plan || 'BASIC'} (${t.price || 0}₪)</td>
                         <td class="p-4">${expiryBadge}</td>
@@ -622,15 +659,32 @@
                         <td class="p-4 text-gray-600 font-medium">${t._count ? t._count.tasks : 0} משימות</td>
                         <td class="p-4 text-gray-500">${createdDate}</td>
                         <td class="p-4 text-center space-x-2 space-x-reverse">
-                            <button onclick="editTenant('${t.id}')" class="text-blue-600 hover:text-blue-800 p-2" title="עריכה והארכת מנוי"><i class="fas fa-edit"></i></button>
-                            <button onclick="openResetPwdModal('${t.id}')" class="text-yellow-500 hover:text-yellow-600 p-2" title="איפוס סיסמה"><i class="fas fa-key"></i></button>
+                            <button onclick="editTenant('${t.id}')" class="text-blue-600 hover:text-blue-800 p-2" title="עריכת לקוח ופרטי כניסה"><i class="fas fa-edit"></i></button>
+                            <button onclick="openResetPwdModal('${t.id}')" class="text-yellow-500 hover:text-yellow-600 p-2" title="שינוי שם משתמש וסיסמה"><i class="fas fa-key"></i></button>
                             <button onclick="openInvoiceModal('${t.id}')" class="text-green-600 hover:text-green-800 p-2" title="הפק חשבונית/הצעה"><i class="fas fa-file-invoice-dollar"></i></button>
                             <a href="/admin-react?tenantId=${t.id}" target="_blank" class="text-indigo-600 hover:text-indigo-800 p-2" title="כניסה למערכת"><i class="fas fa-external-link-alt"></i></a>
-                            <button onclick="deleteTenant('${t.id}')" class="text-red-500 hover:text-red-700 p-2"><i class="fas fa-trash"></i></button>
+                            <button onclick="deleteTenant('${t.id}')" class="text-red-500 hover:text-red-700 p-2" title="מחק לקוח"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>
                 `;
             });
+        }
+
+        function toggleTablePwd(tenantId) {
+            const maskEl = document.getElementById('pwd-mask-' + tenantId);
+            const realEl = document.getElementById('pwd-real-' + tenantId);
+            const iconEl = document.getElementById('pwd-icon-' + tenantId);
+            if (!maskEl || !realEl) return;
+            const isHidden = realEl.classList.contains('hidden');
+            if (isHidden) {
+                realEl.classList.remove('hidden');
+                maskEl.classList.add('hidden');
+                if (iconEl) iconEl.className = 'fas fa-eye-slash text-[11px] text-indigo-600';
+            } else {
+                realEl.classList.add('hidden');
+                maskEl.classList.remove('hidden');
+                if (iconEl) iconEl.className = 'fas fa-eye text-[11px]';
+            }
         }
 
         function renderPlanDropdown() {
@@ -796,6 +850,9 @@
                             <button onclick="createTenantFromLead('${l.id}')" class="bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-200 text-sm font-bold" title="הפוך ללקוח">
                                 <i class="fas fa-user-plus ml-1"></i>לקוח
                             </button>
+                            <button onclick="deleteLead('${l.id}')" class="bg-red-50 text-red-600 px-2.5 py-1.5 rounded-lg hover:bg-red-100 border border-red-200 text-sm font-bold" title="מחק ליד">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
                         </div>
                     </div>
                 `;
@@ -809,6 +866,18 @@
             } catch(e) { alert('Error updating lead'); }
         }
 
+        async function deleteLead(id) {
+            if(!confirm('האם אתה בטוח שברצונך למחוק פנייה (ליד) זו?')) return;
+            try {
+                const res = await apiCall('DELETE_LEAD', 'POST', { leadIdToDelete: id });
+                if(res && res.success) {
+                    loadDashboard();
+                } else {
+                    alert((res && res.error) || 'שגיאה במחיקת ליד');
+                }
+            } catch(e) { alert('שגיאה במחיקת ליד'); }
+        }
+
         function createTenantFromLead(id) {
             const lead = leads.find(l => l.id === id);
             if(!lead) return;
@@ -816,6 +885,7 @@
             document.getElementById('tName').value = lead.company || lead.name;
             document.getElementById('tEmail').value = lead.email || '';
             document.getElementById('tPhone').value = lead.phone || '';
+            document.getElementById('tAdminEmail').value = lead.email || '';
         }
 
         // Tenant Modal functions
@@ -868,8 +938,12 @@
                 document.getElementById('tSubEnd').value = '';
             }
 
-            document.getElementById('tenantModalTitle').innerText = "עריכת לקוח והארכת מנוי";
-            document.getElementById('newTenantCredentials').classList.add('hidden');
+            document.getElementById('tAdminEmail').value = t.adminEmail || "";
+            document.getElementById('tAdminPwd').value = t.adminPassword || "";
+            document.getElementById('tAdminPwdConfirm').value = t.adminPassword || "";
+
+            document.getElementById('tenantModalTitle').innerText = "עריכת לקוח, פרטי כניסה והארכת מנוי";
+            document.getElementById('newTenantCredentials').classList.remove('hidden');
         }
 
         function addSubscriptionPeriod(months) {
@@ -900,21 +974,28 @@
             };
             if(!data.name) return alert('שם חובה');
 
+            const email = document.getElementById('tAdminEmail').value.trim();
+            const pwd = document.getElementById('tAdminPwd').value;
+            const confirm = document.getElementById('tAdminPwdConfirm').value;
+
             if(!id) {
-                const email = document.getElementById('tAdminEmail').value;
-                const pwd = document.getElementById('tAdminPwd').value;
-                const confirm = document.getElementById('tAdminPwdConfirm').value;
-                if(!email || !pwd) return alert('נא למלא אימייל וסיסמה עבור מנהל הלקוח');
+                if(!email || !pwd) return alert('נא למלא שם משתמש/אימייל וסיסמה עבור מנהל הלקוח');
                 if(pwd !== confirm) return alert('הסיסמאות אינן תואמות');
                 data.adminEmail = email;
                 data.adminPassword = pwd;
+            } else {
+                if(pwd && pwd !== confirm) return alert('הסיסמאות אינן תואמות');
+                if(email) data.adminEmail = email;
+                if(pwd) data.adminPassword = pwd;
             }
 
             try {
                 if(id) {
-                    await apiCall('UPDATE_TENANT', 'POST', { id, updates: data });
+                    const res = await apiCall('UPDATE_TENANT', 'POST', { id, updates: data });
+                    if(res && res.error) return alert(res.error);
                 } else {
-                    await apiCall('CREATE_TENANT', 'POST', data);
+                    const res = await apiCall('CREATE_TENANT', 'POST', data);
+                    if(res && res.error) return alert(res.error);
                 }
                 closeTenantModal();
                 loadDashboard();
@@ -929,32 +1010,41 @@
             } catch(e) { alert('Error deleting tenant'); }
         }
 
-        // Reset Password functions
+        // Reset Password & Username functions
         let currentResetTenantId = null;
         function openResetPwdModal(tenantId) {
             currentResetTenantId = tenantId;
-            document.getElementById('resetPwdNew').value = "";
-            document.getElementById('resetPwdConfirm').value = "";
+            const t = tenants.find(x => x.id === tenantId);
+            if (document.getElementById('resetPwdTenantName')) {
+                document.getElementById('resetPwdTenantName').innerText = t ? `לקוח: ${t.name}` : '';
+            }
+            if (document.getElementById('resetAdminEmail')) {
+                document.getElementById('resetAdminEmail').value = (t && t.adminEmail) ? t.adminEmail : '';
+            }
+            document.getElementById('resetPwdNew').value = (t && t.adminPassword) ? t.adminPassword : '';
+            document.getElementById('resetPwdConfirm').value = (t && t.adminPassword) ? t.adminPassword : '';
             document.getElementById('resetPwdModal').classList.remove('hidden');
         }
         function closeResetPwdModal() { document.getElementById('resetPwdModal').classList.add('hidden'); currentResetTenantId = null; }
         
         async function submitResetPwd() {
             if(!currentResetTenantId) return;
+            const newEmail = document.getElementById('resetAdminEmail') ? document.getElementById('resetAdminEmail').value.trim() : '';
             const pwd = document.getElementById('resetPwdNew').value;
             const confirm = document.getElementById('resetPwdConfirm').value;
-            if(!pwd) return alert('נא להזין סיסמה חדשה');
-            if(pwd !== confirm) return alert('הסיסמאות אינן תואמות');
+            if(!newEmail && !pwd) return alert('נא להזין שם משתמש או סיסמה חדשה');
+            if(pwd && pwd !== confirm) return alert('הסיסמאות אינן תואמות');
             
             try {
-                const res = await apiCall('RESET_TENANT_PASSWORD', 'POST', { tenantId: currentResetTenantId, newPassword: pwd });
+                const res = await apiCall('RESET_TENANT_PASSWORD', 'POST', { tenantId: currentResetTenantId, newEmail, newPassword: pwd });
                 if(res.success) {
-                    alert('הסיסמה שונתה בהצלחה');
+                    alert('פרטי הכניסה של הלקוח עודכנו בהצלחה!');
                     closeResetPwdModal();
+                    loadDashboard();
                 } else {
-                    alert(res.error || 'שגיאה באיפוס הסיסמה');
+                    alert(res.error || 'שגיאה בעדכון פרטי הכניסה');
                 }
-            } catch(e) { alert('Error resetting password'); }
+            } catch(e) { alert('Error resetting credentials'); }
         }
 
         // Invoice Functions

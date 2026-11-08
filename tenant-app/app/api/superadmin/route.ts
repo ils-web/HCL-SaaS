@@ -204,14 +204,28 @@ export async function GET(req: Request) {
         });
 
       case 'GET_TENANTS':
-        const tenants = await prisma.tenant.findMany({
+        const tenantsDb = await prisma.tenant.findMany({
           where: { NOT: { name: '__SYSTEM_GLOBAL_CONFIG__' } },
           orderBy: { createdAt: 'desc' },
           include: {
+            users: {
+              where: { role: 'ADMIN' },
+              orderBy: { createdAt: 'asc' },
+              select: { id: true, name: true, email: true, password: true }
+            },
             _count: {
               select: { users: true, tasks: true }
             }
           }
+        });
+        const tenants = tenantsDb.map(t => {
+          const primaryAdmin = t.users?.[0] || null;
+          return {
+            ...t,
+            adminUserId: primaryAdmin?.id || null,
+            adminEmail: primaryAdmin?.email || '',
+            adminPassword: primaryAdmin?.password || ''
+          };
         });
         return NextResponse.json({ success: true, tenants });
 
@@ -267,6 +281,14 @@ export async function POST(req: Request) {
           return NextResponse.json({ error: 'adminEmail and adminPassword are required for new tenants' }, { status: 400 });
         }
 
+        const cleanAdminEmail = String(adminEmail).trim();
+        const cleanAdminPassword = String(adminPassword).trim();
+
+        const existingEmailUser = await prisma.user.findUnique({ where: { email: cleanAdminEmail } });
+        if (existingEmailUser) {
+          return NextResponse.json({ error: 'שם משתמש / אימייל זה כבר בשימוש על ידי לקוח אחר' }, { status: 400 });
+        }
+
         const newTenant = await prisma.tenant.create({
           data: {
             name,
@@ -278,8 +300,8 @@ export async function POST(req: Request) {
             status: 'ACTIVE',
             users: {
               create: {
-                email: adminEmail,
-                password: adminPassword,
+                email: cleanAdminEmail,
+                password: cleanAdminPassword,
                 role: 'ADMIN',
                 name: 'Menahel'
               }
@@ -290,24 +312,46 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: true, tenant: newTenant });
 
       case 'RESET_TENANT_PASSWORD':
-        const { tenantId, newPassword } = body;
-        if (!tenantId || !newPassword) {
-            return NextResponse.json({ error: 'tenantId and newPassword are required' }, { status: 400 });
+        const { tenantId, newEmail, newPassword } = body;
+        if (!tenantId || (!newPassword && !newEmail)) {
+          return NextResponse.json({ error: 'tenantId and credentials are required' }, { status: 400 });
         }
         
         // Find the admin user for this tenant
         const adminUser = await prisma.user.findFirst({
-            where: { tenantId: tenantId, role: 'ADMIN' }
+          where: { tenantId: tenantId, role: 'ADMIN' },
+          orderBy: { createdAt: 'asc' }
         });
 
-        if (!adminUser) {
-            return NextResponse.json({ error: 'Admin user not found for this tenant' }, { status: 404 });
+        const trimmedEmail = newEmail !== undefined ? String(newEmail).trim() : undefined;
+        const trimmedPassword = newPassword !== undefined ? String(newPassword).trim() : undefined;
+
+        if (trimmedEmail) {
+          const emailConflict = await prisma.user.findUnique({ where: { email: trimmedEmail } });
+          if (emailConflict && emailConflict.id !== adminUser?.id) {
+            return NextResponse.json({ error: 'שם משתמש / אימייל זה כבר תפוס במערכת' }, { status: 400 });
+          }
         }
 
-        await prisma.user.update({
+        if (!adminUser) {
+          await prisma.user.create({
+            data: {
+              tenantId,
+              name: 'Menahel',
+              email: trimmedEmail || `admin_${tenantId.slice(0, 6)}`,
+              password: trimmedPassword || '123456',
+              role: 'ADMIN'
+            }
+          });
+        } else {
+          await prisma.user.update({
             where: { id: adminUser.id },
-            data: { password: newPassword }
-        });
+            data: {
+              ...(trimmedEmail ? { email: trimmedEmail } : {}),
+              ...(trimmedPassword ? { password: trimmedPassword } : {})
+            }
+          });
+        }
         
         return NextResponse.json({ success: true });
 
@@ -330,6 +374,11 @@ export async function POST(req: Request) {
       case 'UPDATE_TENANT':
         const { id, updates } = body;
         const cleanUpdates: any = { ...updates };
+        const updatedAdminEmail = cleanUpdates.adminEmail !== undefined ? String(cleanUpdates.adminEmail).trim() : undefined;
+        const updatedAdminPassword = cleanUpdates.adminPassword !== undefined ? String(cleanUpdates.adminPassword).trim() : undefined;
+        delete cleanUpdates.adminEmail;
+        delete cleanUpdates.adminPassword;
+
         if (cleanUpdates.status === 'FREE') {
           cleanUpdates.status = 'ACTIVE';
           cleanUpdates.plan = 'FREE';
@@ -346,6 +395,39 @@ export async function POST(req: Request) {
           cleanUpdates.maxInspectors = Number(cleanUpdates.maxInspectors) || 1;
         }
 
+        // Update or create the tenant's ADMIN credentials if provided
+        if (updatedAdminEmail || updatedAdminPassword) {
+          const existingAdmin = await prisma.user.findFirst({
+            where: { tenantId: id, role: 'ADMIN' },
+            orderBy: { createdAt: 'asc' }
+          });
+          if (updatedAdminEmail) {
+            const conflict = await prisma.user.findUnique({ where: { email: updatedAdminEmail } });
+            if (conflict && conflict.id !== existingAdmin?.id) {
+              return NextResponse.json({ error: 'שם משתמש / אימייל זה כבר תפוס על ידי לקוח אחר' }, { status: 400 });
+            }
+          }
+          if (!existingAdmin) {
+            await prisma.user.create({
+              data: {
+                tenantId: id,
+                name: 'Menahel',
+                email: updatedAdminEmail || `admin_${id.slice(0, 6)}`,
+                password: updatedAdminPassword || '123456',
+                role: 'ADMIN'
+              }
+            });
+          } else {
+            await prisma.user.update({
+              where: { id: existingAdmin.id },
+              data: {
+                ...(updatedAdminEmail ? { email: updatedAdminEmail } : {}),
+                ...(updatedAdminPassword ? { password: updatedAdminPassword } : {})
+              }
+            });
+          }
+        }
+
         const updatedTenant = await prisma.tenant.update({
           where: { id },
           data: cleanUpdates
@@ -354,11 +436,6 @@ export async function POST(req: Request) {
 
       case 'DELETE_TENANT':
         const { tenantIdToDelete } = body;
-        // Важно: Prisma не удалит связанное каскадно автоматически, если не настроено CASCADE.
-        // Для MVP мы можем просто пометить как BLOCKED, либо удалить все связи.
-        // Безопаснее просто заблокировать. Но раз просили "Создание, удаление клиента", 
-        // попытаемся удалить. Для этого нужно удалять зависимые сущности.
-        
         await prisma.$transaction([
           prisma.task.deleteMany({ where: { tenantId: tenantIdToDelete } }),
           prisma.system.deleteMany({ where: { tenantId: tenantIdToDelete } }),
@@ -380,6 +457,14 @@ export async function POST(req: Request) {
           data: { status }
         });
         return NextResponse.json({ success: true, lead: updatedLead });
+
+      case 'DELETE_LEAD':
+        const { leadIdToDelete } = body;
+        if (!leadIdToDelete) {
+          return NextResponse.json({ error: 'Missing leadIdToDelete' }, { status: 400 });
+        }
+        await prisma.lead.delete({ where: { id: leadIdToDelete } });
+        return NextResponse.json({ success: true });
 
       default:
         return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
