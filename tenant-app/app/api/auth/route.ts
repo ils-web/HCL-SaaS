@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     const token = await new SignJWT({ id: userId, role: userRole, tenantId: userTenantId })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
-      .setExpirationTime('24h')
+      .setExpirationTime('30d')
       .sign(getJwtSecret());
 
     const response = NextResponse.json({ success: true, token, role: userRole, tenantId: userTenantId });
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 24
+      maxAge: 60 * 60 * 24 * 30 // 30 days persistent session
     });
 
     return response;

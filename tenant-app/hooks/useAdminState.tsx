@@ -7,14 +7,82 @@ import { toast } from "@/components/ui/Toast"
 import { format } from "date-fns"
 import { type Task } from "@/components/ui/TaskCard"
 
-const fetcher = (url: string) => fetch(url).then(res => res.json())
+const fetcher = async (url: string) => {
+  const res = await fetch(url)
+  if (!res.ok) {
+    let errMessage = `HTTP error ${res.status}`
+    try {
+      const errData = await res.json()
+      if (errData && errData.error) errMessage = errData.error
+    } catch (_) {}
+    const error: any = new Error(errMessage)
+    error.status = res.status
+    throw error
+  }
+  const data = await res.json()
+  if (data && data.error && !data.tasks) {
+    const error: any = new Error(data.error)
+    throw error
+  }
+  return data
+}
 
 export function useAdminState() {
   const router = useRouter()
   const [tenantId, setTenantId] = React.useState<string | null>(null)
-  const { data: tasksData, mutate: mutateTasks, isLoading: tasksLoading } = useSWR(tenantId ? `/api/${tenantId}?action=getOpenTasks` : null, fetcher, { refreshInterval: 5000 })
   
-  const tasks: Task[] = tasksData?.tasks || []
+  // Offline & Sleep persistence cache
+  const [cachedTasks, setCachedTasks] = React.useState<Task[]>([])
+
+  React.useEffect(() => {
+    if (tenantId) {
+      try {
+        const saved = localStorage.getItem(`hcl_cached_tasks_${tenantId}`)
+        if (saved) {
+          const parsed = JSON.parse(saved)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setCachedTasks(parsed)
+          }
+        }
+      } catch (_) {}
+    }
+  }, [tenantId])
+
+  const { data: tasksData, mutate: mutateTasks, isLoading: tasksLoading } = useSWR(
+    tenantId ? `/api/${tenantId}?action=getOpenTasks` : null, 
+    fetcher, 
+    { 
+      refreshInterval: 5000,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      dedupingInterval: 2000,
+      keepPreviousData: true,
+      onErrorRetry: (error: any, key, config, revalidate, { retryCount }) => {
+        // If 401 Unauthorized, session expired
+        if (error?.status === 401) {
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            window.location.href = '/login?expired=1'
+          }
+          return
+        }
+        if (retryCount >= 10) return
+        setTimeout(() => revalidate({ retryCount }), Math.min(1000 * 2 ** retryCount, 15000))
+      }
+    }
+  )
+
+  // Keep localStorage cache updated
+  React.useEffect(() => {
+    if (tasksData?.tasks && Array.isArray(tasksData.tasks) && tasksData.tasks.length > 0 && tenantId) {
+      try {
+        localStorage.setItem(`hcl_cached_tasks_${tenantId}`, JSON.stringify(tasksData.tasks.slice(0, 150)))
+      } catch (_) {}
+    }
+  }, [tasksData, tenantId])
+  
+  const tasks: Task[] = (tasksData?.tasks && Array.isArray(tasksData.tasks)) 
+    ? tasksData.tasks 
+    : (cachedTasks.length > 0 ? cachedTasks : [])
 
   // Notify on new QR tasks
   const prevTasksCountRef = React.useRef<number>(0)
@@ -270,7 +338,24 @@ export function useAdminState() {
     loadTasks()
     // Trigger the 48-hour rule check
     fetch("/api/cron").catch(() => {})
-  }, [loadTasks])
+
+    const handleResume = () => {
+      if (document.visibilityState === 'visible') {
+        mutateTasks()
+        loadTasks()
+      }
+    }
+    const handleOnline = () => {
+      mutateTasks()
+      loadTasks()
+    }
+    window.addEventListener('visibilitychange', handleResume)
+    window.addEventListener('online', handleOnline)
+    return () => {
+      window.removeEventListener('visibilitychange', handleResume)
+      window.removeEventListener('online', handleOnline)
+    }
+  }, [loadTasks, mutateTasks])
 
   const activeTabs = Array.from(new Set([
     ...teams.map((t: any) => t.name),
