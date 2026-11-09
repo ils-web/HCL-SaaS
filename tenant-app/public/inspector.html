@@ -100,7 +100,15 @@
                         <label class="block text-sm font-bold text-gray-700" data-i18n="pinLabel">🔐 Код доступа инспектора (PIN)</label>
                         <span id="pinAutoBadge" class="hidden text-xs font-extrabold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full" data-i18n="pinAutoLoaded">✅ Авторизовано по QR</span>
                     </div>
-                    <input type="password" inputmode="numeric" id="inspectorPin" maxlength="8" class="w-full px-4 py-3 bg-indigo-50/50 border border-indigo-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-black text-center tracking-widest text-xl" data-i18n-ph="pinPlaceholder" placeholder="••••" oninput="removeError(this)">
+                    <div class="relative flex items-center">
+                        <input type="password" inputmode="numeric" id="inspectorPin" maxlength="8" class="w-full px-12 py-3 bg-indigo-50/50 border border-indigo-300 rounded-xl focus:ring-2 focus:ring-indigo-500 font-black text-center tracking-widest text-xl" data-i18n-ph="pinPlaceholder" placeholder="••••" oninput="onPinInputChange(this)">
+                        <button type="button" onclick="togglePinVisibility()" class="absolute right-3 text-indigo-400 hover:text-indigo-600 p-2 z-10" title="הצג/הסתר">
+                            <i id="pinEyeIcon" class="fas fa-eye text-base"></i>
+                        </button>
+                        <button type="button" id="pinClearBtn" onclick="clearPinInput()" class="absolute left-3 text-gray-400 hover:text-rose-500 p-2 z-10 hidden" title="נקה">
+                            <i class="fas fa-times-circle text-base"></i>
+                        </button>
+                    </div>
                 </div>
             </div>
             <button onclick="startInspection()" class="w-full mt-8 bg-indigo-600 text-white py-4 px-4 rounded-xl shadow-md text-lg font-bold hover:bg-indigo-700 active:scale-95" data-i18n="startBtn">
@@ -251,6 +259,52 @@
 
         window.addEventListener('beforeunload', e => { if (state.isRunning) { e.preventDefault(); e.returnValue = ''; } });
 
+        function togglePinVisibility() {
+            const pinEl = document.getElementById('inspectorPin');
+            const icon = document.getElementById('pinEyeIcon');
+            if (!pinEl) return;
+            if (pinEl.type === 'password') {
+                pinEl.type = 'text';
+                if (icon) { icon.classList.remove('fa-eye'); icon.classList.add('fa-eye-slash'); }
+            } else {
+                pinEl.type = 'password';
+                if (icon) { icon.classList.remove('fa-eye-slash'); icon.classList.add('fa-eye'); }
+            }
+        }
+
+        function clearPinInput() {
+            const pinEl = document.getElementById('inspectorPin');
+            const badge = document.getElementById('pinAutoBadge');
+            const clearBtn = document.getElementById('pinClearBtn');
+            if (pinEl) {
+                pinEl.value = '';
+                pinEl.focus();
+            }
+            state.inspectorPin = '';
+            localStorage.removeItem(`hcl_inspector_pin_${_tId}`);
+            if (badge) badge.classList.add('hidden');
+            if (clearBtn) clearBtn.classList.add('hidden');
+        }
+
+        function onPinInputChange(el) {
+            removeError(el);
+            const val = el.value.trim();
+            state.inspectorPin = val;
+            const badge = document.getElementById('pinAutoBadge');
+            const clearBtn = document.getElementById('pinClearBtn');
+            if (clearBtn) {
+                if (val.length > 0) clearBtn.classList.remove('hidden');
+                else clearBtn.classList.add('hidden');
+            }
+            const saved = localStorage.getItem(`hcl_inspector_pin_${_tId}`);
+            if (badge && val !== saved) {
+                badge.classList.add('hidden');
+            }
+            if (!val) {
+                localStorage.removeItem(`hcl_inspector_pin_${_tId}`);
+            }
+        }
+
         async function fetchTenantInfo() {
             if (!_tId || !API_URL) {
                 appAlert(T.noTenantErr);
@@ -259,10 +313,12 @@
             const savedPin = localStorage.getItem(`hcl_inspector_pin_${_tId}`) || '';
             const pinInput = document.getElementById('inspectorPin');
             const pinBadge = document.getElementById('pinAutoBadge');
+            const clearBtn = document.getElementById('pinClearBtn');
             if (pinInput && savedPin) {
                 pinInput.value = savedPin;
                 state.inspectorPin = savedPin;
                 if (pinBadge) pinBadge.classList.remove('hidden');
+                if (clearBtn) clearBtn.classList.remove('hidden');
             }
             try {
                 const res = await fetch(`${API_URL}?action=getSettings`);
@@ -361,7 +417,7 @@
             const pinEl = document.getElementById('inspectorPin');
             const insp = inspEl.value.trim();
             const dept = deptEl.value.trim();
-            const pinVal = (pinEl ? pinEl.value.trim() : '') || localStorage.getItem(`hcl_inspector_pin_${_tId}`) || '';
+            const pinVal = (pinEl ? pinEl.value.trim() : '') || state.inspectorPin || '';
 
             if (!insp) { inspEl.classList.add('error-shake'); return appAlert(isHebrew ? "מלא את כל השדות!" : "Заполните все поля!"); }
             if (!dept) { deptEl.classList.add('error-shake'); return appAlert(isHebrew ? "מלא את כל השדות!" : "Заполните все поля!"); }
@@ -390,6 +446,7 @@
                     document.getElementById('loader').classList.add('hidden');
                     if (pinEl && authOut.error === 'INVALID_INSPECTOR_PIN') {
                         pinEl.classList.add('error-shake');
+                        clearPinInput();
                     }
                     return appAlert(authOut.message || (isHebrew ? "קוד גישה (PIN) שגוי! קוד ברירת המחדל הוא 2580." : "Неверный код доступа инспектора (PIN)! Код по умолчанию: 2580."));
                 }
