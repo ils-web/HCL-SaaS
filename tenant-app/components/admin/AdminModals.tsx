@@ -107,6 +107,7 @@ interface AdminModalsProps {
 
   exportTasksToCSV?: () => void
   handleCleanupTasks?: (days: number) => void
+  maxInspectors?: number
 }
 
 export function AdminModals({
@@ -123,7 +124,7 @@ export function AdminModals({
   telegramBotToken, setTelegramBotToken, telegramChatId, setTelegramChatId,
   whatsappInstance, setWhatsappInstance, whatsappToken, setWhatsappToken,
   qrSettings, setQrSettings, saveQrSettings,
-  exportTasksToCSV, handleCleanupTasks
+  exportTasksToCSV, handleCleanupTasks, maxInspectors
 }: AdminModalsProps) {
   const [qrDept, setQrDept] = React.useState("")
   const [qrCustomDept, setQrCustomDept] = React.useState("")
@@ -522,15 +523,24 @@ export function AdminModals({
               </Button>
             </div>
 
-            <div className="flex items-center justify-between pt-2 border-t border-indigo-200/70 text-xs">
-              <span className="text-gray-600 font-bold">
-                📱 מכשירי מפקחים פעילים:{" "}
-                <strong className="text-indigo-700">{(qrSettings?.inspectorDevices || []).length}</strong>
-              </span>
-              {(qrSettings?.inspectorDevices || []).length > 0 && (
+            {/* Devices & Reset Section */}
+            <div className="pt-3 border-t border-indigo-200/70 space-y-2.5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-gray-700">
+                  <span>📱 מכשירי מפקחים מחוברים:</span>
+                  <span className="bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full font-black text-xs">
+                    {(qrSettings?.inspectorDevices || []).length} / {maxInspectors || 1}
+                  </span>
+                </div>
                 <button
                   type="button"
                   onClick={async () => {
+                    const count = (qrSettings?.inspectorDevices || []).length;
+                    if (count === 0) {
+                      toast("אין כרגע מכשירים מחוברים לאיפוס", "info");
+                      return;
+                    }
+                    if (!confirm(`האם לנתק את כל ${count} המכשירים המחוברים? המפקחים יצטרכו לסרוק את ה-QR מחדש.`)) return;
                     try {
                       const res = await fetch(`/api/${tenantId}`, {
                         method: "POST",
@@ -540,16 +550,42 @@ export function AdminModals({
                       const out = await res.json();
                       if (out.status === "success") {
                         setQrSettings({ ...qrSettings, inspectorDevices: [] });
-                        toast("רשימת מכשירי המפקחים אופסה בהצלחה", "success");
+                        toast("כל מכשירי המפקחים נותקו ואופסו בהצלחה", "success");
+                      } else {
+                        toast(out.error || "שגיאה באיפוס מכשירים", "error");
                       }
                     } catch (e) {
                       toast("שגיאה באיפוס מכשירים", "error");
                     }
                   }}
-                  className="text-rose-600 hover:text-rose-800 font-bold underline cursor-pointer"
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-all shadow-sm ${
+                    (qrSettings?.inspectorDevices || []).length > 0
+                      ? "bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100 cursor-pointer"
+                      : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-70"
+                  }`}
+                  title="ניתוק כל מכשירי המפקחים המחוברים"
                 >
-                  אפס / נתק מכשירים
+                  <i className="fas fa-trash-alt"></i>
+                  <span>אפס / נתק מכשירים</span>
                 </button>
+              </div>
+
+              {(qrSettings?.inspectorDevices || []).length > 0 ? (
+                <div className="bg-white/90 border border-indigo-100 rounded-lg p-2.5 space-y-1.5 text-xs">
+                  <div className="text-[11px] font-bold text-gray-500 mb-1">רשימת מכשירים פעילים:</div>
+                  {(qrSettings.inspectorDevices as any[]).map((d: any, idx: number) => (
+                    <div key={idx} className="flex justify-between items-center bg-gray-50 px-2.5 py-1 rounded border border-gray-100 text-[11px]">
+                      <span className="font-bold text-gray-800">👤 {d.inspectorName || "מפקח"}</span>
+                      <span className="text-gray-400 font-mono">
+                        {d.lastSeen ? new Date(d.lastSeen).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : 'פעיל'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[11px] text-gray-500 italic text-right">
+                  * כרגע אין מכשירים מחוברים. ברגע שמפקח יתחבר, הטלפון שלו יירשם כאן אוטומטית.
+                </p>
               )}
             </div>
           </div>

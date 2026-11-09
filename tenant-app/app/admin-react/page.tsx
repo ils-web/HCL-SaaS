@@ -42,7 +42,7 @@ export default function AdminReactPage() {
     selectedTasks, filtered, viewMode, setViewMode, handlePrintSelected, handleSendToApp, handleCloseMass,
     handleReturnToOpenMass, activeTabs, currentTab, setCurrentTab, handleToggleCheck, handleApprove,
     handleReturnToOpen, handleDelete, handleTeamChange, handleEditDefect, printDocumentData, printCardsData,
-    qrSettings, setQrSettings, saveQrSettings, exportTasksToCSV, handleCleanupTasks,
+    qrSettings, setQrSettings, saveQrSettings, maxInspectors, exportTasksToCSV, handleCleanupTasks,
     tenantStatus, setTenantStatus, plan, setPlan, price, setPrice,
     subscriptionEndsAt, setSubscriptionEndsAt, plans, setPlans,
     subscriptionModalOpen, setSubscriptionModalOpen,
@@ -236,6 +236,7 @@ export default function AdminReactPage() {
         qrSettings={qrSettings}
         setQrSettings={setQrSettings}
         saveQrSettings={saveQrSettings}
+        maxInspectors={maxInspectors}
         exportTasksToCSV={exportTasksToCSV}
         handleCleanupTasks={handleCleanupTasks}
       />

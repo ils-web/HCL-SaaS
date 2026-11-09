@@ -44,6 +44,7 @@ export function useAdminState() {
   const [teams, setTeams] = React.useState<any[]>([])
   const [loadingLocal, setLoadingLocal] = React.useState(true)
   const [qrSettings, setQrSettings] = React.useState<any>({ mode: '24/7', start: '08:00', end: '17:00' })
+  const [maxInspectors, setMaxInspectors] = React.useState<number>(1)
   const loading = loadingLocal || tasksLoading
   
   // Modals & Print
@@ -245,6 +246,7 @@ export function useAdminState() {
       if (settingsData.tenantStatus) setTenantStatus(settingsData.tenantStatus)
       if (settingsData.plan) setPlan(settingsData.plan)
       if (settingsData.price !== undefined) setPrice(settingsData.price)
+      if (settingsData.maxInspectors !== undefined) setMaxInspectors(settingsData.maxInspectors)
       if (settingsData.subscriptionEndsAt !== undefined) setSubscriptionEndsAt(settingsData.subscriptionEndsAt)
       if (settingsData.plans) setPlans(settingsData.plans)
       
@@ -740,7 +742,7 @@ export function useAdminState() {
     handleToggleCheck, handleSelectAll, handleAction, handleTeamChange, handleEditDefect,
     handleApprove, handleDelete, handleReturnToOpen, handleReturnToOpenMass, handleCloseMass,
     handlePrintSelected, handleSendToApp, executeOutputSequence,
-    qrSettings, setQrSettings, saveQrSettings,
+    qrSettings, setQrSettings, saveQrSettings, maxInspectors,
     exportTasksToCSV, handleCleanupTasks,
     tenantStatus, setTenantStatus, plan, setPlan, price, setPrice,
     subscriptionEndsAt, setSubscriptionEndsAt, plans, setPlans,
