@@ -555,8 +555,14 @@ export function AdminModals({
           </div>
           
           <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold h-12" onClick={() => {
-            const pinParam = localRequireInspectorPin && localInspectorPin.trim()
-              ? `&pin=${encodeURIComponent(localInspectorPin.trim())}`
+            const activePin = localInspectorPin.trim() || "2580";
+            saveQrSettings({
+              ...qrSettings,
+              inspectorPin: activePin,
+              requireInspectorPin: localRequireInspectorPin
+            });
+            const pinParam = localRequireInspectorPin && activePin
+              ? `&pin=${encodeURIComponent(activePin)}`
               : "";
             setQrGeneratedUrl(`${window.location.origin}/inspector.html?tenantId=${tenantId}${pinParam}`);
           }}>
