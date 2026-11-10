@@ -320,6 +320,7 @@
         let cachedTasks = [];
         let pollingInterval = null;
         let workerInfo = null;
+        let isFetchingTasks = false;
 
         let activeTaskId = null;
         let currentPhotoBase64 = null;
@@ -332,8 +333,19 @@
                 document.getElementById('tasksContainer').innerHTML = `<div class="bg-red-50 border border-red-200 rounded-2xl p-6 text-center text-red-600 font-bold mt-10">${t.notFound}</div>`;
                 return;
             }
-            await fetchTasks();
-            pollingInterval = setInterval(() => fetchTasks(false), 10000);
+            await fetchTasks(true);
+            pollingInterval = setInterval(() => {
+                if (document.visibilityState === 'visible') {
+                    fetchTasks(false);
+                }
+            }, 10000);
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') {
+                    fetchTasks(false);
+                }
+            });
+            window.addEventListener('online', () => fetchTasks(false));
             
             if ("Notification" in window && Notification.permission === "granted") {
                 document.getElementById('notifIcon').classList.add('text-indigo-600');
@@ -353,14 +365,20 @@
         }
 
         async function fetchTasks(showSpin = false) {
+            if (isFetchingTasks && !showSpin) return;
+            isFetchingTasks = true;
             const refIcon = document.getElementById('refreshIcon');
             if (showSpin && refIcon) refIcon.classList.add('fa-spin');
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
                 const res = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'GET_WORKER_TASKS', workerId, lang: currentLang })
+                    body: JSON.stringify({ action: 'GET_WORKER_TASKS', workerId, lang: currentLang }),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
                 const data = await res.json();
                 
                 if (data.status !== 'success') {
@@ -403,6 +421,7 @@
             } catch (err) {
                 console.error(err);
             } finally {
+                isFetchingTasks = false;
                 if (refIcon) refIcon.classList.remove('fa-spin');
             }
         }
@@ -652,11 +671,15 @@
                     comment: comment
                 };
 
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 20000);
                 const res = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
                 
                 if (!res.ok) throw new Error("Server error");
                 

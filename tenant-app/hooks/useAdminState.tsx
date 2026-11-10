@@ -53,9 +53,10 @@ export function useAdminState() {
     fetcher, 
     { 
       refreshInterval: 5000,
+      refreshWhenHidden: false,
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
-      dedupingInterval: 2000,
+      dedupingInterval: 2500,
       keepPreviousData: true,
       onErrorRetry: (error: any, key, config, revalidate, { retryCount }) => {
         // If 401 Unauthorized, session expired
@@ -71,11 +72,16 @@ export function useAdminState() {
     }
   )
 
-  // Keep localStorage cache updated
+  // Keep localStorage cache updated without heavy base64 data URIs that could exceed 5MB quota
   React.useEffect(() => {
     if (tasksData?.tasks && Array.isArray(tasksData.tasks) && tasksData.tasks.length > 0 && tenantId) {
       try {
-        localStorage.setItem(`hcl_cached_tasks_${tenantId}`, JSON.stringify(tasksData.tasks.slice(0, 150)))
+        const lightweightTasks = tasksData.tasks.slice(0, 150).map((t: any) => ({
+          ...t,
+          photo: typeof t.photo === 'string' && t.photo.startsWith('data:') ? '' : t.photo,
+          afterPhoto: typeof t.afterPhoto === 'string' && t.afterPhoto.startsWith('data:') ? '' : t.afterPhoto
+        }))
+        localStorage.setItem(`hcl_cached_tasks_${tenantId}`, JSON.stringify(lightweightTasks))
       } catch (_) {}
     }
   }, [tasksData, tenantId])

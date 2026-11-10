@@ -372,6 +372,9 @@
                 return;
             }
 
+            const submitBtn = document.getElementById('uiSubmitBtn');
+            if (submitBtn && submitBtn.disabled) return;
+            if (submitBtn) submitBtn.disabled = true;
             document.getElementById('loader').classList.remove('hidden');
 
             const payload = {
@@ -387,16 +390,23 @@
             };
 
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 20000);
                 const res = await fetch(API_URL, { 
                     method: 'POST', 
-                    body: JSON.stringify(payload) 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
+                if (!res.ok) throw new Error('Server error');
                 
                 document.getElementById('loader').classList.add('hidden');
                 document.getElementById('successScreen').classList.remove('hidden');
                 
             } catch (e) {
                 document.getElementById('loader').classList.add('hidden');
+                if (submitBtn) submitBtn.disabled = false;
                 alert(dict[lang].errNet);
             }
         }

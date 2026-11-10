@@ -49,6 +49,9 @@ model User {
   tasksAssigned Task[]   @relation("WorkerTasks")
   team          Team?    @relation(fields: [teamId], references: [id])
   tenant        Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, role])
+  @@index([tenantId, name])
 }
 
 model Team {
@@ -72,6 +75,8 @@ model Department {
   createdAt DateTime @default(now())
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   tasks     Task[]
+
+  @@index([tenantId, name])
 }
 
 model Area {
@@ -82,6 +87,8 @@ model Area {
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   systems   System[]
   tasks     Task[]
+
+  @@index([tenantId, name])
 }
 
 model System {
@@ -95,6 +102,9 @@ model System {
   autoAssignTeam   Team?    @relation(fields: [autoAssignTeamId], references: [id])
   tenant           Tenant   @relation(fields: [tenantId], references: [id])
   tasks            Task[]
+
+  @@index([tenantId, name])
+  @@index([areaId])
 }
 
 model Task {
@@ -123,6 +133,12 @@ model Task {
   team             Team?       @relation(fields: [teamId], references: [id])
   tenant           Tenant      @relation(fields: [tenantId], references: [id])
   worker           User?       @relation("WorkerTasks", fields: [workerId], references: [id])
+
+  @@index([tenantId, status, createdAt(sort: Desc)])
+  @@index([tenantId, isSentToApp, status])
+  @@index([tenantId, workerId, status])
+  @@index([tenantId, teamId, status])
+  @@index([status, createdAt])
 }
 
 model QrMapping {
@@ -155,6 +171,8 @@ model Invoice {
   status          String   @default("PENDING")
   createdAt       DateTime @default(now())
   tenant          Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId])
 }
 
 enum TenantStatus {

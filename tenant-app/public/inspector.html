@@ -609,7 +609,10 @@
             saveRoomData(pendingSaveIsAllGood);
         }
 
+        let isSavingRoom = false;
         async function saveRoomData(isAllGood) {
+            if (isSavingRoom) return;
+            isSavingRoom = true;
             const sBtn = document.getElementById('saveRoomBtn'); const aBtn = document.getElementById('allGoodBtn');
             if(sBtn){ sBtn.disabled = true; sBtn.style.opacity = "0.5"; }
             if(aBtn){ aBtn.disabled = true; aBtn.style.opacity = "0.5"; }
@@ -622,6 +625,7 @@
                     const rBlock = row.querySelector('.rating-block'); const rating = rBlock ? rBlock.dataset.val : null; const comment = row.querySelector('.comment-text').value.trim();
                     if(!sys || !rating || !comment) { 
                         row.querySelector('.issue-body').classList.remove('hidden'); attemptCollapse(row.querySelector('.collapse-btn')); 
+                        isSavingRoom = false;
                         if(sBtn){ sBtn.disabled = false; sBtn.style.opacity = "1"; }
                         if(aBtn){ aBtn.disabled = false; aBtn.style.opacity = "1"; }
                         return; 
@@ -634,6 +638,8 @@
             document.getElementById('loaderText').innerText = T.syncText; document.getElementById('loader').classList.remove('hidden');
             try {
                 let activePin = state.inspectorPin || localStorage.getItem(`hcl_inspector_pin_${_tId}`) || '';
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 25000);
                 let res = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -644,8 +650,10 @@
                         items: items,
                         inspectorPin: activePin,
                         deviceId: _deviceId
-                    })
+                    }),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
                 let out = await res.json();
                 if (res.status === 403 && out.error === 'INVALID_INSPECTOR_PIN') {
                     const promptedPin = window.prompt(isHebrew ? "נא להזין קוד גישה למפקח (PIN):" : "Введите код доступа инспектора (PIN):");
@@ -680,6 +688,7 @@
                 document.getElementById('roomDetailsDisplay').classList.add('hidden'); window.scrollTo(0, 0);
             } catch(e) { appAlert(isHebrew ? "שגיאת רשת. בדוק את החיבור ונסה שוב." : "Сбой интернета. Проверьте сеть и нажмите 'Сохранить' еще раз."); } 
             finally { 
+                isSavingRoom = false;
                 document.getElementById('loader').classList.add('hidden'); 
                 if(sBtn){ sBtn.disabled = false; sBtn.style.opacity = "1"; }
                 if(aBtn){ aBtn.disabled = false; aBtn.style.opacity = "1"; }

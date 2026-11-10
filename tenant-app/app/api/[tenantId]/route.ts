@@ -109,6 +109,7 @@ function matchTeamByQrCategory(categoryName: string, teamsDb: { id: string; name
 }
 
 const translationCache = new Map<string, string>();
+const inFlightTranslations = new Map<string, Promise<string>>();
 
 async function translateCached(text: string, targetLang: string): Promise<string> {
   if (!text || !text.trim() || !targetLang) return text || '';
@@ -124,19 +125,29 @@ async function translateCached(text: string, targetLang: string): Promise<string
   const cached = translationCache.get(cacheKey);
   if (cached) return cached;
 
-  try {
-    const res = await fetch(
-      `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(clean)}`,
-      { signal: AbortSignal.timeout(3500) }
-    );
-    const data = await res.json();
-    const translated = data?.[0]?.map((item: any) => item[0])?.join('') || clean;
-    if (translationCache.size > 3000) translationCache.clear();
-    translationCache.set(cacheKey, translated);
-    return translated;
-  } catch (e) {
-    return clean;
-  }
+  const existingPromise = inFlightTranslations.get(cacheKey);
+  if (existingPromise) return existingPromise;
+
+  const promise = (async () => {
+    try {
+      const res = await fetch(
+        `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(targetLang)}&dt=t&q=${encodeURIComponent(clean)}`,
+        { signal: AbortSignal.timeout(2500) }
+      );
+      const data = await res.json();
+      const translated = data?.[0]?.map((item: any) => item[0])?.join('') || clean;
+      if (translationCache.size > 4000) translationCache.clear();
+      translationCache.set(cacheKey, translated);
+      return translated;
+    } catch (e) {
+      return clean;
+    } finally {
+      inFlightTranslations.delete(cacheKey);
+    }
+  })();
+
+  inFlightTranslations.set(cacheKey, promise);
+  return promise;
 }
 
 async function uploadToImgBB(base64Str: string): Promise<string | null> {
@@ -144,27 +155,25 @@ async function uploadToImgBB(base64Str: string): Promise<string | null> {
   if (base64Str.startsWith('http')) return base64Str;
   const b64Data = base64Str.includes(',') ? base64Str.split(',')[1] : base64Str;
   
-  // 1. Primary Host: freeimage.host (Fast global CDN iili.io, 100% reliable)
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      const form = new URLSearchParams();
-      form.append('key', '6d207e02198a847aa98d0a2a901485a5');
-      form.append('action', 'upload');
-      form.append('source', b64Data);
-      form.append('format', 'json');
-      const res = await fetch('https://freeimage.host/api/1/upload', {
-        method: 'POST',
-        body: form,
-        signal: AbortSignal.timeout(8000)
-      });
-      const result = await res.json();
-      if (result?.image?.url) return result.image.url;
-    } catch (e) {
-      console.error(`freeimage.host upload attempt ${attempt} error:`, e);
-    }
+  // 1. Primary Host: freeimage.host (Fast global CDN iili.io, 4.5s timeout to prevent serverless 504)
+  try {
+    const form = new URLSearchParams();
+    form.append('key', '6d207e02198a847aa98d0a2a901485a5');
+    form.append('action', 'upload');
+    form.append('source', b64Data);
+    form.append('format', 'json');
+    const res = await fetch('https://freeimage.host/api/1/upload', {
+      method: 'POST',
+      body: form,
+      signal: AbortSignal.timeout(4500)
+    });
+    const result = await res.json();
+    if (result?.image?.url) return result.image.url;
+  } catch (e) {
+    console.error('freeimage.host upload error:', e);
   }
 
-  // 2. Fallback 1: Imgur
+  // 2. Fallback 1: Imgur (4.5s timeout)
   try {
     const imgurForm = new URLSearchParams();
     imgurForm.append('image', b64Data);
@@ -172,7 +181,7 @@ async function uploadToImgBB(base64Str: string): Promise<string | null> {
       method: 'POST',
       headers: { 'Authorization': 'Client-ID 546c25a59c58ad7' },
       body: imgurForm,
-      signal: AbortSignal.timeout(8000)
+      signal: AbortSignal.timeout(4500)
     });
     const result = await res.json();
     if (result?.data?.link) return result.data.link;
@@ -189,11 +198,21 @@ async function sendTelegram(text: string, customBotToken?: string | null, custom
   const TELEGRAM_CHAT_ID = customChatId || process.env.TELEGRAM_CHAT_ID;
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
   try {
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text, parse_mode: 'Markdown' })
+      body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text, parse_mode: 'Markdown' }),
+      signal: AbortSignal.timeout(4000)
     });
+    // Fallback to plain text if Markdown failed due to unescaped special characters (_, *, [)
+    if (!res.ok) {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: text.replace(/[*_`]/g, '') }),
+        signal: AbortSignal.timeout(4000)
+      });
+    }
   } catch (e) {
     console.error('Telegram error:', e);
   }
@@ -597,13 +616,21 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         const maxAllowed = tenant.status === 'FREE' ? 999 : (tenant.maxInspectors || 1);
         const devices: any[] = Array.isArray(normalizedQr.inspectorDevices) ? [...normalizedQr.inspectorDevices] : [];
         const existingIdx = devices.findIndex((d: any) => d.deviceId === deviceId);
+        let shouldPersistDeviceUpdate = false;
 
         if (existingIdx >= 0) {
-          devices[existingIdx] = {
-            ...devices[existingIdx],
-            inspectorName: inspectorName || devices[existingIdx].inspectorName || 'מפקח',
-            lastSeen: new Date().toISOString()
-          };
+          const prevLastSeen = devices[existingIdx].lastSeen ? new Date(devices[existingIdx].lastSeen).getTime() : 0;
+          const prevName = devices[existingIdx].inspectorName || '';
+          const newName = inspectorName || prevName || 'מפקח';
+          // Throttle DB updates on Tenant row to once every 10 minutes per device (or if inspector name changed)
+          if (Date.now() - prevLastSeen > 10 * 60 * 1000 || newName !== prevName) {
+            devices[existingIdx] = {
+              ...devices[existingIdx],
+              inspectorName: newName,
+              lastSeen: new Date().toISOString()
+            };
+            shouldPersistDeviceUpdate = true;
+          }
         } else {
           if (devices.length >= maxAllowed) {
             return {
@@ -618,17 +645,20 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
             addedAt: new Date().toISOString(),
             lastSeen: new Date().toISOString()
           });
+          shouldPersistDeviceUpdate = true;
         }
 
-        await prisma.tenant.update({
-          where: { id: tenantId },
-          data: {
-            qrSettings: {
-              ...normalizedQr,
-              inspectorDevices: devices
-            } as any
-          }
-        });
+        if (shouldPersistDeviceUpdate) {
+          await prisma.tenant.update({
+            where: { id: tenantId },
+            data: {
+              qrSettings: {
+                ...normalizedQr,
+                inspectorDevices: devices
+              } as any
+            }
+          });
+        }
       }
 
       return { ok: true };
@@ -696,38 +726,46 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         }
       });
     } else {
-      // Create Tasks
-      for (const item of items) {
-        const { name, score, comment, photoBase64 } = item;
-        
-        // Find System across the whole tenant template (created by admin)
-        let sys = await prisma.system.findFirst({ where: { tenantId, name } });
-
-        let teamId = sys?.autoAssignTeamId;
-        if (!teamId) {
-          let defTeam = await prisma.team.findFirst({ where: { tenantId, name: 'כללי' } });
-          if (!defTeam) defTeam = await prisma.team.create({ data: { tenantId, name: 'כללי' } });
-          teamId = defTeam.id;
+      // Pre-fetch tenant systems and default 'כללי' team once to eliminate N+1 DB queries
+      const [tenantSystems, existingDefaultTeam] = await Promise.all([
+        prisma.system.findMany({ where: { tenantId } }),
+        prisma.team.findFirst({ where: { tenantId, name: 'כללי' } })
+      ]);
+      const sysByName = new Map(tenantSystems.map(s => [s.name, s]));
+      let defTeam = existingDefaultTeam;
+      if (!defTeam) {
+        try {
+          defTeam = await prisma.team.create({ data: { tenantId, name: 'כללי' } });
+        } catch (_) {
+          defTeam = await prisma.team.findFirst({ where: { tenantId, name: 'כללי' } });
         }
-
-        const finalPhotoUrl = await uploadToImgBB(photoBase64);
-
-        await prisma.task.create({
-          data: {
-            tenantId,
-            departmentId: dept.id,
-            systemId: sys ? sys.id : null,
-            customDefectName: sys ? null : name,
-            room: String(room),
-            actionType: score == 1 ? 'REPLACE' : 'REPAIR',
-            status: 'NEW',
-            notes: comment || '',
-            photoUrl: finalPhotoUrl,
-            inspectorName: inspector,
-            teamId: teamId
-          }
-        });
       }
+
+      // Upload all photos in parallel and create tasks concurrently to prevent serverless timeouts
+      await Promise.all(
+        items.map(async (item: any) => {
+          const { name, score, comment, photoBase64 } = item;
+          const sys = sysByName.get(name) || null;
+          const teamId = sys?.autoAssignTeamId || defTeam?.id || null;
+          const finalPhotoUrl = photoBase64 ? await uploadToImgBB(photoBase64) : null;
+
+          return prisma.task.create({
+            data: {
+              tenantId,
+              departmentId: dept.id,
+              systemId: sys ? sys.id : null,
+              customDefectName: sys ? null : name,
+              room: String(room),
+              actionType: score == 1 ? 'REPLACE' : 'REPAIR',
+              status: 'NEW',
+              notes: comment || '',
+              photoUrl: finalPhotoUrl,
+              inspectorName: inspector,
+              teamId: teamId
+            }
+          });
+        })
+      );
     }
 
     return NextResponse.json({ status: 'success' });
@@ -741,25 +779,28 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       }
     }
     const { reporterName, department, room, sheetName, defect, comment, photoBase64, language } = body;
-    
-    let translatedComment = comment || '';
-    if (translatedComment) {
-      translatedComment = await translateCached(translatedComment, 'he');
-    }
-
     const realDeptName = (department && department !== "Unknown" && department !== "לא ידוע") ? department : "כללי";
-    let dept = await prisma.department.findFirst({ where: { tenantId, name: realDeptName } });
-    if (!dept) dept = await prisma.department.create({ data: { tenantId, name: realDeptName } });
-    
-    let qrTeam = await prisma.team.findFirst({ where: { tenantId, name: 'QR' } });
-    if (!qrTeam) qrTeam = await prisma.team.create({ data: { tenantId, name: 'QR' } });
-
     const sysName = defect || sheetName || 'אחר';
-    const [sys, teamsDb, workersDb] = await Promise.all([
+
+    // Run translation, image upload, and DB lookups in parallel
+    const [translatedComment, finalPhotoUrl, existingDept, sys, existingTeamsDb, workersDb] = await Promise.all([
+      comment ? translateCached(comment, 'he') : Promise.resolve(''),
+      photoBase64 ? uploadToImgBB(photoBase64) : Promise.resolve(null),
+      prisma.department.findFirst({ where: { tenantId, name: realDeptName } }),
       prisma.system.findFirst({ where: { tenantId, name: sysName } }),
       prisma.team.findMany({ where: { tenantId } }),
       prisma.user.findMany({ where: { tenantId, role: 'WORKER' } })
     ]);
+
+    let dept = existingDept;
+    if (!dept) dept = await prisma.department.create({ data: { tenantId, name: realDeptName } });
+    
+    let teamsDb = existingTeamsDb;
+    let qrTeam = teamsDb.find(t => t.name === 'QR') || null;
+    if (!qrTeam) {
+      qrTeam = await prisma.team.create({ data: { tenantId, name: 'QR' } });
+      teamsDb = [...teamsDb, qrTeam];
+    }
 
     // Resolve target brigade & automatic QR duty worker assignment
     const matchedBrigade = sys?.autoAssignTeamId
@@ -789,7 +830,6 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     }
 
     const finalTeamId = assignedWorker?.teamId || matchedBrigade?.id || qrTeam.id;
-    const finalPhotoUrl = await uploadToImgBB(photoBase64);
 
     await prisma.task.create({
       data: {
@@ -1114,9 +1154,10 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     const { id, room, tasks } = body;
     
     if (tasks && Array.isArray(tasks)) {
-      for (const t of tasks) {
+      const taskIds = tasks.map((t: any) => t?.id).filter(Boolean);
+      if (taskIds.length > 0) {
         await prisma.task.updateMany({
-          where: { tenantId, id: t.id },
+          where: { tenantId, id: { in: taskIds } },
           data: { status: 'CLOSED', photoUrl: null, afterPhotoUrl: null }
         });
       }
@@ -1173,25 +1214,12 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     if (!targetLang || !tasks || !Array.isArray(tasks)) {
       return NextResponse.json({ status: 'error', message: 'Invalid payload' }, { status: 400 });
     }
-    
-    const translateText = async (text: string): Promise<string> => {
-      if (!text || !text.trim()) return text || '';
-      try {
-        const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=he&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`, {
-          signal: AbortSignal.timeout(3000)
-        });
-        const data = await res.json();
-        return data?.[0]?.map((item: any) => item[0])?.join('') || text;
-      } catch (e) {
-        return text;
-      }
-    };
 
     const translations = await Promise.all(
       tasks.map(async (t: any) => {
         const [trDefect, trComment] = await Promise.all([
-          t.defect ? translateText(t.defect) : Promise.resolve(''),
-          t.comment ? translateText(t.comment) : Promise.resolve('')
+          t.defect ? translateCached(t.defect, targetLang) : Promise.resolve(''),
+          t.comment ? translateCached(t.comment, targetLang) : Promise.resolve('')
         ]);
 
         return {
@@ -1323,7 +1351,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       const origReworkNote = reworkLines.join('\n');
       const origGeneralNotes = generalLines.join('\n');
 
-      // 3. Translate all fields into the worker's browser language in parallel
+      // 3. Translate all fields into the worker's browser language in parallel (skip network calls when targetLang is Hebrew and text is already Hebrew)
       const [
         trDept,
         trRoom,
@@ -1334,17 +1362,29 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         trGeneralNotes,
         trReworkNote,
         trInspector
-      ] = await Promise.all([
-        translateCached(origDept, targetLang),
-        translateCached(origRoom, targetLang),
-        origArea ? translateCached(origArea, targetLang) : Promise.resolve(''),
-        origSystem ? translateCached(origSystem, targetLang) : Promise.resolve(''),
-        origCustomDefect ? translateCached(origCustomDefect, targetLang) : Promise.resolve(''),
-        translateCached(combinedDefectOrig, targetLang),
-        origGeneralNotes ? translateCached(origGeneralNotes, targetLang) : Promise.resolve(''),
-        origReworkNote ? translateCached(origReworkNote, targetLang) : Promise.resolve(''),
-        origInspector ? translateCached(origInspector, targetLang) : Promise.resolve('')
-      ]);
+      ] = targetLang === 'he'
+        ? [
+            origDept,
+            origRoom,
+            origArea,
+            origSystem,
+            origCustomDefect,
+            combinedDefectOrig,
+            origGeneralNotes ? await translateCached(origGeneralNotes, 'he') : '',
+            origReworkNote,
+            origInspector
+          ]
+        : await Promise.all([
+            translateCached(origDept, targetLang),
+            translateCached(origRoom, targetLang),
+            origArea ? translateCached(origArea, targetLang) : Promise.resolve(''),
+            origSystem ? translateCached(origSystem, targetLang) : Promise.resolve(''),
+            origCustomDefect ? translateCached(origCustomDefect, targetLang) : Promise.resolve(''),
+            translateCached(combinedDefectOrig, targetLang),
+            origGeneralNotes ? translateCached(origGeneralNotes, targetLang) : Promise.resolve(''),
+            origReworkNote ? translateCached(origReworkNote, targetLang) : Promise.resolve(''),
+            origInspector ? translateCached(origInspector, targetLang) : Promise.resolve('')
+          ]);
 
       return {
         id: t.id,
