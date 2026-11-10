@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hcl-pwa-v4';
+const CACHE_NAME = 'hcl-pwa-v5';
 
 // Core assets to pre-cache
 const PRECACHE_ASSETS = [
@@ -27,6 +27,75 @@ self.addEventListener('activate', (event) => {
           .map(name => caches.delete(name))
       );
     }).then(() => self.clients.claim())
+  );
+});
+
+// Web Push Notification handler (works even when app/browser is closed!)
+self.addEventListener('push', (event) => {
+  let payload = {
+    title: '🔔 משימה חדשה / Новая задача!',
+    body: 'התקבלה משימה חדשה ב-WorkerApp',
+    isRework: false,
+    isQr: false,
+    url: '/worker.html'
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      payload = { ...payload, ...parsed };
+    } catch (e) {
+      payload.body = event.data.text() || payload.body;
+    }
+  }
+
+  const options = {
+    body: payload.body,
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    vibrate: payload.isRework
+      ? [600, 150, 600, 150, 600, 150, 800]
+      : [500, 150, 500, 150, 700, 150, 500],
+    requireInteraction: true,
+    renotify: true,
+    tag: payload.tag || 'hcl-worker-task-alert',
+    data: {
+      url: payload.url || '/worker.html',
+      timestamp: Date.now()
+    }
+  };
+
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(payload.title, options),
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) {
+          client.postMessage({
+            type: 'PUSH_TASK_ALERT',
+            payload
+          });
+        }
+      })
+    ])
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/worker.html';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes('worker.html') && 'focus' in client) {
+          client.postMessage({ type: 'STOP_ALARM_AND_REFRESH' });
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
   );
 });
 

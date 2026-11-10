@@ -2,8 +2,22 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getGlobalConfig } from '@/app/api/superadmin/route';
 import { jwtVerify } from 'jose';
+import * as webpush from 'web-push';
 
 export const dynamic = 'force-dynamic';
+
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BJHfPPBGed7WgX_eqBuv4kTn2u11RXH74srBscnw7V_V28jMpqn-hy8pmf69FWyOL-btG80_owJbNatudlPzbDU';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || 'YWHKzayQguTpqlgh3vTkKGuwvtQjLm0I-CcXLezFvlY';
+
+try {
+  webpush.setVapidDetails(
+    'mailto:support@hcl-saas.com',
+    VAPID_PUBLIC_KEY,
+    VAPID_PRIVATE_KEY
+  );
+} catch (err) {
+  console.error('VAPID initialization warning:', err);
+}
 
 // Using shared prisma singleton
 
@@ -59,7 +73,8 @@ function getNormalizedQrSettings(tenant: any) {
     dutyWorkersByTeam: (raw.dutyWorkersByTeam && typeof raw.dutyWorkersByTeam === 'object') ? raw.dutyWorkersByTeam : {},
     inspectorPin: raw.inspectorPin ? String(raw.inspectorPin).trim() : defaultPin,
     requireInspectorPin: raw.requireInspectorPin !== undefined ? Boolean(raw.requireInspectorPin) : true,
-    inspectorDevices: Array.isArray(raw.inspectorDevices) ? raw.inspectorDevices : []
+    inspectorDevices: Array.isArray(raw.inspectorDevices) ? raw.inspectorDevices : [],
+    workerPushSubscriptions: Array.isArray(raw.workerPushSubscriptions) ? raw.workerPushSubscriptions : []
   };
 }
 
@@ -215,6 +230,120 @@ async function sendTelegram(text: string, customBotToken?: string | null, custom
     }
   } catch (e) {
     console.error('Telegram error:', e);
+  }
+}
+
+async function sendWorkerPushNotifications(
+  tenant: any,
+  opts: {
+    workerIds?: string[];
+    teamIds?: string[];
+    room?: string;
+    defect?: string;
+    isRework?: boolean;
+    isQr?: boolean;
+    count?: number;
+  }
+) {
+  try {
+    const normalizedQr = getNormalizedQrSettings(tenant);
+    const subs: any[] = Array.isArray(normalizedQr.workerPushSubscriptions)
+      ? normalizedQr.workerPushSubscriptions
+      : [];
+    if (subs.length === 0) return;
+
+    const targetWorkerSet = new Set((opts.workerIds || []).filter(Boolean));
+    const targetTeamSet = new Set((opts.teamIds || []).filter(Boolean));
+
+    const matchingSubs = subs.filter((s: any) => {
+      if (!s?.subscription?.endpoint) return false;
+      if (targetWorkerSet.size > 0 && s.workerId && targetWorkerSet.has(s.workerId)) return true;
+      if (targetWorkerSet.size === 0 && targetTeamSet.size > 0 && s.teamId && targetTeamSet.has(s.teamId)) return true;
+      return false;
+    });
+
+    if (matchingSubs.length === 0) return;
+
+    const deadEndpoints = new Set<string>();
+    const titleDict: Record<string, { new: string; rework: string; qr: string }> = {
+      he: {
+        new: '🔔 התקבלה משימה חדשה!',
+        rework: '🚨 משימה הוחזרה לתיקון ע"י המנהל!',
+        qr: '⚡ קריאת QR דחופה מהשטח!'
+      },
+      ru: {
+        new: '🔔 Получена новая задача!',
+        rework: '🚨 Задача возвращена на доработку!',
+        qr: '⚡ Срочная QR-заявка с места!'
+      },
+      ar: {
+        new: '🔔 تم استلام مهمة جديدة!',
+        rework: '🚨 تمت إعادة مهمة للتعديل!',
+        qr: '⚡ بلاغ QR عاجل!'
+      },
+      en: {
+        new: '🔔 New Task Assigned!',
+        rework: '🚨 Task Returned for Rework!',
+        qr: '⚡ Urgent QR Request!'
+      }
+    };
+
+    await Promise.all(
+      matchingSubs.map(async (subRecord: any) => {
+        const lang = ['he', 'ru', 'ar', 'en'].includes(subRecord.lang) ? subRecord.lang : 'he';
+        const titles = titleDict[lang] || titleDict.he;
+        const title = opts.isRework ? titles.rework : (opts.isQr ? titles.qr : titles.new);
+
+        let bodyText = '';
+        if (opts.count && opts.count > 1) {
+          bodyText = lang === 'ru'
+            ? `Назначено задач: ${opts.count}. Откройте приложение!`
+            : (lang === 'ar'
+              ? `تم تعيين ${opts.count} مهام جديدة`
+              : (lang === 'en' ? `${opts.count} new tasks assigned` : `שויכו אליך ${opts.count} משימות חדשות`));
+        } else {
+          const rawDefect = opts.defect || 'משימת אחזקה';
+          const trDefect = lang !== 'he' ? await translateCached(rawDefect, lang) : rawDefect;
+          const roomLabel = lang === 'ru' ? 'Комната' : (lang === 'ar' ? 'غرفة' : (lang === 'en' ? 'Room' : 'חדר'));
+          bodyText = opts.room ? `${roomLabel}: ${opts.room} — ${trDefect}` : trDefect;
+        }
+
+        const payload = JSON.stringify({
+          title,
+          body: bodyText,
+          isRework: Boolean(opts.isRework),
+          isQr: Boolean(opts.isQr),
+          url: '/worker.html',
+          tag: `hcl-task-${Date.now()}`
+        });
+
+        try {
+          await webpush.sendNotification(subRecord.subscription, payload, {
+            TTL: 86400,
+            urgency: 'high'
+          });
+        } catch (pushErr: any) {
+          if (pushErr?.statusCode === 404 || pushErr?.statusCode === 410) {
+            deadEndpoints.add(subRecord.subscription.endpoint);
+          }
+        }
+      })
+    );
+
+    if (deadEndpoints.size > 0) {
+      const cleaned = subs.filter((s: any) => !deadEndpoints.has(s?.subscription?.endpoint));
+      await prisma.tenant.update({
+        where: { id: tenant.id },
+        data: {
+          qrSettings: {
+            ...normalizedQr,
+            workerPushSubscriptions: cleaned
+          } as any
+        }
+      });
+    }
+  } catch (e) {
+    console.error('sendWorkerPushNotifications error:', e);
   }
 }
 
@@ -859,7 +988,17 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     }
     message += `💬 *הערות:* ${translatedComment || "-"}\n`;
     if (finalPhotoUrl) message += `\n 📷 [תמונה מצורפת](<${finalPhotoUrl}>)`;
-    await sendTelegram(message, tenant.telegramBotToken, tenant.telegramChatId);
+    await Promise.all([
+      sendTelegram(message, tenant.telegramBotToken, tenant.telegramChatId),
+      assignedWorker
+        ? sendWorkerPushNotifications(tenant, {
+            workerIds: [assignedWorker.id],
+            room: String(room || 'כללי'),
+            defect: sysName,
+            isQr: true
+          })
+        : Promise.resolve()
+    ]);
 
     return NextResponse.json({ status: 'success', assignedWorker: assignedWorker?.name || null });
   }
@@ -1428,6 +1567,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       status: 'success', 
       tasks, 
       tenantName: tenant.name,
+      vapidPublicKey: VAPID_PUBLIC_KEY,
       worker: { 
         id: worker.id, 
         name: worker.name, 
@@ -1435,6 +1575,42 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         teamName: trWorkerTeamName || rawTeamName 
       } 
     });
+  }
+
+  if (action === 'SAVE_WORKER_PUSH_SUBSCRIPTION') {
+    const { workerId, lang, subscription } = body;
+    if (!workerId || !subscription || !subscription.endpoint) {
+      return NextResponse.json({ error: 'Invalid subscription payload' }, { status: 400 });
+    }
+    const worker = await prisma.user.findUnique({ where: { id: workerId } });
+    if (!worker || worker.tenantId !== tenantId) {
+      return NextResponse.json({ error: 'Worker not found' }, { status: 404 });
+    }
+
+    const existingSubs: any[] = Array.isArray(normalizedQr.workerPushSubscriptions)
+      ? [...normalizedQr.workerPushSubscriptions]
+      : [];
+    const filtered = existingSubs.filter((s: any) => s?.subscription?.endpoint !== subscription.endpoint);
+    filtered.push({
+      workerId: worker.id,
+      teamId: worker.teamId || null,
+      lang: ['he', 'ru', 'ar', 'en'].includes(lang) ? lang : 'he',
+      subscription,
+      updatedAt: new Date().toISOString()
+    });
+    const capped = filtered.slice(-100);
+
+    await prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        qrSettings: {
+          ...normalizedQr,
+          workerPushSubscriptions: capped
+        } as any
+      }
+    });
+
+    return NextResponse.json({ status: 'success' });
   }
 
   if (action === 'ADMIN_CREATE_TASK') {
@@ -1497,6 +1673,14 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       }
     });
 
+    if (workerRecord) {
+      await sendWorkerPushNotifications(tenant, {
+        workerIds: [workerRecord.id],
+        room: String(room || 'כללי').trim(),
+        defect: rawDefect
+      });
+    }
+
     return NextResponse.json({ status: 'success', task: newTask });
   }
 
@@ -1504,7 +1688,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     const { taskId, workerName, returnToOpen, comment } = body;
     if (!taskId) return NextResponse.json({ error: 'Missing taskId' }, { status: 400 });
 
-    const dbTask = await prisma.task.findFirst({ where: { tenantId, id: taskId } });
+    const dbTask = await prisma.task.findFirst({ where: { tenantId, id: taskId }, include: { system: true } });
     if (!dbTask) return NextResponse.json({ error: 'Task not found' }, { status: 404 });
 
     let updatedNotes = dbTask.notes || '';
@@ -1531,17 +1715,26 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
       });
     } else {
       const worker = await prisma.user.findFirst({ where: { tenantId, name: workerName, role: 'WORKER' } });
+      const targetWorkerId = worker ? worker.id : dbTask.workerId;
       await prisma.task.update({
         where: { id: dbTask.id },
         data: {
           status: 'IN_PROGRESS',
-          workerId: worker ? worker.id : dbTask.workerId,
+          workerId: targetWorkerId,
           teamId: worker?.teamId || dbTask.teamId,
           isSentToApp: true,
           afterPhotoUrl: null,
           notes: updatedNotes
         }
       });
+      if (targetWorkerId) {
+        await sendWorkerPushNotifications(tenant, {
+          workerIds: [targetWorkerId],
+          room: dbTask.room,
+          defect: dbTask.system?.name || dbTask.customDefectName || 'משימה',
+          isRework: true
+        });
+      }
     }
 
     return NextResponse.json({ status: 'success' });
@@ -1554,7 +1747,7 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
     const { taskIds, workerName } = body;
     if (!taskIds || !Array.isArray(taskIds)) return NextResponse.json({ error: 'Missing taskIds' }, { status: 400 });
     
-    let workerId = undefined;
+    let workerId: string | undefined = undefined;
     if (workerName) {
       const worker = await prisma.user.findFirst({ where: { tenantId, name: workerName } });
       if (worker) workerId = worker.id;
@@ -1568,6 +1761,23 @@ export async function POST(request: Request, props: { params: Promise<{ tenantId
         ...(workerId ? { workerId } : {})
       }
     });
+
+    const affectedTasks = await prisma.task.findMany({
+      where: { id: { in: taskIds }, tenantId },
+      include: { system: true }
+    });
+    const notifyWorkerIds = Array.from(new Set(affectedTasks.map(t => t.workerId).filter(Boolean))) as string[];
+    const notifyTeamIds = Array.from(new Set(affectedTasks.map(t => t.teamId).filter(Boolean))) as string[];
+    const firstTask = affectedTasks[0];
+
+    await sendWorkerPushNotifications(tenant, {
+      workerIds: notifyWorkerIds,
+      teamIds: notifyTeamIds,
+      room: firstTask?.room,
+      defect: firstTask?.system?.name || firstTask?.customDefectName || 'משימה חדשה',
+      count: affectedTasks.length
+    });
+
     return NextResponse.json({ status: 'success' });
   }
 
